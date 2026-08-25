@@ -5,7 +5,9 @@ The submitted package contains generated files, so this explains how to reproduc
 
 ## What is generated
 
-The package holds `manifest.json` and `dist/` only.
+The package holds `manifest.json`, `_locales/`, `icons/`, `LICENSE` and `dist/`.
+Of those only `dist/` is generated at build time; the rest are checked in as they are.
+
 Everything in `dist/` is produced from `src/` by `build.mjs`:
 
 - `dist/main-world.js`, `dist/content.js`, `dist/options.js`, `dist/popup.js` are bundled from the TypeScript sources by esbuild, one bundle per entry point.
@@ -63,7 +65,7 @@ The same check on this source tree:
 
 ```
 $ diff -r dist/ <the dist/ extracted from the package>
-（no output）
+(no output)
 ```
 
 ## Other commands
