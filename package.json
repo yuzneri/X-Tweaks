@@ -15,7 +15,7 @@
     "store": "npm run build && node render-store.mjs",
     "lint:ext": "web-ext lint",
     "package": "npm run check && web-ext build",
-    "package:source": "if [ -z \"$(git status --porcelain)\" ]; then mkdir -p web-ext-artifacts && git archive --format=zip -o web-ext-artifacts/x-pro-tweaks-source.zip HEAD; else echo 'Commit first: the source package is built from HEAD'; exit 1; fi"
+    "package:source": "if [ -z \"$(git status --porcelain)\" ]; then mkdir -p web-ext-artifacts && git archive --format=zip -o \"web-ext-artifacts/x_pro_tweaks-$npm_package_version-source.zip\" HEAD; else echo 'Commit first: the source package is built from HEAD'; exit 1; fi"
   },
   "devDependencies": {
     "@melloware/coloris": "^0.25.0",

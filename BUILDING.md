@@ -71,10 +71,13 @@ $ diff -r dist/ <the dist/ extracted from the package>
 ## Other commands
 
 ```
-npm run check       # type check, unit tests and build
-npm run lint:ext    # web-ext lint
-npm run package     # check, then build the package into web-ext-artifacts/
+npm run check           # type check, unit tests and build
+npm run lint:ext        # web-ext lint
+npm run package         # check, then build the package into web-ext-artifacts/
+npm run package:source  # the same source package as this one, taken from the committed tree
 ```
+
+Both packages are also built by GitHub Actions on every push (`.github/workflows/package.yml`), from the same commands.
 
 `npm run check` runs the unit tests with `node --test`, which executes the `.ts` files directly.
 That step needs a Node.js version with TypeScript type stripping enabled by default (24.19.0 has it).

@@ -1,0 +1,85 @@
+# Builds the two packages a release needs: the add-on itself, and the sources it was built from
+# (AMO asks for those whenever a bundler is involved; see BUILDING.md).
+# Pushing a v<version> tag also attaches them to a draft release.
+name: Package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to the version BUILDING.md names, so that what CI produces is what a reviewer
+      # reproduces locally.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: npm
+
+      - run: npm ci
+
+      # The add-on package is named from manifest.json, the source package from package.json.
+      # Nothing keeps the two version numbers in step, so a mismatch would ship a misnamed pair.
+      - name: Check that the two version numbers agree
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          ext=$(node -p "require('./manifest.json').version")
+          if [ "$pkg" != "$ext" ]; then
+            echo "package.json says $pkg but manifest.json says $ext" >&2
+            exit 1
+          fi
+
+      # Runs the type check and the unit tests on the way
+      - run: npm run package
+
+      - run: npm run package:source
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: web-ext-artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check that the tag matches the version being built
+        run: |
+          ext=$(node -p "require('./manifest.json').version")
+          if [ "$GITHUB_REF_NAME" != "v$ext" ]; then
+            echo "the tag is $GITHUB_REF_NAME but manifest.json says $ext" >&2
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages
+          path: web-ext-artifacts
+
+      # Left as a draft on purpose: publishing the release, and submitting to the stores, stays a
+      # decision made by hand.
+      - name: Attach the packages to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            web-ext-artifacts/*.zip
