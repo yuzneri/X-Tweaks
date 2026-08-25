@@ -145,8 +145,28 @@ export const en = {
     label: 'What to set',
     filter: 'Filter',
     appearance: 'Appearance',
+    /** What the compose form does. Shown only on the global settings */
+    compose: 'Posting',
     /** The result of merging the three tiers. Shown only while a column is selected */
     effective: 'What applies',
+  },
+
+  compose: {
+    hint:
+      'What the compose form does once a post has gone out. Left alone it does what X Pro ' +
+      'does: the form closes and the box is emptied.',
+    keepOpen: {
+      label: 'Keep the compose form open',
+      note: 'It opens again on its own, ready to type the next post into.',
+    },
+    keepHashtags: {
+      label: 'Put the hashtags back',
+      note:
+        'The tags that were written go back into the emptied box, with the caret waiting ' +
+        'in front of them.',
+    },
+    /** Said where the second switch sits, while the first one is off and it can do nothing */
+    needsKeepOpen: 'With the form closed there is nowhere to put them.',
   },
 
   effective: {

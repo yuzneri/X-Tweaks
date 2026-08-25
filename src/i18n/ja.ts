@@ -108,7 +108,23 @@ export const ja: Messages = {
     label: '設定の種類',
     filter: 'フィルタ',
     appearance: '見た目',
+    compose: '投稿',
     effective: '適用中の設定',
+  },
+
+  compose: {
+    hint:
+      '投稿したあとに投稿フォームがどうなるかの設定です。' +
+      '未設定なら X Pro のまま、フォームが閉じて本文が空になります。',
+    keepOpen: {
+      label: '投稿フォームを閉じない',
+      note: '自動で開き直し、そのまま次を書ける状態にします。',
+    },
+    keepHashtags: {
+      label: 'ハッシュタグを残す',
+      note: '書いたタグを空になった本文に戻し、カーソルはその手前に置きます。',
+    },
+    needsKeepOpen: 'フォームが閉じてしまうと、戻す先がありません。',
   },
 
   effective: {
