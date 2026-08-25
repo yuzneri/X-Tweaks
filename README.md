@@ -65,6 +65,10 @@ npm install
 npm run build
 ```
 
+## Privacy
+
+The extension sends nothing anywhere, and keeps your settings on your own device ([PRIVACY.md](PRIVACY.md)).
+
 ## License
 
 Apache License 2.0 ([LICENSE](LICENSE)).

@@ -65,6 +65,10 @@ npm install
 npm run build
 ```
 
+## プライバシー
+
+この拡張機能はどこにも何も送らず、設定は利用者の端末のなかに留まります（[PRIVACY.ja.md](PRIVACY.ja.md)）。
+
 ## ライセンス
 
 Apache License 2.0（[LICENSE](LICENSE)）。
