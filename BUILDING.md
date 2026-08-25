@@ -14,6 +14,9 @@ Everything in `dist/` is produced from `src/` by `build.mjs`:
 `icons/*.png` are rasterized from `icons/icon.svg`, which is the source of truth for them.
 `npm run icons` regenerates them; it drives headless Chrome, because this project pulls in no image library.
 
+`store/` holds the listing images for the Chrome Web Store, drawn by `npm run store` from the built options page.
+They are not part of the add-on package and are in the source package only because they live in the repository.
+
 Nothing is minified or obfuscated.
 The bundles are readable, and `charset: 'utf8'` keeps non-ASCII text as it is rather than escaping it.
 
