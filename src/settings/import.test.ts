@@ -129,3 +129,17 @@ test('欠けている項目や型違いは既定値に倒れる（保存を読�
   assert.equal(result.settings.global.appearance.columnWidth, null);
   assert.deepEqual(result.settings.accounts, {});
 });
+
+test('投稿フォームの設定も書き出しと読み戻しを通り抜ける', () => {
+  const settings = fillAll({
+    version: SCHEMA_VERSION,
+    compose: { keepOpen: true, keepHashtags: true },
+  });
+
+  const result = parseImport(exported(settings));
+
+  assert.equal(result.ok, true);
+  // The export carries the whole stored shape, so a new key needs no handling of its own.
+  // The test is here to catch it if that ever stops being true
+  assert.deepEqual(result.ok && result.settings.compose, { keepOpen: true, keepHashtags: true });
+});

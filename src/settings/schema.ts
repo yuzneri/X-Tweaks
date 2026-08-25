@@ -320,10 +320,40 @@ export type AppearanceNode = {
 
 export type SettingsNode = { filter: FilterNode; appearance: AppearanceNode };
 
+/**
+ * What the compose form does after a post goes out.
+ *
+ * Not held per tier. The compose form belongs to neither a column nor an account, and
+ * putting it under a tier would drag it through the merging (resolve.ts) and the
+ * "is this tier empty" judgements, where it has nothing to say.
+ *
+ * Both are plain booleans rather than the `boolean | null` the tiers use. With no tier
+ * above to inherit from, "not set" would mean the same thing as false.
+ */
+export type ComposeSettings = {
+  /** Open the compose form again after a post, instead of letting X Pro close it */
+  keepOpen: boolean;
+  /**
+   * Put the hashtags that were written back into the emptied box.
+   * Only read while `keepOpen` is on: with the form closed there is nowhere to put them.
+   */
+  keepHashtags: boolean;
+};
+
+/**
+ * Whether the hashtags are put back. Both switches have to be on for anything to happen.
+ * It lives here, beside the other "what happens when nothing was set" answers, so that
+ * the settings screen and the compose form cannot drift into disagreeing about it.
+ */
+export const restoresHashtags = (compose: ComposeSettings): boolean =>
+  compose.keepOpen && compose.keepHashtags;
+
 export type Settings = {
   version: number;
   /** The language of the text the extension shows. Not per tier: one for the whole extension */
   language: Language;
+  /** What the compose form does after a post. One for the whole extension, like `language` */
+  compose: ComposeSettings;
   global: SettingsNode;
   /** Screen name → settings, the screen name being all that can be obtained from the DOM */
   accounts: Record<string, SettingsNode>;
@@ -500,11 +530,21 @@ export const fillNode = (v: unknown): SettingsNode => {
 const nodeMap = (v: unknown): Record<string, SettingsNode> =>
   Object.fromEntries(Object.entries(rec(v)).map(([key, node]) => [key, fillNode(node)]));
 
+/**
+ * A stored value that is not `true` becomes false. There is no third state to keep, so
+ * a missing key and a broken one land on the same side: what X Pro does on its own.
+ */
+const fillCompose = (v: unknown): ComposeSettings => {
+  const compose = rec(v);
+  return { keepOpen: compose.keepOpen === true, keepHashtags: compose.keepHashtags === true };
+};
+
 export const fillAll = (v: unknown): Settings => {
   const stored = rec(v);
   return {
     version: SCHEMA_VERSION,
     language: isLanguage(stored.language) ? stored.language : 'auto',
+    compose: fillCompose(stored.compose),
     global: fillNode(stored.global),
     accounts: nodeMap(stored.accounts),
     columns: nodeMap(stored.columns),
