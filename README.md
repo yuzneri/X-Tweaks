@@ -50,6 +50,18 @@ The following can be changed per column:
 
 Anything left unset keeps the way X Pro shows it.
 
+## Posting
+
+Two things about the compose form for a new post can be changed. They are one setting for the whole extension, not held per column or per account.
+
+- **Keep the compose form open**: X Pro closes it on posting; this opens it again, ready to type the next post into
+- **Put the hashtags back**: the tags that were written go back into the emptied box, with the caret waiting in front of them. Only while the form is kept open
+
+They are there for a run of posts sharing the same tags.
+Both start off, and left off X Pro behaves as it always has.
+
+Replies and quotes are left alone, and a post that fails to go out changes nothing.
+
 ## Opening the settings
 
 Most editing happens inside pro.x.com.
