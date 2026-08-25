@@ -13,5 +13,8 @@ test/
 # Dependencies
 node_modules/
 
+# Build output. `npm run build` regenerates it, and the packages carry it.
+dist/
+
 # Packages built for submission
 web-ext-artifacts/
