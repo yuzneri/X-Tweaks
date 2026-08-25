@@ -20,8 +20,12 @@ export default {
     'package-lock.json',
     'tsconfig.json',
     'build.mjs',
+    'render-icons.mjs',
     'web-ext-config.mjs',
     '.gitignore',
+    // ブラウザが読むのは PNG だけ。原本の SVG と、ストア掲載用の1枚は配布物ではない
+    'icons/icon.svg',
+    'icons/store-icon-128.png',
   ],
   build: {
     overwriteDest: true,

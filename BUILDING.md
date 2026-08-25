@@ -11,6 +11,9 @@ Everything in `dist/` is produced from `src/` by `build.mjs`:
 - `dist/main-world.js`, `dist/content.js`, `dist/options.js`, `dist/popup.js` are bundled from the TypeScript sources by esbuild, one bundle per entry point.
 - `dist/options.html`, `dist/options.css`, `dist/popup.html`, `dist/popup.css`, `dist/panel.css` are copied verbatim from `src/`.
 
+`icons/*.png` are rasterized from `icons/icon.svg`, which is the source of truth for them.
+`npm run icons` regenerates them; it drives headless Chrome, because this project pulls in no image library.
+
 Nothing is minified or obfuscated.
 The bundles are readable, and `charset: 'utf8'` keeps non-ASCII text as it is rather than escaping it.
 

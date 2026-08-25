@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test 'src/**/*.test.ts'",
     "check": "npm run typecheck && npm test && npm run build",
+    "icons": "node render-icons.mjs",
     "lint:ext": "web-ext lint",
     "package": "npm run check && web-ext build",
     "package:source": "if [ -z \"$(git status --porcelain)\" ]; then mkdir -p web-ext-artifacts && git archive --format=zip -o web-ext-artifacts/x-pro-tweaks-source.zip HEAD; else echo 'Commit first: the source package is built from HEAD'; exit 1; fi"

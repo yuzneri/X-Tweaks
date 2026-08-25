@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!--
+    The icon's source of truth. The PNGs beside it are rasterized from this file
+    by tools/render-icons.mjs.
+
+    Three columns with the middle one folded up: that is what the add-on does to
+    an X Pro deck. The blue is the accent X itself uses (#1d9bf0), so the icon
+    sits next to that site without looking foreign.
+
+    The artwork fills the canvas, because at 16px a toolbar icon with padding
+    reads as smaller than the icons beside it. The Chrome Web Store wants its
+    store icon inset instead, so store-icon-128.png is rendered with the padding
+    added around this same artwork.
+  -->
+  <rect x="6" y="6" width="116" height="116" rx="26" fill="#1d9bf0"/>
+  <g fill="#ffffff">
+    <rect x="17" y="28" width="22" height="72" rx="7"/>
+    <rect x="53" y="28" width="22" height="31" rx="7"/>
+    <rect x="89" y="28" width="22" height="72" rx="7"/>
+  </g>
+</svg>
