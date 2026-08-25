@@ -1,6 +1,6 @@
 # Snapshots of the real DOM.
 # They contain actual post contents and account names, so they stay out of the history.
-# Keep them locally when verifying selectors (used together with the scripts in tools/).
+# Keep them locally when verifying selectors.
 test/
 
 # Temporary files created by the Playwright MCP

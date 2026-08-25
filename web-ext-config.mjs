@@ -1,11 +1,10 @@
 /**
- * web-ext（Mozilla 公式ツール）の設定。
- * `npm run lint:ext` と `npm run package` の両方がここを読むので、
- * 除外の指定を1か所に持てる。
+ * Settings for web-ext (Mozilla's own tool).
+ * Both `npm run lint:ext` and `npm run package` read this, so the exclusions live in one place.
  *
- * ブラウザに要るのは manifest.json と dist/ だけ。
- * ソースはビルドの入力であって配布物ではないので、拡張の zip には入れない
- * （AMO へは別途ソース一式を提出する。手順は BUILDING.md）。
+ * The browser needs manifest.json and dist/ only.
+ * The sources are the input to the build rather than something to ship, so they stay out of the
+ * add-on package (the full sources go to AMO separately; see BUILDING.md).
  */
 export default {
   ignoreFiles: [
@@ -23,7 +22,8 @@ export default {
     'render-icons.mjs',
     'web-ext-config.mjs',
     '.gitignore',
-    // ブラウザが読むのは PNG だけ。原本の SVG と、ストア掲載用の1枚は配布物ではない
+    // The browser reads the PNGs only. The SVG they come from, and the one image for the store
+    // listing, are not part of what is shipped.
     'icons/icon.svg',
     'icons/store-icon-128.png',
   ],

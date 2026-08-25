@@ -1,10 +1,10 @@
 /**
- * icons/icon.svg から PNG を焼く。
+ * Rasterizes icons/icon.svg into PNGs.
  *
- * この環境には ImageMagick も rsvg も無いので、Chrome の
- * `--screenshot` で描かせる。SVG が原本で、PNG は生成物。
+ * Neither ImageMagick nor rsvg is around here, so Chrome draws them through `--screenshot`.
+ * The SVG is the source of truth; the PNGs are generated from it.
  *
- * 使い方: node render-icons.mjs [chrome の実行パス]
+ * Usage: node render-icons.mjs [path to chrome]
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
@@ -20,7 +20,7 @@ const svg = join(ROOT, 'icons', 'icon.svg');
 const work = mkdtempSync(join(tmpdir(), 'xpro-icons-'));
 copyFileSync(svg, join(work, 'icon.svg'));
 
-/** 1枚焼く。`art` は canvas の中で図案が占める大きさ（余白を付けたいときに縮める） */
+/** Draws one. `art` is how much of the canvas the artwork takes; shrink it to leave a margin. */
 const render = (name, canvas, art) => {
   const pad = (canvas - art) / 2;
   writeFileSync(
@@ -36,7 +36,7 @@ const render = (name, canvas, art) => {
       '--no-sandbox',
       '--disable-gpu',
       '--hide-scrollbars',
-      // 角の外を透過させる。既定は白で塗られる
+      // Keeps the area outside the rounded corners transparent; it is painted white by default
       '--default-background-color=00000000',
       `--window-size=${canvas},${canvas}`,
       `--screenshot=${join(work, `${name}.png`)}`,
@@ -50,7 +50,7 @@ const render = (name, canvas, art) => {
 
 for (const size of SIZES) render(`icon-${size}`, size, size);
 
-// ストア用だけは 128 の中に 96 で置く。Chrome ウェブストアが求める余白
+// The store one alone is 96 inside 128: the margin the Chrome Web Store asks for
 render('store-icon-128', 128, 96);
 
 rmSync(work, { recursive: true, force: true });
