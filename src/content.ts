@@ -26,6 +26,11 @@ import {
   rememberTrigger,
   watch as watchColumnItem,
 } from './panel/column-options.ts';
+import {
+  rememberTrigger as rememberComposeTrigger,
+  start as startCompose,
+  updateSettings as updateCompose,
+} from './compose/keep.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
 const log = (...args: unknown[]) => console.log('%c[X Pro Tweaks]', PREFIX_STYLE, ...args);
@@ -94,10 +99,21 @@ const main = async (): Promise<void> => {
     if ((message as { type?: unknown } | null)?.type === OPEN_PANEL) openPanel();
   });
 
-  watchTrigger(rememberTrigger);
+  // One listener, handed to everyone who needs to know what was pressed
+  watchTrigger((target) => {
+    rememberTrigger(target);
+    rememberComposeTrigger(target);
+  });
   // Clicks on the inserted items are received on document, so they arrive even if X stops them further in
   watchMenuItem(togglePanel);
   watchColumnItem(openPanel);
+
+  /*
+   * The compose form is watched from the start, whether or not anything is switched on.
+   * What it does is decided when a post goes out, so a change to the settings takes
+   * effect on the next post with nothing to restart.
+   */
+  startCompose(effectiveSettings(current, paused).compose, { log });
 
   /**
    * Applies a change to the settings. Nothing is applied until startup finishes.
@@ -111,6 +127,12 @@ const main = async (): Promise<void> => {
   /** The deck whose records were rebuilt on this page. Starts empty per page */
   let rebuiltDeck: string | null = null;
   const reapply = (): boolean => {
+    /*
+     * The compose form is told first and unconditionally. What holds the rest back is
+     * that the columns are not resolved yet, and the compose form does not depend on
+     * them, so there is no reason to make it wait.
+     */
+    updateCompose(effectiveSettings(current, paused).compose);
     if (!started) {
       missed = true;
       return false;
