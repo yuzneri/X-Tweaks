@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "X Pro Tweaks",
+  "version": "0.0.2",
+  "default_locale": "en",
+  "description": "__MSG_extensionDescription__",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{548d4cad-1a21-436d-8ad8-5f2c70009586}",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "minimum_chrome_version": "111",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://pro.x.com/*"
+      ],
+      "js": [
+        "dist/main-world.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://pro.x.com/*"
+      ],
+      "js": [
+        "dist/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "options_ui": {
+    "page": "dist/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "dist/popup.html",
+    "default_title": "X Pro Tweaks"
+  }
+}

@@ -1,0 +1,124 @@
+/*
+ * The frame of the in-page panel.
+ *
+ * How the contents look lives in ui/panel.css. This file decides only where and how
+ * things are placed.
+ * Every rule is confined inside elements the extension added, so X Pro's own display is
+ * never touched.
+ */
+
+.xpro-panel-host {
+  position: fixed;
+  inset: 0;
+  /* In front of X Pro's popups. X only goes up into the 10000s (confirmed in the real DOM) */
+  z-index: 2147483000;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/*
+ * The color picker (Coloris) is placed outside the panel (directly under body) and
+ * carries a stacking order of 1000 of its own. The panel sits above X Pro and therefore
+ * uses a vastly larger value, so as it stands the picker would end up behind the panel
+ * and pressing it would look like nothing happens.
+ * It goes one above the panel (specified by id, so it beats Coloris's own `.clr-picker`).
+ */
+#clr-picker {
+  z-index: 2147483001;
+}
+
+/*
+ * What scrolls is the panes inside, not this frame.
+ * Specifying `overflow` here would later override the shell's own settings in
+ * `panel.css` (including the switch for narrow widths), so it is left out.
+ */
+.xpro-panel {
+  position: relative;
+  /* Fits within 720px including the padding. As content-box it would extend past it by the padding */
+  box-sizing: border-box;
+  width: min(720px, 100%);
+  height: 100%;
+  padding: 16px 20px 0;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+}
+
+/*
+ * Where Preact renders. It sits beside the close button and cannot go directly under
+ * the frame, so this one level is interposed.
+ * It passes the panel's height straight to the shell (`.settings` in `ui/panel.css`).
+ */
+.xpro-panel > div {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * The close button is layered over the contents. Lined up with the settings fields, it
+ * would invite mispresses.
+ *
+ * The selector starts from `.xpro-panel` so it beats the components' own
+ * `.xpro-ui button` (padding and left alignment) on specificity. At equal specificity
+ * this one wins by being read later, but that breaks the moment the component CSS is
+ * reordered.
+ */
+.xpro-panel .xpro-panel-close {
+  position: absolute;
+  /* Aligned with the top of the heading row: the same value as the panel's top padding */
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/*
+ * The ✕ is drawn with lines rather than as a character.
+ *
+ * The character "×" is drawn on the mathematical axis rather than the center of the
+ * line, so centering it in its container still leaves it sitting low, and how far it
+ * sits off varies with the typeface.
+ * Two lines can be positioned relative to the container's center.
+ */
+.xpro-panel .xpro-panel-close::before,
+.xpro-panel .xpro-panel-close::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 1.5px;
+  background: currentColor;
+}
+
+.xpro-panel .xpro-panel-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.xpro-panel .xpro-panel-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.xpro-panel .xpro-panel-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Room on the heading row for the close button, so it does not overlap the language selector */
+.xpro-panel header {
+  padding-right: 48px;
+}
+
+/* At the width where the layout stacks vertically, the panel's contents grow taller, so the frame itself scrolls */
+@media (max-width: 560px) {
+  .xpro-panel {
+    overflow-y: auto;
+  }
+}

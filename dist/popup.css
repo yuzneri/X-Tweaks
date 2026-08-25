@@ -1,0 +1,47 @@
+/*
+ * The frame of the popup on the toolbar icon.
+ * How the parts look lives in ui/panel.css; this is only size and layout.
+ */
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
+
+.xpro-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+  padding: 12px;
+}
+
+.xpro-ui .popup-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/*
+ * Whether it is currently running.
+ * While paused the color changes, so it registers the moment the popup opens.
+ */
+.xpro-ui .popup-state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.xpro-ui .popup-state.paused {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* The notice that the toggle could not be saved. It stays up until the button is pressed again */
+.xpro-ui .popup-failed {
+  margin: 0;
+  color: var(--error);
+  font-size: 13px;
+}

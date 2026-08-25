@@ -1,0 +1,891 @@
+/*
+ * How the settings screen's components look.
+ *
+ * Used on two surfaces: the options page and the in-page panel.
+ * Every rule is confined to descendants of `.xpro-ui`, so nothing here leaks out
+ * even when placed on an X Pro page.
+ */
+.xpro-ui {
+  /* Receives the shell (`.settings`) as a full-height flex item */
+  display: flex;
+  flex-direction: column;
+  color-scheme: light dark;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.6 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --bg: #ffffff;
+  --fg: #0f1419;
+  --muted: #536471;
+  --border: #cfd9de;
+  --accent: #1d9bf0;
+  --error: #f4212e;
+  --surface: #f7f9f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  .xpro-ui {
+    --bg: #15202b;
+    --fg: #f7f9f9;
+    --muted: #8b98a5;
+    --border: #38444d;
+    --surface: #1e2732;
+  }
+}
+
+.xpro-ui h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.xpro-ui header {
+  display: flex;
+  /* Needed to drop the notice onto its own line. In a narrow window the other items wrap too */
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* The language selector. Placed at the right end so it does not mix with the settings fields */
+.xpro-ui .language {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+/*
+ * The notice goes on its own line. On the same line, a long sentence would squash the heading, the language selector and the button alike.
+ * "Could not save" is a notice that never clears, so it would stay squashed.
+ * Truncating with an ellipsis is no help either: cut short, the failure would not come across.
+ * The width is set with `width` rather than `flex`: how flex shrinks differs between the real device and here.
+ */
+.xpro-ui #status {
+  order: 1;
+  width: 100%;
+  /* It takes up a line even when empty. The notice appears on every save, and an extra
+     line would push the two panes below it down */
+  min-height: 1lh;
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+/* The could-not-save notice never clears, so it does not share a color with success */
+.xpro-ui #status.failed {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.xpro-ui .warning {
+  padding: 10px 12px;
+  border: 1px solid var(--error);
+  border-radius: 6px;
+  color: var(--error);
+}
+
+/*
+ * The settings screen's shell. The heading stays put and only the two panes below it scroll.
+ * The shell is emitted by `SettingsApp` itself. The nesting differs by placement, so passing
+ * the height down is not left to the shape of the outside.
+ */
+.xpro-ui .settings {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.xpro-ui .settings > header,
+.xpro-ui .settings > .warning {
+  flex: 0 0 auto;
+}
+
+/*
+ * The two panes. Where settings apply on the left, what to set on the right.
+ * The left width is set so that "(column not found right now)" fits within two lines.
+ */
+.xpro-ui .panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+}
+
+/*
+ * Each pane scrolls on its own. Past ten columns, only the left moves and the right stays put.
+ * The room at the bottom belongs here: what scrolls is inside this, so padding on the shell would not reach.
+ */
+.xpro-ui .pane {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 40px;
+}
+
+/*
+ * The right pane's two tabs. Stacking filter and appearance vertically would not fit on one screen.
+ * To keep them distinct from the list on the left, the selection is shown with an underline.
+ */
+.xpro-ui .tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.xpro-ui .tab {
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.xpro-ui .tab:hover {
+  color: var(--fg);
+}
+
+.xpro-ui .tab.current {
+  border-bottom-color: var(--accent);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.xpro-ui fieldset {
+  margin: 0 0 20px;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.xpro-ui legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.xpro-ui .hint {
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.xpro-ui .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.xpro-ui .row > span:first-child {
+  flex: 1;
+}
+
+/* A standalone field with no group box. The gap to the next box is the same as between boxes */
+.xpro-ui .row.filter-toggle,
+.xpro-ui .row.appearance-toggle {
+  margin-bottom: 20px;
+}
+
+.xpro-ui .row.add {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/*
+ * Import and export. It opens below the two panes, with a wide box for reading.
+ * It is not left open, so the shell's height is borrowed from the two panes only while it is.
+ */
+.xpro-ui .transfer {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.xpro-ui .transfer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  /* JSON reads better with the columns lined up */
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+
+.xpro-ui .transfer .hint,
+.xpro-ui .transfer .error {
+  margin: 6px 0 0;
+}
+
+.xpro-ui .inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.xpro-ui input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.xpro-ui select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.xpro-ui button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.xpro-ui button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * An action that cannot be undone (deleting a rule). Only the border and the text go red.
+ * Filled in, it would become the most prominent thing on screen even where there is no intent to press it.
+ */
+.xpro-ui button.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.xpro-ui button.danger:hover {
+  border-color: var(--error);
+  background: var(--error);
+  color: #ffffff;
+}
+
+/*
+ * The delete row. Kept away from the save and cancel row and pushed to the right end.
+ * On the same row, the name field's growth would crowd the buttons to the right and invite mispresses.
+ */
+.xpro-ui .row.add.remove-row {
+  justify-content: flex-end;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+/* The single confirmation before deleting. Boxed in red so the row itself reads as a warning */
+.xpro-ui .row.add.confirm {
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--error);
+  border-radius: 6px;
+}
+
+.xpro-ui .row.add.confirm > span:first-child {
+  flex: 1;
+  color: var(--error);
+  font-size: 13px;
+}
+
+.xpro-ui .rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rule-order;
+}
+
+/*
+ * One row of the list, built in two tiers: what is read on top, the controls below.
+ * With two panes the row is about 440px wide, and the name plus ↑↓, edit and delete do not fit across.
+ * Leaving the wrapping to chance would split the tiers differently per name length and read badly.
+ */
+.xpro-ui .rules li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  counter-increment: rule-order;
+}
+
+/*
+ * The drag handle. A pattern of dots shows that it can be grabbed.
+ * Without `touch-action: none`, grabbing it with a finger is taken by the page's scrolling.
+ */
+.xpro-ui .grip {
+  grid-area: 1 / 1;
+  align-self: center;
+  width: 12px;
+  height: 18px;
+  background-image: radial-gradient(currentColor 1px, transparent 1.2px);
+  background-position: 1px 2px;
+  background-size: 5px 5px;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.xpro-ui .rules li.dragging .grip {
+  cursor: grabbing;
+}
+
+/* The row being held. Dimmed so it is distinct from the drop line */
+.xpro-ui .rules li.dragging {
+  opacity: 0.5;
+}
+
+/*
+ * The drop marker, drawn with an inset shadow rather than a border.
+ * As a `border` it would change the row's height the moment it is drawn, shifting the rows below and moving the aim.
+ */
+.xpro-ui .rules li.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.xpro-ui .rules li.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* The on/off switch goes in the top tier, next to the handle */
+.xpro-ui .rules li > .inline {
+  grid-area: 1 / 2;
+}
+
+/*
+ * What is read (name, summary of the conditions, action). The action badge is pinned to the top right.
+ * Left to wrapping, the badge's position would vary per row with the name's length and read badly.
+ */
+.xpro-ui .rule-body {
+  grid-area: 1 / 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+/* The name and the summary of the conditions stack vertically in the left column */
+.xpro-ui .rule-body > .rule-name,
+.xpro-ui .rule-body > .rule-meta {
+  grid-column: 1;
+}
+
+/*
+ * The summary of the conditions wraps within its column. `.rule-meta` is `nowrap` by default,
+ * but what goes here is a sentence of conditions strung together, which would otherwise make the whole right pane scroll sideways.
+ */
+.xpro-ui .rule-body > .rule-meta {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The action badge is the first line of the right column. Its position does not move however many lines the name takes */
+.xpro-ui .rule-body > .action-badge {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* The controls line up at the right end of the lower tier, in the same place on every row */
+.xpro-ui .rule-actions {
+  grid-area: 2 / 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Judging goes from the top. They are numbered to show that order */
+.xpro-ui .rule-name::before {
+  content: counter(rule-order) ". ";
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.xpro-ui .rules li:last-child {
+  border-bottom: none;
+}
+
+/* A rule's name. It can be the conditions strung together, so it wraps when long */
+.xpro-ui .rule-name {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.xpro-ui .rule-meta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.xpro-ui .empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.xpro-ui .error {
+  margin: 8px 0 0;
+  color: var(--error);
+  font-size: 13px;
+}
+
+/*
+ * On an element with display set, the hidden attribute (the UA's display:none) is overridden.
+ * To hide an element that carries display:flex, such as .color-field, with hidden from JavaScript,
+ * the meaning of hidden is restored here.
+ */
+.xpro-ui [hidden] {
+  display: none !important;
+}
+
+/* The action and the color */
+.xpro-ui .color-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xpro-ui input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+/*
+ * The color-code box. Its selector is made stronger than `input[type="text"]`.
+ * `.xpro-ui .colorcode` (0,2,0) alone loses to `.xpro-ui input[type="text"]` (0,2,1), letting
+ * `flex: 1` and `min-width` take effect and stretch the box.
+ * The width fits both `#rrggbbaa` (nine characters) and the short dimmed text.
+ */
+.xpro-ui input[type="text"].colorcode {
+  /* Specified as the width including padding and border (the same treatment as `.size-box`) */
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 116px;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Size input: the box, the unit and the error text */
+.xpro-ui .size-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * Fits the number and the unit into one box. Drawing the border on this container rather than
+ * on the input itself keeps the unit inside the box while lining its right edge up with the select and color fields.
+ */
+.xpro-ui .size-box {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /*
+   * The width is set with `width` rather than `flex-basis`. When measuring the content width of
+   * the parent (`.size-field`), Firefox does not consult the child's `flex-basis` and widens the
+   * parent to the input's default width (20 characters), pushing the box to the left of the row.
+   * `min-width: 0` stops that default width from taking effect as a minimum.
+   */
+  flex: 0 0 auto;
+  width: 112px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.xpro-ui .size-box:focus-within {
+  border-color: var(--accent);
+}
+
+/*
+ * The border is on the container, so the input itself carries neither border nor padding.
+ * Its specificity equals the `input[type="text"]` rule, so it is placed later to win
+ */
+.xpro-ui input.size {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.xpro-ui .size-box .unit {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.xpro-ui .action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.xpro-ui .swatch {
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+/* The list of scopes settings apply to (the left pane) */
+.xpro-ui .scopes .hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.xpro-ui .scope-group + .scope-group {
+  margin-top: 14px;
+}
+
+/* A group's heading. Smaller and dimmer than the entries, to distinguish it from what can be pressed */
+.xpro-ui .scope-group h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/*
+ * The note beside the heading (the deck currently on screen).
+ * A deck name can get long, so what shrinks is the name rather than this.
+ */
+.xpro-ui .scope-group h2 .group-note {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.xpro-ui .scope-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xpro-ui .scope-group .empty {
+  padding: 2px 10px 6px;
+  font-size: 12px;
+}
+
+/*
+ * One row of the list. Pressing it switches the right pane to that scope's settings.
+ * The name and the note stack vertically because the left pane is only 200px: side by side,
+ * a long account name would push the column name into wrapping one character at a time.
+ */
+.xpro-ui .scope {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.xpro-ui .scope:hover {
+  background: var(--surface);
+  color: inherit;
+}
+
+/* The scope currently shown on the right. Pressable rows are listed, so the selected one is painted differently */
+.xpro-ui .scope.current {
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.xpro-ui .scope-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.xpro-ui .scope-detail {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Name and mark on top, note below. A row with no note grows no lower tier, so it does not get taller */
+.xpro-ui .scope > .scope-label {
+  grid-area: 1 / 1;
+}
+
+.xpro-ui .scope > .scope-detail {
+  grid-area: 2 / 1;
+}
+
+.xpro-ui .scope > .scope-dot {
+  grid-area: 1 / 2;
+}
+
+/* The mark on a scope with settings. Makes it clear at a glance what was put where */
+.xpro-ui .scope-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* What settings are being viewed. Shown at the very top of the right pane */
+.xpro-ui .scope-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* A heading element, but sized to match the surrounding text (its place and weight make it read as a heading) */
+.xpro-ui .scope-header .scope-label {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.xpro-ui .reassign {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+.xpro-ui .reassign .hint {
+  margin: 6px 0 0;
+}
+
+/* The reorder buttons. They sit inside a list row, so they are smaller than the other buttons */
+.xpro-ui .rules .move {
+  padding: 2px 10px;
+}
+
+.xpro-ui .rules button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A disabled rule. It is not deleted, so it stays, dimmed */
+.xpro-ui .rules li.disabled .rule-name,
+.xpro-ui .rules li.disabled .rule-meta,
+.xpro-ui .rules li.disabled .action-badge {
+  opacity: 0.45;
+}
+
+/*
+ * A condition row (the post's trait, the text). It has many fields and wraps (`.row.add` carries wrap).
+ * So that a wrapped line is recognizable as belonging to that condition, the whole row is painted to read as one block.
+ * The gap within a wrap (4px) is tighter than the gap between rows (8px + 8px) for the same reason.
+ */
+.xpro-ui .row.add.condition {
+  row-gap: 4px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  /* Thick on the left only. It separates conditions stacked vertically (the same construction as the delete-confirmation row) */
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+/* The field's name (the target, or "What the post is"). Addressed by row so it beats `.row > span:first-child { flex: 1 }` */
+.xpro-ui .row.add.condition > .field-label {
+  flex: 0 0 auto;
+  /* Wide enough to fit "the quoted display name" without wrapping, so the fields' left edges line up */
+  min-width: 11em;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* The button that opens the add form. While closed, this is all that remains below the list */
+.xpro-ui .open-form {
+  margin-top: 12px;
+}
+
+/*
+ * The description of the selected action. It takes two lines' height so it does not shrink when switched to a shorter description.
+ */
+.xpro-ui .action-hint {
+  margin: 4px 0 0;
+  min-height: 2.6em;
+}
+
+/* The row being edited. It holds the form, so the list row's layout is undone and things stack vertically */
+.xpro-ui .rules li.editing {
+  display: block;
+  padding: 10px 0;
+}
+
+.xpro-ui .rules li.editing .row.add {
+  margin-top: 0;
+}
+
+.xpro-ui .rules li.editing .row.add + .row.add {
+  margin-top: 8px;
+}
+
+/* The color swatch, showing the color in effect */
+.xpro-ui .color-field .swatch {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+/*
+ * At widths where splitting left and right makes the right unreadable, it goes back to stacking and the shell scrolls.
+ * The in-page panel is `min(720px, 100%)`, so a small window lands here.
+ */
+@media (max-width: 560px) {
+  .xpro-ui .settings {
+    /* Nothing scrolls inside; the shell scrolls instead. The panes stack, so moving only one of them means nothing */
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .xpro-ui .panes {
+    display: block;
+  }
+
+  .xpro-ui .pane {
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .xpro-ui .scopes {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/*
+ * What is in effect. This surface is for reading, so the text is tighter than on the editing surface, to fit more at a glance.
+ * A row is three columns: item, value, origin. The origin is aligned to the right end.
+ */
+.xpro-ui .effective-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.xpro-ui .effective-row:last-child {
+  border-bottom: none;
+}
+
+.xpro-ui .effective-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* An item no tier sets. It means X Pro's own, so it is distinguished from a value */
+.xpro-ui .effective-value.unset {
+  color: var(--muted);
+}
+
+/* Which tier a value came from. It is a hint while reading, so it stays more restrained than the value */
+.xpro-ui .from {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/*
+ * Numbered in judging order.
+ * A `li` made a grid shows no `::marker`, so a counter is used, as on the editing surface (`.rules`).
+ */
+.xpro-ui .effective-rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: applied-order;
+}
+
+.xpro-ui .effective-rules li {
+  counter-increment: applied-order;
+}
+
+.xpro-ui .effective-rules .effective-label::before {
+  content: counter(applied-order) ". ";
+  color: var(--muted);
+}
+
+.xpro-ui .effective-rules li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.xpro-ui .effective-rules li:last-child {
+  border-bottom: none;
+}
+
+/* A rule stopped rather than deleted. Its presence is shown, dimmed so it reads as not in effect */
+.xpro-ui .effective-rules li.off {
+  opacity: 0.55;
+}
+
+.xpro-ui .effective-label {
+  overflow-wrap: anywhere;
+}

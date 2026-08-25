@@ -1,0 +1,17 @@
+# Snapshots of the real DOM.
+# They contain actual post contents and account names, so they stay out of the history.
+# Keep them locally when verifying selectors (used together with the scripts in tools/).
+test/
+
+# Temporary files created by the Playwright MCP
+.playwright-mcp/
+
+# Files created by the OS
+.DS_Store
+._.DS_Store
+
+# Dependencies
+node_modules/
+
+# Packages built for submission
+web-ext-artifacts/

@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // The bundler (esbuild) does the resolving, so TypeScript interprets without transforming.
+    // The .ts extension is allowed in imports because Node requires it when running .ts
+    // directly under node --test
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    // The extension API types, matching the policy of using browser.* directly.
+    // node is for the unit tests (node:test) and is not used by the extension itself
+    "types": ["firefox-webext-browser", "node"]
+  },
+  "include": ["src"]
+}

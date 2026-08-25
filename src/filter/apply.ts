@@ -1,0 +1,190 @@
+/**
+ * Reflects the judgement in the DOM. All it adds are classes and, when collapsing, a
+ * single placeholder. Nodes are neither removed nor stashed away, so nothing competes
+ * with X's own re-rendering.
+ */
+import { ACTIONS, type HighlightBase } from '../settings/schema.ts';
+import type { Messages } from '../i18n/index.ts';
+import { backgroundBehind } from '../appearance/background.ts';
+import { layer, parseColor } from '../appearance/contrast.ts';
+import { COLUMN_ATTR } from '../appearance/css.ts';
+import type { Decision, Verdict } from './decide.ts';
+import { mark, unmark } from './emphasis.ts';
+import { clearReadable, markReadable } from './readable.ts';
+
+const COLLAPSED = 'xpro-collapsed';
+/** Hidden: no placeholder either, the whole cell is taken out of the display */
+const HIDDEN = 'xpro-hidden';
+const HIGHLIGHTED = 'xpro-highlighted';
+const PLACEHOLDER = 'xpro-placeholder';
+const COLOR_VAR = '--xpro-highlight';
+
+/**
+ * Cells opened with the "Show" button, remembered so a re-judgement does not collapse
+ * them again. They are held in a WeakSet rather than as a DOM class so the decision
+ * survives X redrawing the same cell and wiping the class.
+ */
+const expanded = new WeakSet<Element>();
+
+export const isExpandedByUser = (cell: Element): boolean => expanded.has(cell);
+export type Look = {
+  adjustContrast: boolean;
+  highlightBase: HighlightBase;
+};
+
+/**
+ * An opaque color: the highlight color composited with the column background skipped.
+ * null when it cannot be measured.
+ *
+ * CSS alone cannot ignore exactly one ancestor's background, so the backdrop with that
+ * one skipped is measured here and composited. X's theme colors are not hard-coded:
+ * measuring by walking up handles dark, dim and light with the same code.
+ */
+const overThemeColor = (cell: Element, color: string): string | null => {
+  const column = cell.closest(`[${COLUMN_ATTR}]`);
+  // A post opened outside the columns (the detail panel and the like) has no layer to skip
+  if (column === null) return null;
+  const highlight = parseColor(color);
+  if (highlight === null) return null;
+  // Measuring from the cell itself would count the color laid on this cell last time as backdrop
+  const parent = cell.parentElement;
+  if (parent === null) return null;
+  const base = backgroundBehind(parent, column);
+  if (base === null) return null;
+  const { r, g, b } = layer(base, highlight);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const placeholderOf = (cell: Element): HTMLElement | null =>
+  cell.querySelector<HTMLElement>(`:scope > .${PLACEHOLDER}`);
+
+/** Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched here */
+const resetDecision = (cell: Element): void => {
+  cell.classList.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
+  (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+  clearReadable(cell);
+  placeholderOf(cell)?.remove();
+};
+
+/** Removes only what the extension added, restoring the original display */
+export const reset = (cell: Element): void => {
+  resetDecision(cell);
+  // Emphasis adds nothing to the DOM, so dropping the registered ranges restores it
+  unmark(cell);
+};
+
+const buildPlaceholder = (
+  cell: Element,
+  decision: Decision,
+  author: string | null,
+  messages: Messages
+): HTMLElement => {
+  const placeholder = document.createElement('div');
+  placeholder.className = PLACEHOLDER;
+
+  const summary = document.createElement('span');
+  summary.className = 'xpro-placeholder-text';
+  // A rule name the user typed, and an author name read from X. Both go in via textContent
+  summary.textContent = author ? `@${author}` : messages.placeholder.post;
+
+  const reason = document.createElement('span');
+  reason.className = 'xpro-placeholder-reason';
+  reason.textContent = decision.label;
+
+  const show = document.createElement('button');
+  show.type = 'button';
+  show.className = 'xpro-placeholder-show';
+  show.textContent = messages.placeholder.show;
+  show.addEventListener('click', (event) => {
+    event.stopPropagation();
+    // There is no way to collapse it again; it stays open until the page is reloaded
+    expanded.add(cell);
+    reset(cell);
+  });
+
+  placeholder.append(summary, reason, show);
+  return placeholder;
+};
+
+/**
+ * Reflects the judgement on a cell. A null `decision` returns it to having nothing applied.
+ * A cell already in that state is not touched (nothing competes with X's re-rendering).
+ */
+export const apply = (
+  cell: Element,
+  verdict: Verdict,
+  author: string | null,
+  messages: Messages,
+  look: Look
+): void => {
+  showDecision(cell, verdict.decision, author, messages, look);
+
+  /*
+   * Emphasis is an action that does not change how a post is shown, so it is applied
+   * separately from the others, collapsed posts included.
+   * It is painted after the display is decided because making text readable requires
+   * measuring the color behind it, and painting first would measure the background of
+   * the state one step back.
+   */
+  mark(cell, verdict.emphases, look.adjustContrast);
+};
+
+/** Applies only the display decision (collapse, hide, highlight). Emphasis is `apply`'s separate concern */
+const showDecision = (
+  cell: Element,
+  decision: Decision | null,
+  author: string | null,
+  messages: Messages,
+  look: Look
+): void => {
+  if (!decision) {
+    resetDecision(cell);
+    return;
+  }
+
+  if (decision.action === ACTIONS.HIGHLIGHT) {
+    placeholderOf(cell)?.remove();
+    cell.classList.remove(COLLAPSED, HIDDEN);
+    cell.classList.add(HIGHLIGHTED);
+    // With "X's own backdrop" chosen as the base, lay down an opaque color composited
+    // with the column background skipped. When it cannot be measured, the specified
+    // color is used as is and the extension leaves the color alone
+    const color =
+      look.highlightBase === 'theme'
+        ? (overThemeColor(cell, decision.color) ?? decision.color)
+        : decision.color;
+    (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
+    // Whether to mark it depends on the background including the color just laid down,
+    // so it is measured after the color is applied
+    if (look.adjustContrast) markReadable(cell);
+    else clearReadable(cell);
+    return;
+  }
+
+  // A cell decided to stay open is neither re-collapsed nor hidden when the rules change
+  if (expanded.has(cell)) return;
+
+  cell.classList.remove(HIGHLIGHTED);
+  (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+  clearReadable(cell);
+
+  if (decision.action === ACTIONS.HIDE) {
+    // Hiding has no "Show" button, so it needs no placeholder either
+    placeholderOf(cell)?.remove();
+    cell.classList.remove(COLLAPSED);
+    cell.classList.add(HIDDEN);
+    return;
+  }
+
+  cell.classList.remove(HIDDEN);
+
+  const existing = placeholderOf(cell);
+  if (existing) {
+    // If the matching rule changed, only the reason is swapped out
+    const reason = existing.querySelector('.xpro-placeholder-reason');
+    if (reason && reason.textContent !== decision.label) reason.textContent = decision.label;
+  } else {
+    cell.prepend(buildPlaceholder(cell, decision, author, messages));
+  }
+  cell.classList.add(COLLAPSED);
+};

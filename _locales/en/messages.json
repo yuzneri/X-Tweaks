@@ -1,0 +1,6 @@
+{
+  "extensionDescription": {
+    "message": "Filters the X Pro timeline column by column: collapse, hide or highlight posts, and change the width, colors and time display.",
+    "description": "The add-on description shown in about:addons and on addons.mozilla.org."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "xpro-tweaks",
+  "version": "0.0.2",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "X Pro（pro.x.com）のタイムラインをカラム単位で絞り込み、見た目を調整するブラウザ拡張",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'src/**/*.test.ts'",
+    "check": "npm run typecheck && npm test && npm run build",
+    "lint:ext": "web-ext lint",
+    "package": "npm run check && web-ext build",
+    "package:source": "if [ -z \"$(git status --porcelain)\" ]; then mkdir -p web-ext-artifacts && git archive --format=zip -o web-ext-artifacts/x-pro-tweaks-source.zip HEAD; else echo 'Commit first: the source package is built from HEAD'; exit 1; fi"
+  },
+  "devDependencies": {
+    "@melloware/coloris": "^0.25.0",
+    "@types/firefox-webext-browser": "^143.0.0",
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "preact": "^10.29.8",
+    "typescript": "^7.0.2",
+    "web-ext": "^10.6.0"
+  }
+}
