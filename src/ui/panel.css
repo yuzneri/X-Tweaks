@@ -186,6 +186,27 @@
 }
 
 /* A standalone field with no group box. The gap to the next box is the same as between boxes */
+/*
+ * A row switched by a checkbox. The name follows the box rather than being pushed to the
+ * far side: there is no field on the right for it to line up against, and a label sitting
+ * next to what it switches is easier to connect than one across a gap.
+ */
+.xpro-ui .row.switch {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.xpro-ui .row.switch > input[type="checkbox"] {
+  margin: 0;
+  flex: none;
+}
+
+/* A setting that only means something while the one above it is on, and the note under either */
+.xpro-ui .row.switch.indent,
+.xpro-ui .hint.indent {
+  margin-left: 20px;
+}
+
 .xpro-ui .row.filter-toggle,
 .xpro-ui .row.appearance-toggle {
   margin-bottom: 20px;

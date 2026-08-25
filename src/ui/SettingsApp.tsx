@@ -36,6 +36,7 @@ import { TierEditor, type Tab } from './TierEditor.tsx';
 import { ScopeHeader, type ReassignTarget } from './ScopeHeader.tsx';
 import { ScopeList, scopeKey, type Scope, type ScopeEntry, type ScopeGroup } from './ScopeList.tsx';
 import { Transfer } from './Transfer.tsx';
+import { Compose } from './Compose.tsx';
 import { Effective } from './Effective.tsx';
 import { useSettings } from './useSettings.ts';
 
@@ -481,6 +482,15 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
                 tab={tab}
                 onTabChange={setTab}
                 inherited={inherited}
+                // Not a tier's setting, so it is handed in only where it belongs: the global settings
+                compose={
+                  current.scope.tier === 'global' && (
+                    <Compose
+                      compose={settings.compose}
+                      onChange={(compose) => update({ ...settings, compose })}
+                    />
+                  )
+                }
                 // The merged result cannot be built without knowing all three tiers, so it is assembled here and passed in
                 effective={columnScope && <Effective settings={settings} scope={columnScope} />}
               />

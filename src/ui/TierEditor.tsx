@@ -10,7 +10,7 @@ import { Appearance } from './Appearance.tsx';
 import { useMessages } from './messages.tsx';
 import { Rules } from './Rules.tsx';
 
-const TABS = ['filter', 'appearance', 'effective'] as const;
+const TABS = ['filter', 'appearance', 'compose', 'effective'] as const;
 
 export type Tab = (typeof TABS)[number];
 
@@ -26,19 +26,36 @@ type Props = {
   /** The values coming down from the tiers above. Shown dimmed in the fields left unset */
   inherited: Inherited;
   /**
-   * The "what is in effect" surface. The third tab appears only when this is passed.
+   * The compose form's settings. That tab appears only when this is passed, which is on
+   * the global settings alone: they belong to no tier, so this component neither holds
+   * them nor knows what they are.
+   */
+  compose?: ComponentChildren;
+  /**
+   * The "what is in effect" surface. That tab appears only when this is passed.
    * Its contents cannot be built without knowing all three tiers, so building it is left to the caller.
    */
   effective?: ComponentChildren;
 };
 
-export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, effective }: Props) => {
+export const TierEditor = ({
+  node,
+  onChange,
+  tab,
+  onTabChange,
+  inherited,
+  compose,
+  effective,
+}: Props) => {
   const m = useMessages();
   const updateFilter = (patch: Partial<FilterNode>) =>
     onChange({ ...node, filter: { ...node.filter, ...patch } });
 
-  const tabs = TABS.filter((key) => key !== 'effective' || effective);
-  // Moving away from a column removes the third tab. If the open tab is gone, fall back to the first
+  // The last two tabs each belong to one kind of scope, and appear only where they apply
+  const tabs = TABS.filter((key) =>
+    key === 'compose' ? !!compose : key === 'effective' ? !!effective : true
+  );
+  // Moving between scopes takes tabs away. If the open tab is gone, fall back to the first
   const current = tabs.includes(tab) ? tab : 'filter';
 
   return (
@@ -107,6 +124,8 @@ export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, effect
           onChange={(appearance) => onChange({ ...node, appearance })}
         />
       )}
+
+      {current === 'compose' && compose}
 
       {current === 'effective' && effective}
     </>
