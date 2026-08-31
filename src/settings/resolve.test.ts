@@ -405,8 +405,10 @@ test('由来が指す段の値と、合成した値が一致する（規則を�
 
   const picks: ((node: SettingsNode) => unknown)[] = [
     (n) => n.appearance.columnWidth,
+    (n) => n.appearance.compact,
     (n) => n.appearance.fontSize,
     (n) => n.appearance.maxLines,
+    (n) => n.appearance.collapseNewlines,
     (n) => n.appearance.colors.background,
     (n) => n.appearance.media.collapse,
     (n) => n.filter.enabled,
@@ -418,6 +420,26 @@ test('由来が指す段の値と、合成した値が一致する（規則を�
     // With no origin, the merged value is unset too; with one, that tier's value comes through as is
     assert.deepEqual(pick(merged), node === null ? null : pick(node));
   }
+});
+
+test('詰めるかどうかと改行の解除は、それぞれ独立に上書き継承する', () => {
+  const s = settings((s) => {
+    s.global.appearance.compact = true;
+    s.global.appearance.collapseNewlines = true;
+    // Packs this account's columns but leaves the line breaks alone
+    s.accounts.alice = node((n) => {
+      n.appearance.collapseNewlines = false;
+    });
+  });
+
+  const alice = resolve(s, { account: 'alice', columnId: null }).appearance;
+  assert.equal(alice.compact, true);
+  assert.equal(alice.collapseNewlines, false);
+
+  // An account that sets neither takes both from global
+  const bob = resolve(s, { account: 'bob', columnId: null }).appearance;
+  assert.equal(bob.compact, true);
+  assert.equal(bob.collapseNewlines, true);
 });
 
 test('自動調整は上書き継承する（上で切ったものを下で戻せる）', () => {

@@ -5,9 +5,11 @@
 import {
   adjustsContrast,
   appearanceApplies,
+  collapsesNewlines,
   emptyNode,
   HIGHLIGHT_BASES,
   highlightBaseOf,
+  isCompact,
   mediaCollapses,
   TIME_FORMATS,
   timeFormatOf,
@@ -110,6 +112,23 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
           />
         </label>
 
+        {/*
+          Packs the posts: the padding around them, the avatar, and the row of reply and
+          repost buttons. Placed next to the width, both being about the column as a whole
+        */}
+        <label class="row">
+          <span>{m.appearance.compact}</span>
+          <BoolSelect
+            value={node.compact}
+            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            effective={isCompact(above.compact)}
+            onChange={(compact) => patch({ compact })}
+            label={m.appearance.compact}
+            on={m.appearance.compactOn}
+            off={m.appearance.compactOff}
+          />
+        </label>
+
         <label class="row">
           <span>{m.appearance.fontSize}</span>
           <SizeField
@@ -128,6 +147,23 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
             onChange={(maxLines) => patch({ maxLines })}
             label={m.appearance.maxLines}
             unit={m.appearance.lines}
+          />
+        </label>
+
+        {/*
+          Folds the line breaks written into a post into a single space each.
+          Placed under the line limit: both are about how much room the body takes
+        */}
+        <label class="row">
+          <span>{m.appearance.collapseNewlines}</span>
+          <BoolSelect
+            value={node.collapseNewlines}
+            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            effective={collapsesNewlines(above.collapseNewlines)}
+            onChange={(collapseNewlines) => patch({ collapseNewlines })}
+            label={m.appearance.collapseNewlines}
+            on={m.appearance.collapseNewlinesOn}
+            off={m.appearance.collapseNewlinesOff}
           />
         </label>
 

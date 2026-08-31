@@ -256,6 +256,139 @@ test('展開の規則は、上限の規則より強くする', () => {
   assert.match(openedLine, /max-height: none !important/);
 });
 
+test('詰めと改行の解除は、既定では効かない', () => {
+  // Unset and "do not" land on the same side: X Pro's own display. The two helpers in
+  // schema.ts are the only place that decides it, so the wrong default would go unnoticed
+  for (const value of [null, false] as const) {
+    const css = cssOf([
+      {
+        key: '0',
+        appearance: appearanceOf((a) => {
+          a.compact = value;
+          a.collapseNewlines = value;
+        }),
+      },
+    ]);
+    assert.equal(css, '', `${value} で規則が出ている`);
+  }
+});
+
+test('詰めると、余白・アバター・アクションバーだけが変わる', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.compact = true)) }]);
+  const lines = css.split('\n');
+
+  // Every rule takes its bearings from the avatar's marker, not from X's generated class
+  // names and not from where things sit in the tree
+  const top = lines.find((line) => line.includes('padding-top: 2px'))!;
+  assert.ok(top.includes('div:has(+ div > div > [data-testid="Tweet-User-Avatar"])'));
+  // The band's own branch is zeroed, so the gap does not add up over however deeply it nests
+  assert.ok(lines.some((line) => line.includes('[data-testid="Tweet-User-Avatar"]) * { padding-top: 0')));
+  const bottom = lines.find((line) => line.includes('padding-bottom: 2px'))!;
+  assert.ok(bottom.includes('div:has(> [data-testid="Tweet-User-Avatar"]) + div'));
+
+  // The boxes inside the avatar carry sizes of their own, so they are made to follow
+  const avatar = lines.find((line) => line.includes('width: 24px'))!;
+  assert.match(avatar, /min-width: 24px !important; max-width: 24px !important/);
+  const inside = lines.find((line) => line.includes('[data-testid="Tweet-User-Avatar"] * {'))!;
+  assert.match(inside, /width: 100% !important/);
+  // Some of them make their height out of padding, and that has to go for the size to take
+  assert.match(inside, /padding-bottom: 0 !important/);
+
+  // Packing says nothing about the line breaks: that is a setting of its own
+  assert.equal(css.includes('white-space'), false);
+});
+
+test('詰めると、ボタンの行は消えずに名前の横へ浮く', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.compact = true)) }]);
+  const lines = css.split('\n');
+
+  // The row is told apart by the buttons it holds. Its aria-label is worded per language
+  const bar = lines.find((line) => line.includes('position: absolute'))!;
+  assert.ok(bar.includes('[role="group"]:has([data-testid="reply"])'));
+  // Taken out of the flow, so the height it used to take is still saved
+  assert.match(bar, /top: 0 !important/);
+  // Left of the "…" that opens the post's menu
+  assert.match(bar, /right: \d+px !important/);
+  // Its height is left to the buttons, so they line up with the "…"
+  assert.match(bar, /height: auto !important/);
+
+  // The column beside the avatar becomes the base, and the containers in between give up theirs
+  assert.ok(lines.some((line) => line.includes('+ div { position: relative')));
+  const cleared = lines.find((line) => line.includes('position: static'))!;
+  assert.ok(cleared.includes('div:has([role="group"])'));
+
+  // Only the repost and the like are kept
+  const hidden = lines.find((line) => line.includes('display: none'))!;
+  assert.ok(hidden.includes(':not(:has([data-testid="retweet"]))'));
+  assert.ok(hidden.includes(':not(:has([data-testid="like"]))'));
+  // Written for both shapes: a button wrapped in a container, or sitting in the row directly
+  assert.ok(hidden.includes(':not([data-testid="retweet"])'));
+
+  // Room is made by pushing the "…", not by padding the name row (the "…" sits inside that row)
+  const room = lines.find((line) => line.includes('margin-left'))!;
+  assert.ok(room.includes('button[data-testid="caret"]'));
+});
+
+test('入れ子の :has() を書かない。規則ごと捨てられるため', () => {
+  const css = cssOf([
+    {
+      key: '0',
+      appearance: appearanceOf((a) => {
+        a.compact = true;
+        a.collapseNewlines = true;
+        a.maxLines = 3;
+      }),
+    },
+  ]);
+  // `:has()` inside another `:has()` is invalid, and a browser throws away the whole rule
+  // without a word. Every selector here leans on `:has()`, so the shape is checked
+  for (const selector of css.split('\n').map((line) => line.slice(0, line.indexOf('{')))) {
+    /** One entry per open parenthesis, saying whether it belongs to a `:has()` */
+    const open: boolean[] = [];
+    for (let i = 0; i < selector.length; i++) {
+      if (selector[i] === '(') {
+        const isHas = selector.slice(0, i).endsWith(':has');
+        assert.ok(!(isHas && open.includes(true)), `${selector} で :has() が入れ子になっている`);
+        open.push(isHas);
+      } else if (selector[i] === ')') {
+        open.pop();
+      }
+    }
+  }
+});
+
+test('改行の解除は、詰めとは別に効く', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.collapseNewlines = true)) }]);
+  // X keeps the breaks as newlines in the text and shows them with pre-wrap, so putting
+  // white-space back folds each one into a single space
+  assert.match(css, /white-space: normal !important/);
+  // The spans inside the body carry styling of their own, so they are set alongside it
+  assert.ok(css.includes('[data-testid="tweetText"] *'));
+  // Nothing of the packing comes out
+  assert.equal(css.includes('padding-top'), false);
+  assert.equal(css.includes('display: none'), false);
+});
+
+test('ポストを開いているカラムでは、詰めも改行の解除も止まる', () => {
+  const css = cssOf([
+    {
+      key: '0',
+      appearance: appearanceOf((a) => {
+        a.compact = true;
+        a.collapseNewlines = true;
+      }),
+    },
+  ]);
+  // That column was opened to read and to reply. Hiding the buttons there would take away
+  // the reply and the like on the very post that was opened
+  for (const line of css.split('\n')) {
+    assert.ok(
+      line.startsWith('[data-xpro-column="0"]:not(:has([data-testid="tweetTextarea_0"]))'),
+      `${line} が開いているカラムでも当たってしまう`
+    );
+  }
+});
+
 test('当て先の鍵は、解決できた一番細かい段で決まる', () => {
   // Down to the column, the key is the column's
   assert.equal(columnKey({ account: 'alice', columnId: 'col-1' }), 'c:col-1');

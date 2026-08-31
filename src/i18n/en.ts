@@ -408,9 +408,17 @@ export const en = {
     legend: 'Size and display',
     hint: 'Anything left empty or unset keeps the way X Pro shows it.',
     columnWidth: 'Column width',
+    // What happens to the buttons belongs in the label rather than in the options: the label
+    // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
+    compact: 'How tightly posts sit (repost and like move up beside the name)',
+    compactOn: 'Pack them in',
+    compactOff: 'Leave them as they are',
     fontSize: 'Post text size',
     maxLines: 'Post text line limit',
     lines: 'lines',
+    collapseNewlines: 'Line breaks in the post text',
+    collapseNewlinesOn: 'Fold each into a space',
+    collapseNewlinesOff: 'Keep them',
     colors: {
       legend: 'Colors',
       columnHeader: 'Behind the column name',

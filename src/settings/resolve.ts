@@ -54,8 +54,10 @@ const mergeFilter = (tiers: SettingsNode[]): FilterNode => ({
 const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   enabled: inherit(tiers, (node) => node.appearance.enabled),
   columnWidth: inherit(tiers, (node) => node.appearance.columnWidth),
+  compact: inherit(tiers, (node) => node.appearance.compact),
   fontSize: inherit(tiers, (node) => node.appearance.fontSize),
   maxLines: inherit(tiers, (node) => node.appearance.maxLines),
+  collapseNewlines: inherit(tiers, (node) => node.appearance.collapseNewlines),
   colors: {
     background: inherit(tiers, (node) => node.appearance.colors.background),
     text: inherit(tiers, (node) => node.appearance.colors.text),

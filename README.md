@@ -31,8 +31,10 @@ Each rule can be switched on and off without being deleted.
 The following can be changed per column:
 
 - **Column width**
+- **How tightly posts sit**: packs the padding around a post, shrinks the avatar, and folds away the row of buttons. Repost and like move up beside the name, to the left of the “…”, while reply and the view count are hidden
 - **Post text size**
 - **Post text line limit**: a post past the limit opens with “Show more”
+- **Line breaks in the post text**: each is folded into a single space, so a post takes less room
 - **Largest thumbnail height**
 - **Photos and videos**: they can be taken out of the timeline
 - **Time display**: as X shows it, the date and time, or both

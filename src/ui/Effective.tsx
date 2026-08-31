@@ -4,7 +4,9 @@
  */
 import {
   appearanceApplies,
+  collapsesNewlines,
   filterApplies,
+  isCompact,
   mediaCollapses,
   ruleName,
   type AppearanceNode,
@@ -66,6 +68,12 @@ const appearanceRows = (
       tier: of((n) => n.appearance.columnWidth),
     },
     {
+      label: m.appearance.compact,
+      // Unset has a default side too (not packed). Say which one is in effect
+      value: isCompact(effective.compact) ? m.appearance.compactOn : m.appearance.compactOff,
+      tier: of((n) => n.appearance.compact),
+    },
+    {
       label: m.appearance.fontSize,
       value: size(effective.fontSize, m.size.unit),
       tier: of((n) => n.appearance.fontSize),
@@ -74,6 +82,13 @@ const appearanceRows = (
       label: m.appearance.maxLines,
       value: size(effective.maxLines, m.appearance.lines),
       tier: of((n) => n.appearance.maxLines),
+    },
+    {
+      label: m.appearance.collapseNewlines,
+      value: collapsesNewlines(effective.collapseNewlines)
+        ? m.appearance.collapseNewlinesOn
+        : m.appearance.collapseNewlinesOff,
+      tier: of((n) => n.appearance.collapseNewlines),
     },
     {
       label: m.appearance.media.maxThumbHeight,

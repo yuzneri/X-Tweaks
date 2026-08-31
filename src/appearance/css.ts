@@ -1,6 +1,12 @@
 /** Builds CSS from the appearance settings. Takes the effective values per column and returns a string */
 import type { ColumnScope } from '../settings/resolve.ts';
-import { mediaCollapses, timeFormatOf, type AppearanceNode } from '../settings/schema.ts';
+import {
+  collapsesNewlines,
+  isCompact,
+  mediaCollapses,
+  timeFormatOf,
+  type AppearanceNode,
+} from '../settings/schema.ts';
 
 /** The marker put on a column. Its value is the key the rules target */
 export const COLUMN_ATTR = 'data-xpro-column';
@@ -25,8 +31,9 @@ export const columnKey = (scope: ColumnScope): string => {
 
 /**
  * The marker of a column with a post opened (the reply input box). The input box
- * appears in no other column. That column was opened in order to read, so the
- * line limit on the body is not enforced there.
+ * appears in no other column. That column was opened in order to read and to reply,
+ * so what makes a timeline quicker to skim is not enforced there: the line limit on
+ * the body, the packing, and the dropping of line breaks all stand down.
  */
 export const OPENED_POST_MARK = '[data-testid="tweetTextarea_0"]';
 export type ColumnAppearance = { key: string; appearance: AppearanceNode };
@@ -74,8 +81,53 @@ const LINK_COLORS = [
   'rgb(0, 186, 124)', // green
 ];
 
+/**
+ * The avatar in a post.
+ *
+ * The one marker that sits in every post's own skeleton, so the packing takes its
+ * bearings from it. X's class names are generated (`css-g5y9jx r-1iusvr4 …`) and a path
+ * written as `> div > div` stops matching the moment the tree changes shape, without
+ * anything looking broken.
+ */
+const AVATAR_BOX = '[data-testid="Tweet-User-Avatar"]';
+
+/** How wide a packed avatar is. X Pro's own is 33px */
+const COMPACT_AVATAR_SIZE = 24;
+
+/**
+ * How far from the right edge the buttons float when packed.
+ *
+ * The room taken by the "…" that opens a post's menu, measured on the real thing: a
+ * 15px box with a 7px gap beside it. Being off here only shifts the buttons sideways.
+ */
+const COMPACT_ACTIONS_RIGHT = 24;
+
+/**
+ * The room opened up to the left of the "…" for those buttons.
+ *
+ * Given as a margin on the "…" itself, which pushes the name and the time to give way.
+ * X already cuts a long name with an ellipsis to fit the width it is given, so too much
+ * room only cuts the name a little early, while too little lets the name run under the
+ * buttons.
+ */
+const COMPACT_ACTIONS_ROOM = 72;
+
+/** The button that opens a post's menu, at the right end of the name row */
+const POST_MENU = 'button[data-testid="caret"]';
+
+/**
+ * The row of buttons under a post. Named here because both the row itself and its
+ * contents are targeted.
+ */
+const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
+
+/** What the 10px above and below a post shrinks to when packed */
+const COMPACT_GAP = 2;
+
 const TARGETS = {
   text: ['[data-testid="tweetText"]'],
+  /** What is inside the body text. The spans carry their own styling, so they are set alongside the container */
+  insideText: ['[data-testid="tweetText"] *'],
   /*
    * The body text excluding what is inside a quote. Where the line limit applies.
    * A quote is part of the quoting post, so clamping it separately clamps twice
@@ -105,6 +157,49 @@ const TARGETS = {
     '[data-testid="tweetText"] a',
     '[data-testid="tweet-text-show-more-link"]',
     ...LINK_COLORS.map((color) => `a[style*="color: ${color}"]`),
+  ],
+  /** The avatar, and the boxes nested inside it that each carry a size of their own */
+  avatarBox: [AVATAR_BOX],
+  insideAvatar: [`${AVATAR_BOX} *`],
+  /**
+   * The band above a post, where "X reposted" goes. It carries the padding that separates
+   * one post from the one above. Found as the element the post's own row follows.
+   */
+  postTop: [`div:has(+ div > div > ${AVATAR_BOX})`],
+  insidePostTop: [`div:has(+ div > div > ${AVATAR_BOX}) *`],
+  /** The column beside the avatar: the name, the body, the media. It carries the padding below a post */
+  postBody: [`div:has(> ${AVATAR_BOX}) + div`],
+  /**
+   * The containers between the row of buttons and the column it sits in.
+   *
+   * X gives nearly every one of its containers `position: relative`, so the nearest one
+   * of them, not the column, would decide where the buttons land once they are taken out
+   * of the flow. They are put back to `static` to hand that job to the column.
+   * The column itself is not matched: it is reached by the descendant combinator.
+   *
+   * The row is named by `[role="group"]` alone rather than by `ACTION_BAR`, because a
+   * `:has()` inside another `:has()` is not valid and the whole rule would be thrown away.
+   * Matching one container too many only costs it its `position`, which it is not using.
+   */
+  aboveActionBar: [`div:has(> ${AVATAR_BOX}) + div div:has([role="group"])`],
+  /** The button that opens a post's menu. Made to give up room on its left */
+  postMenu: [POST_MENU],
+  /**
+   * The row of reply, repost and like buttons.
+   * Told apart by the buttons it holds: its `aria-label` reads "209 件の表示", which is
+   * worded and counted per UI language.
+   */
+  actionBar: [ACTION_BAR],
+  /**
+   * Everything in that row other than repost and like.
+   *
+   * Written to cover both shapes X might use: each button wrapped in a container of its
+   * own, or the buttons sitting in the row directly. Matching only the first would hide
+   * the two buttons meant to be kept.
+   */
+  otherActions: [
+    `${ACTION_BAR} > *:not(:has([data-testid="retweet"])):not(:has([data-testid="like"]))` +
+      `:not([data-testid="retweet"]):not([data-testid="like"])`,
   ],
   divider: ['[data-testid="cellInnerDiv"] > div'],
   photo: ['[data-testid="tweetPhoto"] img'],
@@ -141,9 +236,83 @@ const columnRules = (
     rules.push(rule(scope, `width: ${width} !important; min-width: ${width} !important; max-width: ${width} !important;`));
   }
 
+  /**
+   * The column with no post opened. What only serves skimming a timeline is confined to
+   * it (see `OPENED_POST_MARK`).
+   */
+  const skimming = `${scope}:not(:has(${OPENED_POST_MARK}))`;
+
+  if (isCompact(appearance.compact)) {
+    /*
+     * The band above a post carries the padding that separates it from the post above.
+     * Which element inside that band holds the padding is not fixed, so the whole branch
+     * is zeroed and the gap is put back on the band itself. That way the result is the
+     * same gap however deeply X nests it.
+     */
+    rules.push(rule(within(skimming, [TARGETS.postTop]), `padding-top: ${COMPACT_GAP}px !important;`));
+    rules.push(rule(within(skimming, [TARGETS.insidePostTop]), 'padding-top: 0 !important;'));
+    // Below a post the padding sits on the column beside the avatar, in one place
+    rules.push(rule(within(skimming, [TARGETS.postBody]), `padding-bottom: ${COMPACT_GAP}px !important;`));
+    /*
+     * The avatar is a nest of boxes, each carrying the same size, and some of them make
+     * their height out of `padding-bottom` (the trick for holding an aspect ratio).
+     * Replacing the outer size alone would leave the inner ones as they were, so they are
+     * all made to follow. The three width properties are needed for the same reason the
+     * column width needs them: X writes its own.
+     */
+    const avatar = `${COMPACT_AVATAR_SIZE}px`;
+    rules.push(
+      rule(
+        within(skimming, [TARGETS.avatarBox]),
+        `width: ${avatar} !important; min-width: ${avatar} !important; max-width: ${avatar} !important; ` +
+          `height: ${avatar} !important;`
+      )
+    );
+    rules.push(
+      rule(
+        within(skimming, [TARGETS.insideAvatar]),
+        'width: 100% !important; height: 100% !important; min-width: 0 !important; ' +
+          'padding-bottom: 0 !important;'
+      )
+    );
+    /*
+     * The row of buttons is floated up beside the name instead of being hidden.
+     *
+     * Hiding it outright took a whole line's worth of height, but it also took away the
+     * repost and the like: there was no way to act on a post at all. Floating it out of
+     * the flow keeps that height (nothing below moves up around it) while leaving the two
+     * buttons within reach, to the left of the "…" that opens the post's menu.
+     *
+     * The base is the column beside the avatar, not the name row: a base of the name row
+     * would confine the buttons to its height and leave nowhere to sit them.
+     */
+    rules.push(rule(within(skimming, [TARGETS.postBody]), 'position: relative !important;'));
+    rules.push(rule(within(skimming, [TARGETS.aboveActionBar]), 'position: static !important;'));
+    rules.push(
+      rule(
+        within(skimming, [TARGETS.actionBar]),
+        // The height is left to the buttons themselves. Pinned to a number, the row would
+        // stand taller than the line the "…" sits on and the two would not line up
+        `position: absolute !important; top: 0 !important; right: ${COMPACT_ACTIONS_RIGHT}px !important; ` +
+          `left: auto !important; width: auto !important; height: auto !important; ` +
+          `margin: 0 !important; justify-content: flex-end !important; align-items: center !important; ` +
+          `gap: 12px !important;`
+      )
+    );
+    // Only the repost and the like are kept. Reply, the view count and the rest would not fit beside a name
+    rules.push(rule(within(skimming, [TARGETS.otherActions]), 'display: none !important;'));
+    /*
+     * Opens up the room they sit in, by pushing the "…" away from the name.
+     * Padding on the name row would not do: the "…" lives inside that row, so padding
+     * would carry it along and leave the buttons stranded to its right.
+     */
+    rules.push(
+      rule(within(skimming, [TARGETS.postMenu]), `margin-left: ${COMPACT_ACTIONS_ROOM}px !important;`)
+    );
+  }
+
   if (appearance.maxLines !== null) {
     // A column with a post opened gets neither the limit nor "Show more"
-    const clampScope = `${scope}:not(:has(${OPENED_POST_MARK}))`;
     /*
      * Lines are counted after wrapping on screen.
      *
@@ -153,7 +322,7 @@ const columnRules = (
      */
     rules.push(
       rule(
-        within(clampScope, [TARGETS.textOutsideQuote]),
+        within(skimming, [TARGETS.textOutsideQuote]),
         `display: -webkit-box !important; -webkit-box-orient: vertical !important; ` +
           `-webkit-line-clamp: ${appearance.maxLines} !important; overflow: hidden !important;`
       )
@@ -165,7 +334,7 @@ const columnRules = (
      */
     rules.push(
       rule(
-        within(clampScope, [[`*:has(> [data-testid="tweetText"]):not([role="link"] *)`]]),
+        within(skimming, [[`*:has(> [data-testid="tweetText"]):not([role="link"] *)`]]),
         'display: block !important;'
       )
     );
@@ -177,7 +346,7 @@ const columnRules = (
      */
     rules.push(
       rule(
-        within(clampScope, [
+        within(skimming, [
           [`.${OPENED_CLASS} [data-testid="tweetText"]:not([role="link"] [data-testid="tweetText"])`],
         ]),
         'display: block !important; -webkit-line-clamp: none !important; ' +
@@ -193,9 +362,25 @@ const columnRules = (
      */
     rules.push(
       rule(
-        within(clampScope, [[`.${OPENED_CLASS} :has([data-testid="tweetText"])`]]),
+        within(skimming, [[`.${OPENED_CLASS} :has([data-testid="tweetText"])`]]),
         '-webkit-line-clamp: none !important; line-clamp: none !important;'
       )
+    );
+  }
+
+  /*
+   * Dropping the line breaks written into a post.
+   *
+   * X keeps them as real newlines in the text and shows them through `white-space:
+   * pre-wrap`, so putting that back to `normal` folds each one into a single space. The
+   * text itself is not touched, and a break becomes a space rather than nothing, so words
+   * on either side do not run together.
+   * `white-space` is inherited, but the spans inside the body carry styling of their own,
+   * so they are set alongside it.
+   */
+  if (collapsesNewlines(appearance.collapseNewlines)) {
+    rules.push(
+      rule(within(skimming, [TARGETS.text, TARGETS.insideText]), 'white-space: normal !important;')
     );
   }
 

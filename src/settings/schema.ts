@@ -65,6 +65,24 @@ export const filterApplies = (enabled: boolean | null): boolean => enabled !== f
 export const mediaCollapses = (collapse: boolean | null): boolean => collapse === true;
 
 /**
+ * Whether the posts are packed tight (the padding around them, the avatar, the row of
+ * reply and repost buttons). Opt-in, like `mediaCollapses`: left alone, X Pro's own
+ * spacing stays.
+ */
+export const isCompact = (compact: boolean | null): boolean => compact === true;
+
+/**
+ * Whether the line breaks written into a post are dropped, running the body into one
+ * paragraph.
+ *
+ * Held apart from `compact` because the two differ in kind: packing changes how much
+ * room a post takes, while this changes what the body reads like. A post that uses its
+ * line breaks to mean something (a list, a couplet) loses that, so which of the two is
+ * wanted is not the same question.
+ */
+export const collapsesNewlines = (collapse: boolean | null): boolean => collapse === true;
+
+/**
  * The default is the opposite of `mediaCollapses`. Unreadable colors are an accident
  * nobody asked for, so the default is the side that fixes itself when left alone.
  */
@@ -294,9 +312,13 @@ export type AppearanceNode = {
   /** Whether the appearance applies here. With false, nothing applies, the upper tiers' settings included */
   enabled: boolean | null;
   columnWidth: number | null;
+  /** Packs the posts: the padding around them, the avatar, and the row of reply and repost buttons */
+  compact: boolean | null;
   fontSize: number | null;
   /** Cuts the body at this many lines, with the rest opened by "Show more". Lines as wrapped on screen */
   maxLines: number | null;
+  /** Drops the line breaks written into the body, turning each into a single space */
+  collapseNewlines: boolean | null;
   colors: {
     background: string | null;
     text: string | null;
@@ -504,8 +526,10 @@ export const fillNode = (v: unknown): SettingsNode => {
     appearance: {
       enabled: bool(appearance.enabled),
       columnWidth: size(appearance.columnWidth),
+      compact: bool(appearance.compact),
       fontSize: size(appearance.fontSize),
       maxLines: size(appearance.maxLines),
+      collapseNewlines: bool(appearance.collapseNewlines),
       colors: {
         background: hexColor(colors.background),
         text: hexColor(colors.text),
@@ -557,8 +581,10 @@ export const emptyNode = (): SettingsNode => fillNode(undefined);
 /** The appearance's contents. The switch for whether it applies (`enabled`) is not included */
 const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.columnWidth !== null ||
+  appearance.compact !== null ||
   appearance.fontSize !== null ||
   appearance.maxLines !== null ||
+  appearance.collapseNewlines !== null ||
   appearance.timeFormat !== null ||
   appearance.autoContrast !== null ||
   appearance.highlightBase !== null ||
