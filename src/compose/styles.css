@@ -1,0 +1,32 @@
+/*
+ * The two posting switches, as they look inside the compose form.
+ *
+ * They sit in X Pro's own drawer, so nothing is painted: the color comes from what X Pro
+ * has already set around them, and the only line drawn is the one separating them from
+ * the toolbar above.
+ */
+
+.xpro-compose-switches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 4px 0;
+  /* The dim line X Pro uses between things. Kept faint so it does not read as a section */
+  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.xpro-compose-switches label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.xpro-compose-switches input {
+  margin: 0;
+  flex: none;
+  cursor: pointer;
+}
+

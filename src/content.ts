@@ -5,6 +5,7 @@
 import {
   load,
   loadPaused,
+  save,
   saveAdGuard,
   saveDetected,
   saveHealth,
@@ -33,6 +34,13 @@ import {
   start as startCompose,
   updateSettings as updateCompose,
 } from './compose/keep.ts';
+import {
+  insertInto as insertComposeSwitches,
+  remove as removeComposeSwitches,
+  start as startComposeSwitches,
+  updateSettings as updateComposeSwitches,
+} from './compose/switches.ts';
+import { injectStyles as injectComposeStyles } from './compose/styles.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
 const log = (...args: unknown[]) => console.log('%c[X Pro Tweaks]', PREFIX_STYLE, ...args);
@@ -117,6 +125,18 @@ const main = async (): Promise<void> => {
    */
   startCompose(effectiveSettings(current, paused).compose, { log });
 
+  /*
+   * The same two settings, reachable from the compose form itself.
+   * A change made there is saved from here, and comes back to every surface (this one
+   * included) through `subscribe`, so there is one copy of the values and one way in.
+   * What is saved is the stored settings, not the paused ones: pausing must not erase
+   * what was chosen.
+   */
+  injectComposeStyles();
+  startComposeSwitches(effectiveSettings(current, paused).compose, (compose) => {
+    save({ ...current, compose }).catch(warnSaveFailed('the posting settings'));
+  });
+
   /**
    * Applies a change to the settings. Nothing is applied until startup finishes.
    * Applying during `start()` would judge without the column tier, since the columns
@@ -135,6 +155,7 @@ const main = async (): Promise<void> => {
      * them, so there is no reason to make it wait.
      */
     updateCompose(effectiveSettings(current, paused).compose);
+    updateComposeSwitches(effectiveSettings(current, paused).compose);
     if (!started) {
       missed = true;
       return false;
@@ -193,8 +214,11 @@ const main = async (): Promise<void> => {
       insertColumnItem(messages);
       // While paused nothing the extension does applies, so the switches are taken out
       // rather than left showing values that would not take effect
-      // While paused nothing the extension does applies, so the form is not followed either
-      if (paused) return;
+      if (paused) {
+        removeComposeSwitches();
+        return;
+      }
+      insertComposeSwitches(messages);
       // The compose form is written down while it is open: once a post goes out it is
       // gone, and nothing about it can be read any more
       noticeComposeForm();
