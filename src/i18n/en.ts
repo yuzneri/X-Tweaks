@@ -155,18 +155,17 @@ export const en = {
     hint:
       'What the compose form does once a post has gone out. Left alone it does what X Pro ' +
       'does: the form closes and the box is emptied.',
-    keepOpen: {
-      label: 'Keep the compose form open',
-      note: 'It opens again on its own, ready to type the next post into.',
+    reopen: {
+      label: 'Open the compose form again',
+      note: 'X Pro closes the form on posting. This opens it again, ready to type the next post into.',
     },
     keepHashtags: {
       label: 'Put the hashtags back',
       note:
-        'The tags that were written go back into the emptied box, with the caret waiting ' +
-        'in front of them.',
+        'The tags that were written go into the next compose form, with the caret waiting ' +
+        'in front of them: the form that is opened again if that is set, or the next one ' +
+        'opened by hand if it is not.',
     },
-    /** Said where the second switch sits, while the first one is off and it can do nothing */
-    needsKeepOpen: 'With the form closed there is nowhere to put them.',
   },
 
   effective: {

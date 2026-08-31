@@ -274,27 +274,28 @@ test('保存されている version は読み捨て、この拡張の version �
 });
 
 test('投稿フォームの設定は、何も保存されていなければ X Pro のまま（両方 off）', () => {
-  assert.deepEqual(emptySettings().compose, { keepOpen: false, keepHashtags: false });
-  assert.deepEqual(fillAll({ compose: {} }).compose, { keepOpen: false, keepHashtags: false });
+  assert.deepEqual(emptySettings().compose, { reopen: false, keepHashtags: false });
+  assert.deepEqual(fillAll({ compose: {} }).compose, { reopen: false, keepHashtags: false });
 });
 
 test('投稿フォームの設定は保存された値を読み出す', () => {
-  const settings = fillAll({ compose: { keepOpen: true, keepHashtags: true } });
-  assert.deepEqual(settings.compose, { keepOpen: true, keepHashtags: true });
+  const settings = fillAll({ compose: { reopen: true, keepHashtags: true } });
+  assert.deepEqual(settings.compose, { reopen: true, keepHashtags: true });
 });
 
 test('投稿フォームの設定は、真偽値でない値を off に倒す（段の継承が無く「未設定」を持たないため）', () => {
-  const settings = fillAll({ compose: { keepOpen: 'true', keepHashtags: 1 } });
-  assert.deepEqual(settings.compose, { keepOpen: false, keepHashtags: false });
+  const settings = fillAll({ compose: { reopen: 'true', keepHashtags: 1 } });
+  assert.deepEqual(settings.compose, { reopen: false, keepHashtags: false });
   // The key itself being something other than an object lands on the same side
-  assert.deepEqual(fillAll({ compose: 'on' }).compose, { keepOpen: false, keepHashtags: false });
+  assert.deepEqual(fillAll({ compose: 'on' }).compose, { reopen: false, keepHashtags: false });
 });
 
-test('ハッシュタグを残すのは、開いたままにする設定が入っているときだけ', () => {
-  assert.equal(restoresHashtags({ keepOpen: true, keepHashtags: true }), true);
-  // Switched on by itself it does nothing: with the form closed there is nowhere to put them
-  assert.equal(restoresHashtags({ keepOpen: false, keepHashtags: true }), false);
-  assert.equal(restoresHashtags({ keepOpen: true, keepHashtags: false }), false);
+test('ハッシュタグを残すかどうかは、開いたままにする設定と連動しない', () => {
+  assert.equal(restoresHashtags({ reopen: true, keepHashtags: true }), true);
+  // On by itself it still works: the tags wait for the next form opened by hand
+  assert.equal(restoresHashtags({ reopen: false, keepHashtags: true }), true);
+  assert.equal(restoresHashtags({ reopen: true, keepHashtags: false }), false);
+  assert.equal(restoresHashtags({ reopen: false, keepHashtags: false }), false);
 });
 
 test('何も指定していない段は「空」と判定する', () => {

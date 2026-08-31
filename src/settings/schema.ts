@@ -354,21 +354,24 @@ export type SettingsNode = { filter: FilterNode; appearance: AppearanceNode };
  */
 export type ComposeSettings = {
   /** Open the compose form again after a post, instead of letting X Pro close it */
-  keepOpen: boolean;
+  reopen: boolean;
   /**
    * Put the hashtags that were written back into the emptied box.
-   * Only read while `keepOpen` is on: with the form closed there is nowhere to put them.
+   * Only read while `reopen` is on: with the form closed there is nowhere to put them.
    */
   keepHashtags: boolean;
 };
 
 /**
- * Whether the hashtags are put back. Both switches have to be on for anything to happen.
+ * Whether the hashtags are put back.
+ *
+ * It does not depend on the form being opened again. With the form left to close, the tags
+ * are kept until the next compose form is opened by hand and go in there instead, so the
+ * two switches answer two separate questions.
  * It lives here, beside the other "what happens when nothing was set" answers, so that
  * the settings screen and the compose form cannot drift into disagreeing about it.
  */
-export const restoresHashtags = (compose: ComposeSettings): boolean =>
-  compose.keepOpen && compose.keepHashtags;
+export const restoresHashtags = (compose: ComposeSettings): boolean => compose.keepHashtags;
 
 export type Settings = {
   version: number;
@@ -560,7 +563,7 @@ const nodeMap = (v: unknown): Record<string, SettingsNode> =>
  */
 const fillCompose = (v: unknown): ComposeSettings => {
   const compose = rec(v);
-  return { keepOpen: compose.keepOpen === true, keepHashtags: compose.keepHashtags === true };
+  return { reopen: compose.reopen === true, keepHashtags: compose.keepHashtags === true };
 };
 
 export const fillAll = (v: unknown): Settings => {

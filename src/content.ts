@@ -27,7 +27,9 @@ import {
   watch as watchColumnItem,
 } from './panel/column-options.ts';
 import {
+  noticeComposeForm,
   rememberTrigger as rememberComposeTrigger,
+  restorePending as restoreKeptHashtags,
   start as startCompose,
   updateSettings as updateCompose,
 } from './compose/keep.ts';
@@ -189,6 +191,15 @@ const main = async (): Promise<void> => {
       const messages = currentMessages();
       insertMenuItem(messages);
       insertColumnItem(messages);
+      // While paused nothing the extension does applies, so the switches are taken out
+      // rather than left showing values that would not take effect
+      // While paused nothing the extension does applies, so the form is not followed either
+      if (paused) return;
+      // The compose form is written down while it is open: once a post goes out it is
+      // gone, and nothing about it can be read any more
+      noticeComposeForm();
+      // Tags kept from the last post go into the form the moment one is opened by hand
+      restoreKeptHashtags();
     },
   });
   started = true;

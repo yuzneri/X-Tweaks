@@ -116,15 +116,16 @@ export const ja: Messages = {
     hint:
       '投稿したあとに投稿フォームがどうなるかの設定です。' +
       '未設定なら X Pro のまま、フォームが閉じて本文が空になります。',
-    keepOpen: {
-      label: '投稿フォームを閉じない',
-      note: '自動で開き直し、そのまま次を書ける状態にします。',
+    reopen: {
+      label: '投稿フォームを開き直す',
+      note: '投稿すると X Pro はフォームを閉じます。すぐに開き直して、次を書ける状態にします。',
     },
     keepHashtags: {
       label: 'ハッシュタグを残す',
-      note: '書いたタグを空になった本文に戻し、カーソルはその手前に置きます。',
+      note:
+        '書いたタグを次の投稿フォームに入れ、カーソルはその手前に置きます。' +
+        'フォームを開き直す設定なら開き直したフォームに、そうでなければ次に自分で開いたときに入ります。',
     },
-    needsKeepOpen: 'フォームが閉じてしまうと、戻す先がありません。',
   },
 
   effective: {
@@ -322,6 +323,8 @@ export const ja: Messages = {
     legend: '大きさと表示',
     hint: '空欄・未指定の項目は、X Pro の表示のままになります。',
     columnWidth: 'カラムの幅',
+    // What happens to the buttons belongs in the label rather than in the options: the label
+    // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
     compact: 'ポストの詰め方（リポストといいねは名前の横へ）',
     compactOn: '詰める',
     compactOff: '詰めない',

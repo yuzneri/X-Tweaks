@@ -56,8 +56,8 @@ Anything left unset keeps the way X Pro shows it.
 
 Two things about the compose form for a new post can be changed. They are one setting for the whole extension, not held per column or per account.
 
-- **Keep the compose form open**: X Pro closes it on posting; this opens it again, ready to type the next post into
-- **Put the hashtags back**: the tags that were written go back into the emptied box, with the caret waiting in front of them. Only while the form is kept open
+- **Open the compose form again**: X Pro closes it on posting; this opens it again, ready to type the next post into
+- **Put the hashtags back**: the tags that were written go into the next compose form, with the caret waiting in front of them — the form that opens again if it is kept open, or the next one opened by hand if it is not
 
 They are there for a run of posts sharing the same tags.
 Both start off, and left off X Pro behaves as it always has.

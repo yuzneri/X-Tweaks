@@ -34,33 +34,31 @@ export const Compose = ({ compose, onChange }: Props) => {
       <label class="row switch">
         <input
           type="checkbox"
-          checked={compose.keepOpen}
+          checked={compose.reopen}
           aria-describedby={KEEP_OPEN_NOTE}
-          onChange={(event) => patch({ keepOpen: event.currentTarget.checked })}
+          onChange={(event) => patch({ reopen: event.currentTarget.checked })}
         />
-        <span>{m.compose.keepOpen.label}</span>
+        <span>{m.compose.reopen.label}</span>
       </label>
       <p class="hint indent" id={KEEP_OPEN_NOTE}>
-        {m.compose.keepOpen.note}
+        {m.compose.reopen.note}
       </p>
 
       {/*
-        Nested under the switch above, which is the one it depends on: with the form
-        closed there is nowhere to put the tags. Rather than let it be switched on to no
-        effect, it is disabled and says why
+        Independent of the switch above. Where the form is opened again the tags go straight back
+        in; with it left to close they wait for the next form opened by hand
       */}
-      <label class="row switch indent">
+      <label class="row switch">
         <input
           type="checkbox"
           checked={compose.keepHashtags}
-          disabled={!compose.keepOpen}
           aria-describedby={KEEP_HASHTAGS_NOTE}
           onChange={(event) => patch({ keepHashtags: event.currentTarget.checked })}
         />
         <span>{m.compose.keepHashtags.label}</span>
       </label>
       <p class="hint indent" id={KEEP_HASHTAGS_NOTE}>
-        {compose.keepOpen ? m.compose.keepHashtags.note : m.compose.needsKeepOpen}
+        {m.compose.keepHashtags.note}
       </p>
     </>
   );
