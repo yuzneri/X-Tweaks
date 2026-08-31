@@ -57,12 +57,19 @@ const SPACE = 'a[href*="/i/spaces/"]';
 const ARTICLE = '[data-testid="article-cover-image"]';
 
 /**
- * The mark of an ad. Spotted by the shape of the icon on the "Promoted" line (the
- * wording changes with the language). Looking for presence rather than absence is the
- * point: going by "having no timestamp" would tip every post into being an ad and
- * make them all vanish the day X changes how it shows times.
+ * The mark of an ad. X wraps a promoted post in an element that measures where it sits
+ * on screen and carries the impression pixels beside it; an ordinary post never sits
+ * inside one.
+ *
+ * The same marker also appears *within* a post, around an embedded video, so only one
+ * enclosing the post counts. Going by "the post has this marker" would call every post
+ * with a video an ad.
+ *
+ * Looking for presence rather than absence is the point: going by "having no timestamp"
+ * would tip every post into being an ad and make them all vanish the day X changes how
+ * it shows times.
  */
-const AD_BADGE = 'svg path[d^="M19.498 3h-15c-1.381 0-2.5 1.12-2.5 2.5v13"]';
+const AD_PLACEMENT = '[data-testid="placementTracking"]';
 
 /**
  * The screen name. On a repost the avatar points at the original author; on a quote
@@ -367,6 +374,16 @@ const replyTo = (links: HTMLAnchorElement[], followsThread: boolean, author: str
 };
 
 /**
+ * Whether that post is an ad. The wrapper sits between the cell and the post, so the
+ * search is bounded to the cell: on its own, `closest` would keep climbing past it and
+ * could pick up something outside the timeline.
+ */
+const isAdIn = (cell: Element, tweet: Element): boolean => {
+  const placement = tweet.closest(AD_PLACEMENT);
+  return placement !== null && cell.contains(placement);
+};
+
+/**
  * Turns a post cell into something judgeable. Returns null for items without the post
  * marker (notifications, trends) and for posts still mid-render whose author is not in
  * yet (the latter get picked up again on the next change).
@@ -408,8 +425,7 @@ export const readPost = (cell: Element): Post | null => {
     hasSpace: tweet.querySelector(SPACE) !== null,
     hasArticle: tweet.querySelector(ARTICLE) !== null,
     hasLinkCard: linkCardsIn(tweet).length > 0,
-    // Spotted by the icon on the ad's banner
-    isAd: tweet.querySelector(AD_BADGE) !== null,
+    isAd: isAdIn(cell, tweet),
     postedAt: postedAtOf(tweet, quote),
   };
 };
