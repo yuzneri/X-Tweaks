@@ -40,4 +40,4 @@ Before that, the settings screen can export the settings to a file and import th
 
 ## Questions
 
-Open an issue at https://github.com/yuzneri/X-Pro-Tweaks/issues.
+Open an issue at https://github.com/yuzneri/X-Tweaks/issues.

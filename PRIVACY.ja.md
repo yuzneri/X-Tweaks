@@ -41,4 +41,4 @@ X Tweaks は、どこにも何も送りません。
 
 ## 問い合わせ
 
-https://github.com/yuzneri/X-Pro-Tweaks/issues に issue を立ててください。
+https://github.com/yuzneri/X-Tweaks/issues に issue を立ててください。

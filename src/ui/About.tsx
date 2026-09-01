@@ -11,7 +11,7 @@ import { useMessages } from './messages.tsx';
 declare const chrome: typeof browser | undefined;
 const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
 
-const REPOSITORY = 'https://github.com/yuzneri/X-Pro-Tweaks';
+const REPOSITORY = 'https://github.com/yuzneri/X-Tweaks';
 const ISSUES = `${REPOSITORY}/issues`;
 const PRIVACY = `${REPOSITORY}/blob/main/PRIVACY.md`;
 const LICENSE = 'Apache License 2.0';
