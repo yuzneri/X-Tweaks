@@ -141,6 +141,15 @@
   border-bottom-color: var(--accent);
 }
 
+/*
+ * The extension's own settings sit apart from the sites'. The three before it answer
+ * "which screen"; this one does not, and standing in the same row it would read as a
+ * fourth screen.
+ */
+.xpro-ui .surface.utility {
+  margin-left: auto;
+}
+
 .xpro-ui .panes {
   flex: 1;
   min-height: 0;
@@ -255,6 +264,26 @@
  * Import and export. It opens below the two panes, with a wide box for reading.
  * It is not left open, so the shell's height is borrowed from the two panes only while it is.
  */
+/* The extension's own details. Two columns so the labels line up and the values read down */
+.xpro-ui .about {
+  margin: 0 0 12px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  align-items: baseline;
+}
+
+.xpro-ui .about dt {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.xpro-ui .about dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .xpro-ui .transfer {
   flex: 0 0 auto;
   margin-top: 16px;

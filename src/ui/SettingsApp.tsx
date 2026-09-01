@@ -2,7 +2,7 @@
  * The skeleton of the settings screen. It holds the settings in one place and assembles
  * the scope switching and the per-tier partial updates. Two panes: where settings apply on the left, what to set on the right.
  */
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { LANGUAGES, localeOf, messagesFor, type Language, type Locale } from '../i18n/index.ts';
 import { MessagesProvider, useMessages } from './messages.tsx';
 import type { Messages } from '../i18n/index.ts';
@@ -39,6 +39,7 @@ import { TierEditor, type Tab } from './TierEditor.tsx';
 import { ScopeHeader, type ReassignTarget } from './ScopeHeader.tsx';
 import { ScopeList, scopeKey, type Scope, type ScopeEntry, type ScopeGroup } from './ScopeList.tsx';
 import { Transfer } from './Transfer.tsx';
+import { About } from './About.tsx';
 import { Compose } from './Compose.tsx';
 import { Effective } from './Effective.tsx';
 import { useSettings } from './useSettings.ts';
@@ -147,10 +148,27 @@ const viewLabel = (key: string, m: Messages): string | null => {
   return null;
 };
 
-/** The tab that decides which screen's settings the list shows */
-type SurfaceTab = 'common' | SurfaceId;
+/**
+ * The tab a scope belongs to. Used to land on the right one when the settings are opened
+ * pointing at something — from a column's options, the tab has to be X Pro's, or the list
+ * beside it would be another site's.
+ */
+const tabOf = (scope: Scope | undefined): SurfaceTab => {
+  if (!scope) return 'common';
+  if (scope.tier === 'columns') return surfaceOfKey(scope.key);
+  if (scope.tier === 'surface') return scope.key === 'x' ? 'x' : 'pro';
+  if (scope.tier === 'meta') return 'meta';
+  return 'common';
+};
 
-const SURFACE_TABS: SurfaceTab[] = ['common', 'pro', 'x'];
+/** The tab that decides which screen's settings the list shows */
+type SurfaceTab = 'common' | SurfaceId | 'meta';
+
+/**
+ * `meta` last, and set apart on screen. The first three answer "which screen"; it answers
+ * "the extension itself", which is a different question and does not belong in the row.
+ */
+const SURFACE_TABS: SurfaceTab[] = ['common', 'pro', 'x', 'meta'];
 
 type Props = {
   /**
@@ -164,14 +182,9 @@ type Props = {
    * Rewriting X's `<html lang>` from the in-page panel would not be undone by removing the extension.
    */
   onLocale?: (locale: Locale) => void;
-  /**
-   * Whether this surface may offer import and export. Only the options page passes true.
-   * The in-page panel lives inside pro.x.com, where creating a `blob:` can be affected by X's CSP.
-   */
-  exportable?: boolean;
 };
 
-export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
+export const SettingsApp = ({ onLocale, start }: Props = {}) => {
   const { settings, unreadable, status, update, reportSaveFailed, loaded } = useSettings();
   const locale = localeOf(settings.language);
   const m = messagesFor(locale);
@@ -182,12 +195,9 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
    * Which screen's settings are on show. Held above the scope: moving between tabs is
    * moving between lists, and the scope selected in one has no meaning in another.
    */
-  const [surfaceTab, setSurfaceTab] = useState<SurfaceTab>('common');
+  const [surfaceTab, setSurfaceTab] = useState<SurfaceTab>(() => tabOf(start));
   // The tab is held above the scope, so switching scope leaves the open tab as it is
   const [tab, setTab] = useState<Tab>('filter');
-  // Import/export is not left open. On closing, focus returns to the button that opened it
-  const [transferring, setTransferring] = useState(false);
-  const transferButton = useRef<HTMLButtonElement>(null);
   const { detected: found, loaded: detectedLoaded } = useDetected();
   // "What exists now" is taken from every deck in the record.
   // Going by the deck on screen alone would drop other decks' columns and accounts into "unassigned"
@@ -392,6 +402,16 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
    * the place a setting is written and the range it covers line up one to one.
    */
   const groups = useMemo<ScopeGroup[]>(() => {
+    if (surfaceTab === 'meta') {
+      return [
+        {
+          entries: [
+            { scope: { tier: 'meta', key: 'settings' }, label: m.meta.settings, unassigned: false, configured: false },
+            { scope: { tier: 'meta', key: 'about' }, label: m.meta.about, unassigned: false, configured: false },
+          ],
+        },
+      ];
+    }
     if (surfaceTab === 'common') {
       const unassigned = accountEntries.filter((entry) => entry.unassigned);
       return [
@@ -504,8 +524,10 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     const target = current.scope;
     if (target.tier === 'global') return inheritedFor(settings, { tier: 'global' });
     if (target.tier === 'accounts') return inheritedFor(settings, { tier: 'accounts' });
-    // Nothing is above a whole site, and nothing below it. It inherits nothing
-    if (target.tier === 'surface') return inheritedFor(settings, { tier: 'global' });
+    // Neither a whole site nor the extension itself is a tier: nothing above, nothing below
+    if (target.tier === 'surface' || target.tier === 'meta') {
+      return inheritedFor(settings, { tier: 'global' });
+    }
     const account = detected.find((scope) => scope.key === target.key)?.account ?? null;
     return inheritedFor(settings, { tier: 'columns', account });
   }, [current.scope, settings, detected]);
@@ -534,6 +556,10 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
       setScope({ tier: 'global' });
       return;
     }
+    if (next === 'meta') {
+      setScope({ tier: 'meta', key: 'settings' });
+      return;
+    }
     const first =
       wholeSurface[next] ??
       groupsBySurface[next].flatMap((group) => group.entries)[0] ??
@@ -542,10 +568,10 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     setScope(first?.scope ?? { tier: 'global' });
   };
 
-  /** The tier's stored settings. A whole site is not a tier and never reaches here */
+  /** The tier's stored settings. A whole site and the extension itself are not tiers, and never reach here */
   const nodeOf = (target: Scope): SettingsNode => {
     if (target.tier === 'global') return settings.global;
-    if (target.tier === 'surface') return emptyNode();
+    if (target.tier === 'surface' || target.tier === 'meta') return emptyNode();
     const nodes = target.tier === 'accounts' ? settings.accounts : settings.columns;
     return nodes[target.key] ?? emptyNode();
   };
@@ -573,21 +599,6 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
           >
             {status && m.status[status]}
           </p>
-          <LanguageSelect
-            value={settings.language}
-            onChange={(language) => update({ ...settings, language })}
-          />
-          {/* Not shown until loading finishes. Even if it could be pressed, the box lives under `ready` and would not open */}
-          {exportable && ready && (
-            <button
-              type="button"
-              ref={transferButton}
-              aria-expanded={transferring}
-              onClick={() => setTransferring((open) => !open)}
-            >
-              {m.transfer.open}
-            </button>
-          )}
         </header>
 
         {/* While paused, say up front that edits here have no effect */}
@@ -624,7 +635,14 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
                   key={id}
                   type="button"
                   aria-current={id === surfaceTab ? 'true' : undefined}
-                  class={id === surfaceTab ? 'surface current' : 'surface'}
+                  class={[
+                    'surface',
+                    id === surfaceTab ? 'current' : null,
+                    // Set apart: it is not one of the screens
+                    id === 'meta' ? 'utility' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   onClick={() => selectSurface(id)}
                 >
                   {m.surfaces[id]}
@@ -638,7 +656,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
               active={current.scope}
               onSelect={setScope}
               note={
-                surfaceTab === 'common' || detectingOn[surfaceTab]
+                surfaceTab === 'common' || surfaceTab === 'meta' || detectingOn[surfaceTab]
                   ? undefined
                   : surfaceTab === 'x'
                     ? m.tiers.notDetectingX
@@ -657,6 +675,23 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
                 onRemove={removeCurrent}
                 onForget={current.scope.tier === 'columns' ? forgetCurrent : undefined}
               />
+              {current.scope.tier === 'meta' && current.scope.key === 'about' && <About />}
+
+              {current.scope.tier === 'meta' && current.scope.key === 'settings' && (
+                <>
+                  <LanguageSelect
+                    value={settings.language}
+                    onChange={(language) => update({ ...settings, language })}
+                  />
+                  {/*
+                    A place of its own rather than a box opened over the screen, so there is
+                    nothing to close. Shown wherever the settings are: the same screen has to
+                    hold the same things, or what is here depends on how you got here.
+                  */}
+                  <Transfer settings={settings} detected={found.groups} onLoad={update} />
+                </>
+              )}
+
               {/*
                 One whole site. Not a tier, so it does not go through the merging: what is
                 here belongs to the site and to nothing above or below it.
@@ -670,7 +705,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
 
               {/* Rebuilt when the scope changes. Components in the same position are reused, so without
                   `key` a half-typed rule or uncommitted field text would carry over to the next scope */}
-              {current.scope.tier !== 'surface' && (
+              {current.scope.tier !== 'surface' && current.scope.tier !== 'meta' && (
               <TierEditor
                 key={scopeKey(current.scope)}
                 node={nodeOf(current.scope)}
@@ -685,18 +720,6 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
             </div>
           </div>
           </>
-        )}
-
-        {ready && transferring && (
-          <Transfer
-            settings={settings}
-            detected={found.groups}
-            onLoad={update}
-            onClose={() => {
-              setTransferring(false);
-              transferButton.current?.focus();
-            }}
-          />
         )}
       </div>
     </MessagesProvider>

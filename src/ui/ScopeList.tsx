@@ -13,7 +13,9 @@ export type Scope =
    * One whole site. Not a tier: nothing inherits from it and nothing inherits it.
    * It is where the settings live that belong to a site rather than to any scope in it.
    */
-  | { tier: 'surface'; key: string };
+  | { tier: 'surface'; key: string }
+  /** The extension itself: what it is set to, and what it is. Nothing to do with any site */
+  | { tier: 'meta'; key: 'settings' | 'about' };
 
 /**
  * The string used for identity and comparison. Global carries no key.

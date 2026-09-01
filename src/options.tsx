@@ -22,5 +22,4 @@ const applyLocale = (locale: Locale): void => {
   setupColorPicker(messages);
 };
 
-// Import and export of settings are offered on this surface only
-render(<SettingsApp onLocale={applyLocale} exportable />, root);
+render(<SettingsApp onLocale={applyLocale} />, root);

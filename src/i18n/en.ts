@@ -158,6 +158,21 @@ export const en = {
     common: 'Both',
     pro: 'X Pro',
     x: 'x.com',
+    meta: 'More',
+  },
+
+  meta: {
+    settings: 'Settings',
+    about: 'About',
+    version: 'Version',
+    source: 'Source code',
+    issues: 'Reporting a problem',
+    issuesLink: 'GitHub issues',
+    license: 'License',
+    privacy: 'Privacy',
+    privacyNote:
+      'This extension talks to nobody. Your settings stay on this device and never leave it.',
+    policy: 'Privacy policy',
   },
 
   tabs: {

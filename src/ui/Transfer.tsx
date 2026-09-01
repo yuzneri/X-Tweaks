@@ -17,7 +17,8 @@ type Props = {
   detected: DetectedGroup[];
   /** Replaces the settings with the ones loaded. The confirmation has already happened */
   onLoad: (settings: Settings) => void;
-  onClose: () => void;
+  /** Closes the box. Absent where it is a place of its own rather than something opened over the screen */
+  onClose?: () => void;
 };
 
 /** Turns the reason for a refusal into a sentence. The reason type knows nothing about display */
@@ -142,9 +143,11 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
         <button type="button" onClick={copy}>
           {m.transfer.copy}
         </button>
-        <button type="button" onClick={onClose}>
-          {m.transfer.close}
-        </button>
+        {onClose && (
+          <button type="button" onClick={onClose}>
+            {m.transfer.close}
+          </button>
+        )}
       </div>
 
       <textarea

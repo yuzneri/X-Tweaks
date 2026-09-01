@@ -122,6 +122,21 @@ export const ja: Messages = {
     common: '共通',
     pro: 'X Pro',
     x: 'x.com',
+    meta: 'その他',
+  },
+
+  meta: {
+    settings: '設定',
+    about: '情報',
+    version: 'バージョン',
+    source: 'ソースコード',
+    issues: '不具合の報告',
+    issuesLink: 'GitHub の Issues',
+    license: 'ライセンス',
+    privacy: 'プライバシー',
+    privacyNote:
+      'この拡張機能はどこにも通信しません。設定はこの端末の中だけに保存され、外に出ることはありません。',
+    policy: 'プライバシーポリシー',
   },
 
   tabs: {
