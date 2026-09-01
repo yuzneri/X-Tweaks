@@ -72,18 +72,29 @@ const settings = {
 
 // Made-up accounts and columns. Nothing here comes from a real timeline.
 const detected = {
-  currentDeckId: 'd1',
-  decks: [
+  currentGroupId: 'd1',
+  groups: [
     {
-      deckId: 'd1',
+      surface: 'pro',
+      id: 'd1',
       name: 'Work',
-      columns: [
-        { columnId: 'c1', account: 'alice', title: 'Home' },
-        { columnId: 'c2', account: 'alice', title: 'Notifications' },
-        { columnId: 'c3', account: 'bob', title: 'Search: release' },
+      scopes: [
+        { key: 'c1', account: 'alice', title: 'Home' },
+        { key: 'c2', account: 'alice', title: 'Notifications' },
+        { key: 'c3', account: 'bob', title: 'Search: release' },
       ],
     },
-    { deckId: 'd2', name: 'Reading', columns: [] },
+    { surface: 'pro', id: 'd2', name: 'Reading', scopes: [] },
+    // x.com groups its views under one heading of its own (see `surface/x.ts`)
+    {
+      surface: 'x',
+      id: 'all',
+      name: null,
+      scopes: [
+        { key: 'view:home', account: 'alice', title: null },
+        { key: 'view:notifications', account: 'alice', title: null },
+      ],
+    },
   ],
 };
 
@@ -118,7 +129,7 @@ const openAppearance = `
 (() => {
   const timer = setInterval(() => {
     const tab = [...document.querySelectorAll('.tab')]
-      .find((b) => ['Appearance', '見た目'].includes(b.textContent.trim()));
+      .find((b) => ['Appearance', '外観'].includes(b.textContent.trim()));
     if (!tab) return;
     tab.click();
     clearInterval(timer);
@@ -147,9 +158,9 @@ writeFileSync(
             font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#f7f9f9">
   <img src="icon.svg" width="72" height="72" style="display:block">
   <div>
-    <div style="font-size:30px;font-weight:700;letter-spacing:-0.01em">X Pro Tweaks</div>
+    <div style="font-size:30px;font-weight:700;letter-spacing:-0.01em">X Tweaks</div>
     <div style="font-size:15px;line-height:1.5;color:#8b98a5;margin-top:8px">
-      Filter the X Pro timeline<br>column by column
+      Filter the X Pro and x.com<br>timelines, and change how they look
     </div>
   </div>
 </div>
