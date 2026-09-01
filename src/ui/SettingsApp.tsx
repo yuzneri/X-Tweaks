@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { LANGUAGES, localeOf, messagesFor, type Language, type Locale } from '../i18n/index.ts';
 import { MessagesProvider, useMessages } from './messages.tsx';
+import type { Messages } from '../i18n/index.ts';
 import {
   emptyNode,
   filterApplies,
@@ -32,6 +33,8 @@ import {
   type DetectedScope,
 } from '../settings/detected.ts';
 import { enabledAt, inheritedFor, type ColumnScope } from '../settings/resolve.ts';
+import type { SurfaceId } from '../surface/index.ts';
+import { VIEW_PREFIX, viewSubjectOf } from '../surface/view.ts';
 import { TierEditor, type Tab } from './TierEditor.tsx';
 import { ScopeHeader, type ReassignTarget } from './ScopeHeader.tsx';
 import { ScopeList, scopeKey, type Scope, type ScopeEntry, type ScopeGroup } from './ScopeList.tsx';
@@ -114,6 +117,41 @@ const LanguageSelect = ({
   );
 };
 
+/**
+ * Which site a scope key belongs to. x.com's keys carry a prefix of the extension's own
+ * making; X Pro's are the ids X hands out, which never look like one.
+ */
+const surfaceOfKey = (key: string): SurfaceId => (key.startsWith(VIEW_PREFIX) ? 'x' : 'pro');
+
+/**
+ * What a view of x.com is called.
+ *
+ * The record holds only the key, and the name is decided here, so changing the language
+ * renames what is already recorded. X Pro's column names come the other way round: they
+ * are what the user typed, so they are read off the page and stored.
+ *
+ * A list is named only "List" — which one it is, the key says. Reading the list's own
+ * name off the page is worth doing later; it is not read anywhere yet.
+ */
+const viewLabel = (key: string, m: Messages): string | null => {
+  const rest = key.slice(VIEW_PREFIX.length);
+  const names = m.tiers.viewNames;
+  if (rest in names) return names[rest as keyof typeof names];
+
+  // Held one per person, per query, per list. Which one it is, is worth more than the kind
+  const subject = viewSubjectOf(key);
+  if (subject === null) return null;
+  if (rest.startsWith('profile:')) return `@${subject}`;
+  if (rest.startsWith('search:')) return subject;
+  if (rest.startsWith('list:')) return names.list;
+  return null;
+};
+
+/** The tab that decides which screen's settings the list shows */
+type SurfaceTab = 'common' | SurfaceId;
+
+const SURFACE_TABS: SurfaceTab[] = ['common', 'pro', 'x'];
+
 type Props = {
   /**
    * Where to land right after opening.
@@ -140,6 +178,11 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
 
   useEffect(() => onLocale?.(locale), [locale, onLocale]);
   const [scope, setScope] = useState<Scope>(start ?? { tier: 'global' });
+  /*
+   * Which screen's settings are on show. Held above the scope: moving between tabs is
+   * moving between lists, and the scope selected in one has no meaning in another.
+   */
+  const [surfaceTab, setSurfaceTab] = useState<SurfaceTab>('common');
   // The tab is held above the scope, so switching scope leaves the open tab as it is
   const [tab, setTab] = useState<Tab>('filter');
   // Import/export is not left open. On closing, focus returns to the button that opened it
@@ -157,6 +200,18 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   // With pro.x.com not open, nothing can be detected.
   // Showing "unassigned" in that state would look as though the settings had come loose
   const detecting = found.groups.length > 0;
+  /**
+   * Whether that site has been seen. Held per site: having x.com open says nothing about
+   * whether X Pro's columns are known, and one tab would otherwise stop explaining itself
+   * because the other tab had something to show.
+   */
+  const detectingOn = useMemo<Record<SurfaceId, boolean>>(
+    () => ({
+      pro: found.groups.some((group) => group.surface === 'pro'),
+      x: found.groups.some((group) => group.surface === 'x'),
+    }),
+    [found]
+  );
 
   const updateGlobal = (node: SettingsNode) => update({ ...settings, global: node });
   /**
@@ -211,7 +266,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
    * Columns with the same name are numbered across decks: the same name in another deck is
    * common, and telling them apart is needed even across groups.
    */
-  const deckGroups = useMemo<ScopeGroup[]>(() => {
+  const groupsBySurface = useMemo<Record<SurfaceId, ScopeGroup[]>>(() => {
     const all = detected;
     const identityOf = (scope: DetectedScope) => JSON.stringify([scope.title, scope.account]);
     const duplicated = new Set(
@@ -219,8 +274,10 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     );
     const seen = new Map<string, number>();
 
-    return found.groups.map((group, index) => ({
-      label: group.name ?? m.tiers.deckNth(index + 1),
+    const built = found.groups.map((group, index) => ({
+      surface: group.surface,
+      // x.com has one group and no name for it, so the list is headed by what it holds
+      label: group.surface === 'x' ? m.tiers.views : (group.name ?? m.tiers.deckNth(index + 1)),
       note: group.id === found.currentGroupId ? m.tiers.deckShowing : undefined,
       empty: m.tiers.columnsEmpty,
       entries: group.scopes.map((column): ScopeEntry => {
@@ -231,9 +288,16 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         const number = duplicated.has(identity) ? m.tiers.nth(order) : null;
         // It has settings but was not found when this deck was reopened
         const missing = column.missing ? m.tiers.columnMissing : null;
+        /*
+         * What X called it, as read off the page. A view X names after its content rather
+         * than itself (a profile, a search) has none recorded, and falls back to the name
+         * the extension gives that view.
+         */
+        const named =
+          column.title ?? (group.surface === 'x' ? viewLabel(column.key, m) : null);
         return {
           scope: { tier: 'columns', key: column.key },
-          label: column.title ?? m.tiers.unnamedColumn,
+          label: named ?? (group.surface === 'x' ? m.tiers.views : m.tiers.unnamedColumn),
           detail: [missing, account, number].filter(Boolean).join(' / ') || undefined,
           unassigned: false,
           configured: marked(settings.columns[column.key], {
@@ -243,22 +307,50 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         };
       }),
     }));
+    return {
+      pro: built.filter((group) => group.surface === 'pro'),
+      x: built.filter((group) => group.surface === 'x'),
+    };
   }, [found, detected, settings, m]);
 
-  const missingColumns = useMemo<ScopeEntry[]>(() => {
+  /**
+   * Scopes that have settings but were not found. Which surface each belongs to is read
+   * off the key: x.com's carry a prefix, X Pro's are the ids X hands out.
+   */
+  const missingBySurface = useMemo<Record<SurfaceId, ScopeEntry[]>>(() => {
     const liveIds = new Set(detected.map((scope) => scope.key));
-    return Object.keys(settings.columns)
+    const entries = Object.keys(settings.columns)
       .filter((id) => !liveIds.has(id))
       .sort()
-      .map((id): ScopeEntry => ({
-        scope: { tier: 'columns', key: id },
-        label: detecting ? m.tiers.missingColumn : m.tiers.unknownColumn,
-        detail: id,
-        unassigned: detecting,
-        // With no matching column, the account is unknown too. The effective value is judged up to global
-        configured: marked(settings.columns[id], { account: null, columnId: id }),
-      }));
-  }, [detected, settings, detecting, m]);
+      .map((id) => {
+        const surface = surfaceOfKey(id);
+        const named = surface === 'x' ? viewLabel(id, m) : null;
+        const seen = detectingOn[surface];
+        return {
+        surface,
+        entry: {
+          scope: { tier: 'columns', key: id } as Scope,
+          label:
+            named ??
+            (surface === 'x'
+              ? seen
+                ? m.tiers.missingView
+                : m.tiers.unknownView
+              : seen
+                ? m.tiers.missingColumn
+                : m.tiers.unknownColumn),
+          detail: id,
+          unassigned: seen,
+          // With no matching scope, the account is unknown too. The effective value is judged up to global
+          configured: marked(settings.columns[id], { account: null, columnId: id }),
+        },
+      };
+      });
+    return {
+      pro: entries.filter((one) => one.surface === 'pro').map((one) => one.entry),
+      x: entries.filter((one) => one.surface === 'x').map((one) => one.entry),
+    };
+  }, [detected, settings, detectingOn, m]);
 
   /** Global is always there. It heads the list and catches the fall when the chosen scope disappears */
   const globalEntry = useMemo<ScopeEntry>(
@@ -272,27 +364,45 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   );
 
   /**
-   * The list on the left: global → accounts → columns per deck → unassigned.
-   * The unassigned entries are gathered into one group across the tiers.
-   * Even when not one deck could be read, a single column group is shown to explain the situation
-   * (with no group, the column tier itself would look absent).
+   * The list on the left, for the tab that is open.
+   *
+   * The two sites never share a list. Their screens have nothing in common, and reading
+   * which one an entry belongs to on every glance is what the tabs are there to spare.
+   * What does apply to both — global and the accounts — has a tab of its own, so that
+   * the place a setting is written and the range it covers line up one to one.
    */
   const groups = useMemo<ScopeGroup[]>(() => {
-    const unassigned = [...accountEntries, ...missingColumns].filter((entry) => entry.unassigned);
+    if (surfaceTab === 'common') {
+      const unassigned = accountEntries.filter((entry) => entry.unassigned);
+      return [
+        { entries: [globalEntry] },
+        {
+          label: m.tiers.accounts,
+          entries: accountEntries.filter((entry) => !entry.unassigned),
+          empty: m.tiers.accountsEmpty,
+        },
+        // An empty group is not shown at all. A heading left with nothing to tidy up suggests there is something
+        ...(unassigned.length > 0 ? [{ label: m.tiers.unassignedGroup, entries: unassigned }] : []),
+      ];
+    }
+
+    const listed = groupsBySurface[surfaceTab];
+    const missing = missingBySurface[surfaceTab];
     return [
-      { entries: [globalEntry] },
-      {
-        label: m.tiers.accounts,
-        entries: accountEntries.filter((entry) => !entry.unassigned),
-        empty: m.tiers.accountsEmpty,
-      },
-      ...(deckGroups.length > 0
-        ? deckGroups
-        : [{ label: m.tiers.columns, entries: [], empty: m.tiers.columnsEmpty }]),
-      // An empty group is not shown at all. A heading left with nothing to tidy up suggests there is something
-      ...(unassigned.length > 0 ? [{ label: m.tiers.unassignedGroup, entries: unassigned }] : []),
+      // Even when nothing could be read, one empty group is shown to explain the situation
+      // (with no group at all, the tier itself would look absent)
+      ...(listed.length > 0
+        ? listed
+        : [
+            {
+              label: surfaceTab === 'x' ? m.tiers.views : m.tiers.columns,
+              entries: [],
+              empty: surfaceTab === 'x' ? m.tiers.viewsEmpty : m.tiers.columnsEmpty,
+            },
+          ]),
+      ...(missing.length > 0 ? [{ label: m.tiers.unassignedGroup, entries: missing }] : []),
     ];
-  }, [globalEntry, accountEntries, deckGroups, missingColumns, m]);
+  }, [surfaceTab, globalEntry, accountEntries, groupsBySurface, missingBySurface, m]);
 
   /**
    * The scope shown on the right. The selection itself is not rewritten: detection arrives late,
@@ -313,8 +423,11 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         .map((account) => ({ key: account, label: `@${account}` }));
     }
     if (current.scope.tier === 'columns') {
+      // Only within the same site. The two hold different kinds of thing — a column has a
+      // width and a name bar, a view has neither — so moving between them means nothing
+      const surface = surfaceOfKey(current.scope.key);
       return detected
-        .filter((scope) => !settings.columns[scope.key])
+        .filter((scope) => surfaceOfKey(scope.key) === surface && !settings.columns[scope.key])
         .map((scope) => ({
           key: scope.key,
           label: `${scope.title ?? m.tiers.unnamedColumn}${scope.account ? ` / @${scope.account}` : ''}`,
@@ -386,6 +499,23 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         }
       : null;
 
+  /**
+   * Moves to another screen's settings. The scope goes with it: the one selected here has
+   * no counterpart in the list being moved to, and leaving it would show that screen's
+   * list beside a scope belonging to the other.
+   */
+  const selectSurface = (next: SurfaceTab): void => {
+    setSurfaceTab(next);
+    if (next === 'common') {
+      setScope({ tier: 'global' });
+      return;
+    }
+    const first =
+      groupsBySurface[next].flatMap((group) => group.entries)[0] ?? missingBySurface[next][0];
+    // Nothing found on that screen yet. Global is what applies there in the meantime
+    setScope(first?.scope ?? { tier: 'global' });
+  };
+
   const nodeOf = (target: Scope): SettingsNode => {
     if (target.tier === 'global') return settings.global;
     const nodes = target.tier === 'accounts' ? settings.accounts : settings.columns;
@@ -453,12 +583,38 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         )}
 
         {ready && (
+          <>
+            {/*
+              No `role="tablist"` is claimed, for the same reason as the tabs on the right:
+              it would set an expectation of arrow-key movement and roving tabindex.
+              Which one is open is conveyed by `aria-current`
+            */}
+            <nav class="surfaces" aria-label={m.surfaces.label}>
+              {SURFACE_TABS.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-current={id === surfaceTab ? 'true' : undefined}
+                  class={id === surfaceTab ? 'surface current' : 'surface'}
+                  onClick={() => selectSurface(id)}
+                >
+                  {m.surfaces[id]}
+                </button>
+              ))}
+            </nav>
+
           <div class="panes">
             <ScopeList
               groups={groups}
               active={current.scope}
               onSelect={setScope}
-              note={detecting ? undefined : m.tiers.notDetecting}
+              note={
+                surfaceTab === 'common' || detectingOn[surfaceTab]
+                  ? undefined
+                  : surfaceTab === 'x'
+                    ? m.tiers.notDetectingX
+                    : m.tiers.notDetecting
+              }
             />
 
             <div class="pane detail">
@@ -495,6 +651,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
               />
             </div>
           </div>
+          </>
         )}
 
         {ready && transferring && (

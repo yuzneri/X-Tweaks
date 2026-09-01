@@ -112,6 +112,18 @@ export const en = {
   /** Where settings apply (the "tiers" of the design notes; that word is never shown on screen) */
   tiers: {
     label: 'Where settings apply',
+    views: 'Views',
+    /** The names of x.com's views. Only the key is recorded; the name is decided here, so it follows the language */
+    viewNames: {
+      home: 'Home',
+      notifications: 'Notifications',
+      bookmarks: 'Bookmarks',
+      list: 'List',
+    },
+    viewsEmpty: 'No view yet. Open x.com and the views you visit are listed here.',
+    notDetectingX: 'x.com is not open, so this may not be up to date.',
+    missingView: '(a view you are not on)',
+    unknownView: '(a view not visited yet)',
     global: 'Global',
     accounts: 'Account',
     columns: 'Column',
@@ -119,7 +131,7 @@ export const en = {
     unassignedGroup: 'Not assigned',
     notDetecting: 'pro.x.com is not open, so this is not up to date.',
     accountsEmpty:
-      'No account found yet. Open pro.x.com and the accounts behind your columns will show up here.',
+      'No account found yet. Open pro.x.com or x.com and they will show up here.',
     columnsEmpty:
       'No column here yet. Open pro.x.com and the columns of the deck on screen will show up here.',
     /** A column with settings that was not found in the deck when it was reopened */
@@ -137,6 +149,13 @@ export const en = {
     deckShowing: 'showing',
     /** The accessible name of the entry point placed in a column header */
     columnEntry: 'Settings for this column',
+  },
+
+  surfaces: {
+    label: 'Which screen',
+    common: 'Both',
+    pro: 'X Pro',
+    x: 'x.com',
   },
 
   tabs: {

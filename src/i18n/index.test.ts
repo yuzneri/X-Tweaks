@@ -88,6 +88,9 @@ const UNTRANSLATED = [
   // languages, hence identical (treated like `size.unit`)
   'appearance.timeParens.open',
   'appearance.timeParens.close',
+  // The names of the two sites. They are X's own, and are not translated anywhere
+  'surfaces.pro',
+  'surfaces.x',
 ];
 
 test('訳し忘れたまま英語が残っているキーが無い', () => {

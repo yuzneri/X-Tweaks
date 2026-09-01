@@ -107,6 +107,40 @@
  * The two panes. Where settings apply on the left, what to set on the right.
  * The left width is set so that "(column not found right now)" fits within two lines.
  */
+/*
+ * The tabs that pick which screen's settings are shown. They sit above the two panes
+ * because they switch the whole of both: the two sites share no scope, and mixing their
+ * lists would mean reading which site every entry belongs to on every glance.
+ */
+.xpro-ui .surfaces {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.xpro-ui .surface {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 8px 16px 7px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.xpro-ui .surface:hover {
+  color: var(--fg);
+}
+
+.xpro-ui .surface.current {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
 .xpro-ui .panes {
   flex: 1;
   min-height: 0;

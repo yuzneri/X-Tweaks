@@ -78,6 +78,18 @@ export const ja: Messages = {
 
   tiers: {
     label: '設定の範囲',
+    views: 'ビュー',
+    /** x.com のビューの名前。記録にはキーだけを持ち、表示名はここで決める（言語を変えれば追従する） */
+    viewNames: {
+      home: 'ホーム',
+      notifications: '通知',
+      bookmarks: 'ブックマーク',
+      list: 'リスト',
+    },
+    viewsEmpty: 'ビューがまだありません。x.com を開くと、見たビューがここに並びます。',
+    notDetectingX: 'x.com を開いていないので、最新の情報ではありません。',
+    missingView: '（いま見ていないビュー）',
+    unknownView: '（まだ見ていないビュー）',
     global: 'グローバル',
     accounts: 'アカウント',
     columns: 'カラム',
@@ -85,7 +97,7 @@ export const ja: Messages = {
     notDetecting:
       'pro.x.com を開いていないので、最新の情報ではありません。',
     accountsEmpty:
-      'まだアカウントが見つかっていません。pro.x.com を開くと、カラムの所属アカウントがここに並びます。',
+      'まだアカウントが見つかっていません。pro.x.com か x.com を開くと、ここに並びます。',
     columnsEmpty:
       'カラムがまだ1本もありません。pro.x.com を開くと、表示中のデッキのカラムがここに並びます。',
     columnMissing: '見つかりません',
@@ -101,6 +113,13 @@ export const ja: Messages = {
     deckNth: (n: number) => `デッキ ${n}`,
     deckShowing: '表示中',
     columnEntry: 'このカラムの設定',
+  },
+
+  surfaces: {
+    label: '設定する画面',
+    common: '共通',
+    pro: 'X Pro',
+    x: 'x.com',
   },
 
   tabs: {
