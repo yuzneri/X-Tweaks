@@ -113,10 +113,14 @@ export type Surface = {
   insertEntryPoints: (messages: Messages) => void;
   /**
    * Subscribes to presses on them. Called once at startup.
-   * `toggle` opens the settings, or closes them if they are open. `openAt` opens them
-   * showing one scope, and a surface with no way to point at one never calls it.
+   * `toggle` opens the settings, or closes them if they are open, landing on the scope it
+   * is given. `openAt` always opens, showing one scope; a surface whose way in is a single
+   * menu has nothing to reopen over and never calls it.
    */
-  watchEntryPoints: (open: { toggle: () => void; openAt: (start: Start) => void }) => void;
+  watchEntryPoints: (open: {
+    toggle: (start?: Start) => void;
+    openAt: (start: Start) => void;
+  }) => void;
 };
 
 /**

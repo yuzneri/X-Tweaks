@@ -111,8 +111,21 @@ export const xSurface: Surface = {
   // composer are the same element (see `isPostPage`)
   opened: () => isPostPage(location.pathname),
 
-  // One way in: the "More" menu. x.com has nothing like a column's options, so `openAt`
-  // is never called — there is no per-scope handle on the page to press
+  /*
+   * One way in: the "More" menu. x.com has nothing like a column's options, so `openAt` is
+   * never called — there is no per-scope handle on the page to press.
+   *
+   * It lands on the view being looked at all the same. X Pro needs a handle per column
+   * because several are on screen at once; here there is only ever one, and the address
+   * already says which. Landing on the global settings would make every visit start with
+   * the same two presses.
+   */
   insertEntryPoints: insertMenuItem,
-  watchEntryPoints: ({ toggle }) => watchEntry(toggle),
+  watchEntryPoints: ({ toggle }) =>
+    watchEntry(() => {
+      // A page the settings cannot be held for (a post's own page) has nowhere to land,
+      // and opens where it would have without this
+      const key = viewKeyOf(location.pathname, location.search);
+      toggle(key === null ? undefined : { tier: 'columns', key });
+    }),
 };
