@@ -95,6 +95,21 @@ const SPACE = 'a[href*="/i/spaces/"]';
  */
 export const ARTICLE = '[data-testid="article-cover-image"]';
 
+/** One account offered in a list, with a Follow button beside it */
+export const USER_CELL = '[data-testid="UserCell"]';
+
+/**
+ * The link that closes the block of accounts X suggests following ("Show more"), which
+ * leads to the page listing them all.
+ *
+ * The block is a heading, a run of `USER_CELL`s and this link, each in a cell of its own.
+ * This link is what the appearance goes by, for want of anything marking the block as a
+ * whole: the heading's wording is X's own and comes translated in one column and left in
+ * English in another, and a run of accounts is the content itself on the pages listing
+ * who follows whom, which going by `USER_CELL` alone would empty.
+ */
+export const WHO_TO_FOLLOW_MORE = 'a[href*="/i/connect_people"]';
+
 /**
  * The mark of an ad. X wraps a promoted post in an element that measures where it sits
  * on screen and carries the impression pixels beside it; an ordinary post never sits

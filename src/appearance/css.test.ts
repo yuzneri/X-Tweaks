@@ -554,3 +554,50 @@ test('アンケートとカルーセルはカードの指定から外れる。ca
     assert.match(line, /:not\(:has\(\[data-testid="cardPoll"\]\)\):not\(:has\(\[data-testid="Carousel-NavRight"\]\)\)/);
   }
 });
+
+test('おすすめユーザーを隠すと、見出しからさらに表示までのセルが消える', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
+  const cells = css
+    .split('\n')
+    .filter((line) => line.startsWith(`[${COLUMN_ATTR}="0"] [data-testid="cellInnerDiv"]`));
+  // The three cells the block is made of: the "Show more", the accounts, the heading
+  assert.equal(cells.length, 1);
+  const [selectors, body] = cells[0]!.split(' { ');
+  assert.equal(body, 'display: none !important; }');
+  assert.equal(selectors!.split(', ').length, 3);
+  // Every one of them is tied to the link that closes the block, so a list of accounts
+  // standing for anything else is left alone
+  for (const selector of selectors!.split(', ')) {
+    assert.match(selector, /a\[href\*="\/i\/connect_people"\]/);
+  }
+});
+
+test('おすすめユーザーを隠す指定は、x.com の横の欄にも及ぶ', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
+  // The rail belongs to no view and carries no marker, so this one rule stands outside
+  // the column's. On X Pro there is no such rail and it matches nothing
+  assert.match(
+    css,
+    /^\[data-testid="sidebarColumn"\] div:has\(> div > aside \[data-testid="UserCell"\]\) \{ display: none !important; \}$/m
+  );
+  // Unset writes neither
+  const off = cssOf([{ key: '0', appearance: emptyNode().appearance }]);
+  assert.equal(off.includes('sidebarColumn'), false);
+});
+
+test('おすすめユーザーは、ポストを開いているカラムでも消える', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
+  // Unlike the media and the cards, this block is not what the post was opened for
+  assert.equal(css.includes(':not([data-xpro-opened])'), false);
+});
+
+test('横の欄の規則は、カラムがいくつあっても1行しか出ない', () => {
+  const hiding = appearanceOf((a) => (a.hideWhoToFollow = true));
+  const css = cssOf([
+    { key: '0', appearance: hiding },
+    { key: '1', appearance: hiding },
+  ]);
+  // It belongs to no column, so `columnRules` is not where it comes from
+  const lines = css.split('\n').filter((line) => line.includes('sidebarColumn'));
+  assert.equal(lines.length, 1);
+});

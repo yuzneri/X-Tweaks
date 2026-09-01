@@ -1,10 +1,20 @@
 /** Builds CSS from the appearance settings. Takes the effective values per column and returns a string */
-import { ARTICLE, LINK_CARD, PHOTO, VIDEO, X_SHOW_MORE } from '../filter/post.ts';
+import {
+  ARTICLE,
+  CELL_SELECTOR,
+  LINK_CARD,
+  PHOTO,
+  USER_CELL,
+  VIDEO,
+  WHO_TO_FOLLOW_MORE,
+  X_SHOW_MORE,
+} from '../filter/post.ts';
 import { ATTACHMENT_CLASS } from './card.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
   collapsesNewlines,
+  hidesWhoToFollow,
   isCompact,
   mediaStyleOf,
   quoteStyleOf,
@@ -253,11 +263,39 @@ const TARGETS = {
   cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`],
   /** A card whose text is now in the post. What is left would only say it twice */
   movedCard: [`[${CARD_MOVED_ATTR}]`],
+  /**
+   * The block of accounts X suggests following, cell by cell: the "Show more" that closes
+   * it (see `WHO_TO_FOLLOW_MORE`), the accounts above that link, and the heading above
+   * those. Each is tied to the link, so a run of accounts standing for anything else —
+   * the results of a search for people, say — is left alone.
+   *
+   * The empty cell X puts before the heading stays: it carries no mark of what follows
+   * it, and all it holds is a few pixels of height.
+   */
+  whoToFollow: [
+    `${CELL_SELECTOR}:has(${WHO_TO_FOLLOW_MORE})`,
+    `${CELL_SELECTOR}:has(${USER_CELL}):has(~ ${CELL_SELECTOR} ${WHO_TO_FOLLOW_MORE})`,
+    `${CELL_SELECTOR}:has(+ ${CELL_SELECTOR} ${USER_CELL}):has(~ ${CELL_SELECTOR} ${WHO_TO_FOLLOW_MORE})`,
+  ],
   /** The photos and videos of a post that carries their marks */
   markedMedia: [...MEDIA_TARGETS, `[${MEDIA_FRAME_ATTR}]`].map(
     (target) => `[${MEDIA_MARKED_ATTR}] ${target}`
   ),
 };
+
+/**
+ * The same block of accounts as `TARGETS.whoToFollow`, as x.com draws it in the rail
+ * beside the timeline: an `aside` of its own rather than cells in the timeline.
+ *
+ * It is not confined to a scope, because the rail belongs to no view (`surface/x.ts`) and
+ * carries no marker. x.com has one view on screen at a time, so the view being looked at
+ * is the one that decides. X Pro has no such rail, and there this matches nothing.
+ *
+ * An `aside` listing accounts in the rail is only ever this block, so the link the
+ * timeline needs to tell it apart is not needed here. What is hidden is the card around
+ * it: the `aside` alone would leave its border behind with nothing inside.
+ */
+const WHO_TO_FOLLOW_RAIL = `[data-testid="sidebarColumn"] div:has(> div > aside ${USER_CELL})`;
 
 /** Confines every target inside that column's marker */
 const within = (scope: string, targets: string[][]): string =>
@@ -605,10 +643,31 @@ const columnRules = (
     rules.push(rule(within(skimming, [TARGETS.movedCard]), 'display: none !important;'));
   }
 
+  /*
+   * Taking the accounts X suggests following off the timeline.
+   *
+   * Not held back where a post is opened, unlike the media and the cards above: those
+   * belong to the post that was opened to be read, while this block is X's own aside and
+   * is no more wanted there than on a timeline.
+   */
+  if (hidesWhoToFollow(appearance.hideWhoToFollow)) {
+    rules.push(rule(within(scope, [TARGETS.whoToFollow]), 'display: none !important;'));
+  }
+
   return rules;
 };
 
 export const buildCss = (
   columns: ColumnAppearance[],
   parens: { open: string; close: string }
-): string => columns.flatMap((column) => columnRules(column, parens)).join('\n');
+): string => {
+  const rules = columns.flatMap((column) => columnRules(column, parens));
+  /*
+   * The rail is nobody's scope, so its rule is written here rather than per column: from
+   * inside `columnRules` the same line would come out once per key.
+   */
+  if (columns.some((column) => hidesWhoToFollow(column.appearance.hideWhoToFollow))) {
+    rules.push(rule(WHO_TO_FOLLOW_RAIL, 'display: none !important;'));
+  }
+  return rules.join('\n');
+};
