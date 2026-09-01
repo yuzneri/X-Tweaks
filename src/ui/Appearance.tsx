@@ -10,6 +10,7 @@ import {
   collapsesNewlines,
   COLUMN_COLORS,
   emptyNode,
+  hidesWhoToFollow,
   HIGHLIGHT_BASES,
   highlightBaseOf,
   isCompact,
@@ -285,6 +286,23 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
             labels={m.appearance.timeFormats}
             onChange={(timeFormat) => onChange({ ...node, timeFormat })}
             label={m.appearance.timeFormat}
+          />
+        </label>
+
+        {/*
+          Last, and on its own: everything above says how a post is shown, while this one
+          says whether a block that is not a post appears at all
+        */}
+        <label class="row">
+          <span>{m.appearance.hideWhoToFollow}</span>
+          <BoolSelect
+            value={node.hideWhoToFollow}
+            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            effective={hidesWhoToFollow(above.hideWhoToFollow)}
+            onChange={(hideWhoToFollow) => patch({ hideWhoToFollow })}
+            label={m.appearance.hideWhoToFollow}
+            on={m.appearance.hideWhoToFollowOn}
+            off={m.appearance.hideWhoToFollowOff}
           />
         </label>
       </fieldset>

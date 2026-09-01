@@ -7,6 +7,7 @@ import {
   cardStyleOf,
   collapsesNewlines,
   filterApplies,
+  hidesWhoToFollow,
   isCompact,
   mediaStyleOf,
   quoteStyleOf,
@@ -138,6 +139,14 @@ const appearanceRows = (
       label: m.appearance.quoteStyle,
       value: m.appearance.attachmentStyles[quoteStyleOf(effective.quoteStyle)],
       tier: of((n) => n.appearance.quoteStyle),
+    },
+    {
+      label: m.appearance.hideWhoToFollow,
+      // Unset has a default side too (shown). Say which one is in effect
+      value: hidesWhoToFollow(effective.hideWhoToFollow)
+        ? m.appearance.hideWhoToFollowOn
+        : m.appearance.hideWhoToFollowOff,
+      tier: of((n) => n.appearance.hideWhoToFollow),
     },
     // Colors are listed in the same order as on the editing surface, so the two can be compared
     ...COLOR_ORDER.filter((key) => columns || !isColumnColor(key)).map((key) => ({

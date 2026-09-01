@@ -561,6 +561,13 @@ export const en = {
      * where they carry their own spacing, so the values differ by language
      */
     cardParens: { open: ' (', close: ')' } as { open: string; close: string },
+    /**
+     * The block of accounts X slips into a timeline, and shows beside it on x.com. Named
+     * by what it is rather than by X's own heading, which is worded per UI language
+     */
+    hideWhoToFollow: 'Accounts X suggests following',
+    hideWhoToFollowOn: 'Hide',
+    hideWhoToFollowOff: 'As they are',
   },
 
   /** Sizes entered in px */

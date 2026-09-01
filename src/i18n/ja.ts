@@ -461,6 +461,9 @@ export const ja: Messages = {
       hidden: '表示しない',
     },
     cardParens: { open: '（', close: '）' },
+    hideWhoToFollow: 'おすすめユーザー',
+    hideWhoToFollowOn: '隠す',
+    hideWhoToFollowOff: 'そのまま',
   },
 
   size: {
