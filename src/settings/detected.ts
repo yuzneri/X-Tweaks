@@ -13,6 +13,17 @@ import type { SurfaceId } from '../surface/index.ts';
 /** The sites a group can belong to. A record naming anything else is from a version that knew more */
 const SURFACES = new Set<string>(['pro', 'x']);
 
+/**
+ * What to do with a scope that is not on screen. The surface decides it; the difference
+ * is spelled out on `Pruning` in `surface/index.ts`.
+ */
+export type Prune = {
+  /** Throw away the ones nothing was set for */
+  drop: boolean;
+  /** Mark the ones with settings, to say they may be gone */
+  mark: boolean;
+};
+
 /** Scopes whose key could not be resolved are not recorded */
 export type DetectedScope = {
   /** What the settings are held under: X Pro's `columnId`, or x.com's `view:…` */
@@ -96,9 +107,10 @@ const keepKnown = (fresh: DetectedScope, known: DetectedScope | undefined): Dete
  * columns outside the window out of the DOM, so "not in the DOM right now" can well mean
  * "merely out of sight", and on x.com a view simply is not the one being looked at.
  *
- * A rebuild happens only when the group is reopened (`rebuild`). Deleted scopes drop out
- * there, but ones with settings are kept and marked `missing` (so their settings are not
- * left floating).
+ * `prune.drop` throws away the ones nothing was set for; the ones with settings are kept
+ * either way, so their settings are never left floating. `prune.mark` says whether being
+ * absent is worth reporting — on X Pro it means "this column may be gone", on x.com only
+ * that you are looking elsewhere.
  * A scope that is out of sight is placed after the visible scope that preceded it in
  * the remembered order.
  */
@@ -106,7 +118,7 @@ const mergeScopes = (
   known: DetectedScope[],
   fresh: DetectedScope[],
   configured: ReadonlySet<string>,
-  rebuild: boolean
+  prune: Prune
 ): DetectedScope[] => {
   const visible = new Set(fresh.map((scope) => scope.key));
 
@@ -128,8 +140,8 @@ const mergeScopes = (
      * Only on a rebuild are the ones without settings dropped.
      * The ones kept are marked "not found"
      */
-    if (rebuild && !configured.has(scope.key)) continue;
-    const kept = rebuild && !scope.missing ? { ...scope, missing: true } : scope;
+    if (prune.drop && !configured.has(scope.key)) continue;
+    const kept = prune.mark && !scope.missing ? { ...scope, missing: true } : scope;
     const behind = trailing.get(anchor);
     if (behind) behind.push(kept);
     else trailing.set(anchor, [kept]);
@@ -175,13 +187,9 @@ export const mergeDetected = (
   groups: { id: string; name: string | null }[],
   currentGroupId: string | null,
   scopes: DetectedScope[],
-  /** The keys of scopes with settings. On a rebuild they are marked rather than dropped */
+  /** The keys of scopes with settings. They are kept whatever `prune` says */
   configured: ReadonlySet<string>,
-  /**
-   * Whether this group was reopened. The caller decides it by "is this a group not yet
-   * rebuilt on this page", so a page reload rebuilds just as a switch does.
-   */
-  rebuild: boolean
+  prune: Prune
 ): Detected => {
   const elsewhere = previous.groups.filter((group) => group.surface !== surface);
   const here = previous.groups.filter((group) => group.surface === surface);
@@ -202,7 +210,7 @@ export const mergeDetected = (
     scopes:
       id !== currentGroupId || scopes.length === 0
         ? known(id)
-        : mergeScopes(known(id), scopes, configured, rebuild),
+        : mergeScopes(known(id), scopes, configured, prune),
   }));
 
   // Showing a group that was not reported should not happen, but if it does it is added rather than dropped

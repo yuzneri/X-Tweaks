@@ -124,7 +124,7 @@ const DECKS = [
 const NONE: ReadonlySet<string> = new Set();
 
 test('検出したカラムは、デッキごとに書いたとおりに読み戻せる', async () => {
-  await saveDetected('pro', DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], NONE, true);
+  await saveDetected('pro', DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], NONE, { drop: true, mark: true });
   assert.deepEqual(await loadDetected(), {
     currentGroupId: 'd1',
     groups: [
@@ -138,8 +138,8 @@ test('検出したカラムは、デッキごとに書いたとおりに読み�
 test('別のデッキへ移っても、前のデッキのカラムは残る', async () => {
   // A deck that is not on screen is not touched
   const configured = new Set(['c1']);
-  await saveDetected('pro', DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], configured, true);
-  await saveDetected('pro', DECKS, 'd2', [{ key: 'c2', account: 'bob', title: '通知' }], configured, true);
+  await saveDetected('pro', DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], configured, { drop: true, mark: true });
+  await saveDetected('pro', DECKS, 'd2', [{ key: 'c2', account: 'bob', title: '通知' }], configured, { drop: true, mark: true });
   const found = await loadDetected();
   assert.equal(found.currentGroupId, 'd2');
   assert.deepEqual(
@@ -188,9 +188,9 @@ test('中身が変わらないときは書かない。設定画面の描き直�
   const notices = [] as number[];
   const unsubscribe = subscribeDetected(() => notices.push(1));
 
-  await saveDetected('pro', DECKS, 'd1', columns, NONE, true);
-  await saveDetected('pro', DECKS, 'd1', [...columns], NONE, false);
-  await saveDetected('pro', DECKS, 'd1', [{ key: 'c2', account: 'bob', title: '通知' }], NONE, false);
+  await saveDetected('pro', DECKS, 'd1', columns, NONE, { drop: true, mark: true });
+  await saveDetected('pro', DECKS, 'd1', [...columns], NONE, { drop: false, mark: false });
+  await saveDetected('pro', DECKS, 'd1', [{ key: 'c2', account: 'bob', title: '通知' }], NONE, { drop: false, mark: false });
 
   assert.deepEqual(notices, [1, 1]);
   unsubscribe();

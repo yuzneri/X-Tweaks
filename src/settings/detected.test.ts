@@ -10,6 +10,13 @@ import {
   type DetectedScope,
 } from './detected.ts';
 
+/** 見えなくなっても触らない（X Pro が同じデッキを見ているあいだ） */
+const KEEP = { drop: false, mark: false };
+/** デッキを開き直したとき。設定の無いものは落とし、あるものには印を付ける */
+const REOPEN = { drop: true, mark: true };
+/** x.com。設定の無いものはその場で落とし、あるものに印は付けない */
+const AT_ONCE = { drop: true, mark: false };
+
 const DECKS = [
   { id: 'd1', name: '技術' },
   { id: 'd2', name: 'ニュース' },
@@ -28,7 +35,7 @@ const merge = (
   currentGroupId: string | null,
   columns: DetectedScope[],
   configured: string[] = []
-): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), false);
+): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), KEEP);
 
 /**
  * The merge for reopening a deck.
@@ -40,7 +47,7 @@ const reopen = (
   currentGroupId: string | null,
   columns: DetectedScope[],
   configured: string[] = []
-): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), true);
+): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), REOPEN);
 
 test('設定を持つカラムは、別のデッキへ移っても残る', () => {
   const first = merge(emptyDetected(), DECKS, 'd1', [column('c1')], ['c1']);
@@ -203,7 +210,7 @@ test('片方のサイトを開いても、もう片方の記録は消えない',
     'all',
     [{ key: 'view:home', account: 'alice', title: null }],
     new Set(),
-    false
+    AT_ONCE
   );
 
   assert.deepEqual(
@@ -271,4 +278,56 @@ test('覚えていた控えに重複が入っていても、1本に戻す', () =
   };
   const after = merge(stored, DECKS, 'd1', [column('c2')], ['c1']);
   assert.deepEqual(after.groups[0]!.scopes.map((c) => c.key), ['c1', 'c2']);
+});
+
+test('x.com は、設定の無いものをその場で落とす', () => {
+  const seen = mergeDetected(
+    emptyDetected(),
+    'x',
+    [{ id: 'all', name: null }],
+    'all',
+    [{ key: 'view:profile:alice', account: null, title: 'Alice' }],
+    new Set(),
+    AT_ONCE
+  );
+  // 次のビューへ移ると、設定の無いプロフィールは残らない
+  const moved = mergeDetected(
+    seen,
+    'x',
+    [{ id: 'all', name: null }],
+    'all',
+    [{ key: 'view:home', account: null, title: 'ホーム' }],
+    new Set(),
+    AT_ONCE
+  );
+  assert.deepEqual(moved.groups[0]!.scopes.map((scope) => scope.key), ['view:home']);
+});
+
+test('x.com でも、設定のあるものは残す。ただし印は付けない', () => {
+  const seen = mergeDetected(
+    emptyDetected(),
+    'x',
+    [{ id: 'all', name: null }],
+    'all',
+    [{ key: 'view:profile:alice', account: null, title: 'Alice' }],
+    new Set(['view:profile:alice']),
+    AT_ONCE
+  );
+  const moved = mergeDetected(
+    seen,
+    'x',
+    [{ id: 'all', name: null }],
+    'all',
+    [{ key: 'view:home', account: null, title: 'ホーム' }],
+    new Set(['view:profile:alice']),
+    AT_ONCE
+  );
+  assert.deepEqual(
+    moved.groups[0]!.scopes.map((scope) => [scope.key, scope.missing ?? false]),
+    [
+      // 別のビューを見ているだけなので、「見つからない」とは言わない
+      ['view:profile:alice', false],
+      ['view:home', false],
+    ]
+  );
 });

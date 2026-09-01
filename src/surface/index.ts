@@ -31,15 +31,17 @@ export type SurfaceState = {
 };
 
 /**
- * Whether a scope that is no longer on screen may have been deleted.
+ * What it means that a scope is no longer on screen.
  *
- * X Pro keeps columns outside the window out of the DOM, so "gone from the DOM" and
- * "merely out of sight" look the same, and the record has to be pruned when a deck is
- * reopened or deleted columns would pile up forever. x.com's views are a fixed set that
- * nothing deletes — one simply is not the view being looked at — so pruning there would
- * mark a view "not found" for the sole reason that you are somewhere else.
+ * - `on-reopen` (X Pro): it may be off the side of the window, or it may have been
+ *   deleted, and the two look the same — X Pro keeps columns outside the window out of
+ *   the DOM. So nothing is dropped until the deck is reopened, and a scope with settings
+ *   is then kept and marked rather than lost
+ * - `at-once` (x.com): you are simply looking at another view. One with nothing set is
+ *   dropped straight away, or every profile ever glanced at would pile up. One with
+ *   settings is kept and *not* marked: being elsewhere is not a fault to report
  */
-export type Pruning = boolean;
+export type Pruning = 'on-reopen' | 'at-once';
 
 export type Surface = {
   readonly id: SurfaceId;
@@ -67,8 +69,8 @@ export type Surface = {
   signature: () => string;
   /** Where the scopes on screen belong, for the record the settings screen reads */
   state: () => SurfaceState;
-  /** Whether scopes missing from the page may have been deleted (see `Pruning`) */
-  prunesMissing: Pruning;
+  /** What it means that a scope is not on screen (see `Pruning`) */
+  pruning: Pruning;
 
   // --- Where the appearance applies ---
 

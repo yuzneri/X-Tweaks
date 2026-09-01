@@ -13,7 +13,7 @@ import { watch as watchEntry } from '../panel/menu-item.ts';
 import { insertInto as insertMenuItem } from '../panel/x-menu.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { Surface } from './index.ts';
-import { viewKeyOf } from './view.ts';
+import { viewKeyOf, viewNameFrom } from './view.ts';
 
 /** The one group x.com's views go in. The name is the settings screen's to supply */
 const GROUP = 'all';
@@ -40,7 +40,7 @@ const accountOf = (): string | null => {
  */
 const currentScope = (): ColumnScope => ({
   account: accountOf(),
-  columnId: viewKeyOf(location.pathname),
+  columnId: viewKeyOf(location.pathname, location.search),
 });
 
 export const xSurface: Surface = {
@@ -53,22 +53,30 @@ export const xSurface: Surface = {
   // Only the views that have a key are worth listing. A page with none (a post's own
   // page, say) runs on the tiers above, and reporting it as an unresolved scope would
   // set off the watch on X's markers
-  detect: () => (viewKeyOf(location.pathname) === null ? [] : [{ ...currentScope(), title: null }]),
+  detect: () => {
+    const key = viewKeyOf(location.pathname, location.search);
+    // What X calls this view. Reading it is `viewNameFrom`'s; all this knows is where to look
+    return key === null ? [] : [{ ...currentScope(), title: viewNameFrom(document.title) }];
+  },
   refresh: () => Promise.resolve(xSurface.detect()),
   /*
    * Moving between views changes the settings that apply, so the path is the signal.
    * The account goes in as well: switching accounts changes the tier above without the
    * path moving at all.
    */
-  signature: () => `${location.pathname}\n${accountOf() ?? ''}`,
+  signature: () => `${location.pathname}${location.search}\n${accountOf() ?? ''}`,
   /*
    * One group for the whole site. x.com has nothing like a deck, so there is nothing to
    * group views by — but the record needs somewhere to put them, and the settings screen
    * needs something to head the list with.
    */
   state: () => ({ groups: [{ id: GROUP, name: null }], groupId: GROUP }),
-  // A view is never deleted; you are simply looking at another one
-  prunesMissing: false,
+  /*
+   * Held one per person and one per query, profiles and searches would pile up for every
+   * one ever glanced at. Moving to another view drops the ones nothing was set for, there
+   * and then: unlike a column, a view cannot be hiding off the side of the window.
+   */
+  pruning: 'at-once',
 
   // The appearance has nowhere to apply until PR ⑥ decides its range, so it is handed nothing
   scopes: () => [],

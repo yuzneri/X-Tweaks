@@ -79,7 +79,7 @@ export const proSurface: Surface = {
   },
 
   // A column can be deleted, and X Pro keeps the ones out of the window out of the DOM
-  prunesMissing: true,
+  pruning: 'on-reopen',
 
   scopeElements: () => Array.from(document.querySelectorAll(COLUMN_SELECTOR)),
   scopeOfElement: scopeOfColumn,

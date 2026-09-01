@@ -6,6 +6,7 @@ import {
   withoutScope,
   type Detected,
   type DetectedScope,
+  type Prune,
 } from './detected.ts';
 import { MARKERS, type Marker } from '../filter/health.ts';
 import type { SurfaceId } from '../surface/index.ts';
@@ -164,11 +165,11 @@ export const saveDetected = async (
   currentGroupId: string | null,
   scopes: DetectedScope[],
   configured: ReadonlySet<string>,
-  rebuild: boolean
+  prune: Prune
 ): Promise<void> => {
   const stored = (await api.storage.local.get(DETECTED_KEY))[DETECTED_KEY];
   const previous = fillDetected(stored);
-  const next = mergeDetected(previous, surface, groups, currentGroupId, scopes, configured, rebuild);
+  const next = mergeDetected(previous, surface, groups, currentGroupId, scopes, configured, prune);
   if (JSON.stringify(previous) === JSON.stringify(next)) return;
   await api.storage.local.set({ [DETECTED_KEY]: next });
 };

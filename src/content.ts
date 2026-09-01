@@ -208,11 +208,20 @@ const main = async (): Promise<void> => {
        * "10 columns → 0 → 4", and remembering at the 0 point would lose the chance to
        * rebuild by the time they appear.
        */
-      const rebuild = surface.prunesMissing && rebuiltGroup !== found.groupId;
+      const reopened = rebuiltGroup !== found.groupId;
       if (scopes.length > 0) rebuiltGroup = found.groupId;
-      // Configured scopes not found during a rebuild are marked and kept rather than dropped
+      /*
+       * What being off the page means here. X Pro waits for the group to be reopened
+       * before touching anything, and marks what it keeps; x.com drops at once and marks
+       * nothing (see `Pruning`).
+       */
+      const prune =
+        surface.pruning === 'at-once'
+          ? { drop: true, mark: false }
+          : { drop: reopened, mark: reopened };
+      // Scopes with settings are kept whatever happens
       const configured = new Set(Object.keys(current.columns));
-      saveDetected(surface.id, found.groups, found.groupId, scopes, configured, rebuild).catch(
+      saveDetected(surface.id, found.groups, found.groupId, scopes, configured, prune).catch(
         warnSaveFailed('the scopes found on this page')
       );
     },
