@@ -326,6 +326,7 @@ test('フィルタでも外観でも、何か指定していれば空ではな�
     (n) => { n.appearance.media.style = 'hidden'; },
     (n) => { n.appearance.compact = true; },
     (n) => { n.appearance.collapseNewlines = true; },
+    (n) => { n.appearance.hideWhoToFollow = true; },
     (n) => { n.appearance.autoContrast = false; },
     (n) => { n.appearance.highlightBase = 'theme'; },
     (n) => { n.appearance.cardStyle = 'hidden'; },
@@ -482,23 +483,26 @@ test('印が見る「中身」に、適用するかどうかの切り替えは�
   assert.equal(isEmptyNode(fillNode({ appearance: { enabled: false } })), false);
 });
 
-test('詰めるかどうかと改行の解除は、真偽値以外を未指定として読む', () => {
+test('外観の切り替えは、真偽値以外を未指定として読む', () => {
   const read = (v: unknown) => {
-    const { appearance } = fillNode({ appearance: { compact: v, collapseNewlines: v } });
-    return [appearance.compact, appearance.collapseNewlines];
+    const { appearance } = fillNode({
+      appearance: { compact: v, collapseNewlines: v, hideWhoToFollow: v },
+    });
+    return [appearance.compact, appearance.collapseNewlines, appearance.hideWhoToFollow];
   };
 
-  assert.deepEqual(read(true), [true, true]);
+  assert.deepEqual(read(true), [true, true, true]);
   // false is a value of its own: it is what cancels an upper tier's true
-  assert.deepEqual(read(false), [false, false]);
-  assert.deepEqual(read(undefined), [null, null]);
-  assert.deepEqual(read('true'), [null, null]);
-  assert.deepEqual(read(1), [null, null]);
+  assert.deepEqual(read(false), [false, false, false]);
+  assert.deepEqual(read(undefined), [null, null, null]);
+  assert.deepEqual(read('true'), [null, null, null]);
+  assert.deepEqual(read(1), [null, null, null]);
 
-  // The two are independent: one being set says nothing about the other
+  // They are independent: one being set says nothing about the others
   const only = fillNode({ appearance: { compact: true } }).appearance;
   assert.equal(only.compact, true);
   assert.equal(only.collapseNewlines, null);
+  assert.equal(only.hideWhoToFollow, null);
 });
 
 test('保存された寸法は正の整数だけを受ける', () => {
@@ -686,6 +690,7 @@ test('落とすのはカラム専用の 3 つだけ', () => {
   node.fontSize = 14;
   node.maxLines = 5;
   node.collapseNewlines = true;
+  node.hideWhoToFollow = true;
   node.autoContrast = false;
   node.highlightBase = 'theme';
   node.timeFormat = 'absolute';

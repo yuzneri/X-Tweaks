@@ -58,6 +58,7 @@ const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   fontSize: inherit(tiers, (node) => node.appearance.fontSize),
   maxLines: inherit(tiers, (node) => node.appearance.maxLines),
   collapseNewlines: inherit(tiers, (node) => node.appearance.collapseNewlines),
+  hideWhoToFollow: inherit(tiers, (node) => node.appearance.hideWhoToFollow),
   colors: {
     background: inherit(tiers, (node) => node.appearance.colors.background),
     text: inherit(tiers, (node) => node.appearance.colors.text),

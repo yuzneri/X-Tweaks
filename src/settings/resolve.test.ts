@@ -163,6 +163,7 @@ test('外観の項目は1つ残らず継承する。合成が項目を列挙し�
     fontSize: 13,
     maxLines: 5,
     collapseNewlines: true,
+    hideWhoToFollow: true,
     colors: {
       background: '#111111', text: '#222222', name: '#333333', meta: '#444444',
       link: '#555555', border: '#666666', columnTitle: '#777777', columnHeader: '#888888',

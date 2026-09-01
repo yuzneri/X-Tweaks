@@ -99,6 +99,12 @@ export const isCompact = (compact: boolean | null): boolean => compact === true;
 export const collapsesNewlines = (collapse: boolean | null): boolean => collapse === true;
 
 /**
+ * Whether the block of accounts X suggests following is taken off the timeline. Opt-in,
+ * like the other switches: left alone, X's own timeline stays as it is.
+ */
+export const hidesWhoToFollow = (hide: boolean | null): boolean => hide === true;
+
+/**
  * The default is the opposite of the other switches. Unreadable colors are an accident
  * nobody asked for, so the default is the side that fixes itself when left alone.
  */
@@ -371,6 +377,8 @@ export type AppearanceNode = {
   maxLines: number | null;
   /** Drops the line breaks written into the body, turning each into a single space */
   collapseNewlines: boolean | null;
+  /** Takes the block of accounts X suggests following off the timeline */
+  hideWhoToFollow: boolean | null;
   colors: {
     background: string | null;
     text: string | null;
@@ -589,6 +597,7 @@ export const fillNode = (v: unknown): SettingsNode => {
       fontSize: size(appearance.fontSize),
       maxLines: size(appearance.maxLines),
       collapseNewlines: bool(appearance.collapseNewlines),
+      hideWhoToFollow: bool(appearance.hideWhoToFollow),
       colors: {
         background: hexColor(colors.background),
         text: hexColor(colors.text),
@@ -682,6 +691,7 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.fontSize !== null ||
   appearance.maxLines !== null ||
   appearance.collapseNewlines !== null ||
+  appearance.hideWhoToFollow !== null ||
   appearance.timeFormat !== null ||
   appearance.cardStyle !== null ||
   appearance.quoteStyle !== null ||
