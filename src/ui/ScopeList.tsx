@@ -37,7 +37,7 @@ export const scopeKey = (scope: Scope): string =>
 export type ScopeEntry = {
   scope: Scope;
   label: string;
-  /** A note that helps tell entries apart: the account for a column, the column count for an account */
+  /** A note that helps tell entries apart: the account for a scope, what an account holds */
   detail?: string;
   unassigned: boolean;
   /** It has some setting or other. Makes it clear at a glance what was put where */

@@ -138,7 +138,6 @@ export const en = {
       'No column here yet. Open pro.x.com and the columns of the deck on screen will show up here.',
     /** A column with settings that was not found in the deck when it was reopened */
     columnMissing: 'not found',
-    /** When the columns are visible but not one of them could be identified */
     unnamedColumn: '(column with no name)',
     missingColumn: '(column not found right now)',
     unknownColumn: '(column not found yet)',
@@ -182,9 +181,13 @@ export const en = {
     label: 'What to set',
     filter: 'Filter',
     appearance: 'Appearance',
-    /** What the compose form does. Shown only on the global settings */
+    /**
+     * The posting settings. No longer a tab of its own — they live under the X Pro
+     * whole-site entry — but the word still names the group of switches put beside the
+     * compose form (`compose/switches.ts`)
+     */
     compose: 'Posting',
-    /** The result of merging the three tiers. Shown only while a column is selected */
+    /** The result of merging the three tiers. Shown only while a column or a view is selected */
     effective: 'What applies',
   },
 
