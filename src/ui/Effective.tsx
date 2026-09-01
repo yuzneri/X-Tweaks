@@ -23,13 +23,15 @@ import {
   type Tier,
 } from '../settings/resolve.ts';
 import type { Messages } from '../i18n/index.ts';
-import { COLOR_ORDER } from './Appearance.tsx';
+import { COLOR_ORDER, colorLabel, isColumnColor, type AppearanceSite } from './Appearance.tsx';
 import { useMessages } from './messages.tsx';
 
 type Props = {
   settings: Settings;
   /** Which column it is shown for. This surface appears only while a column is selected */
   scope: ColumnScope;
+  /** Which site it belongs to. The column-only items are left out where they cannot apply */
+  site: AppearanceSite;
 };
 
 const From = ({ tier }: { tier: Tier | null }) => {
@@ -59,16 +61,26 @@ const appearanceRows = (
   settings: Settings,
   scope: ColumnScope,
   effective: AppearanceNode,
+  site: AppearanceSite,
   m: Messages
 ): { label: string; value: string | null; tier: Tier | null }[] => {
   const of = <T,>(pick: (node: SettingsNode) => T | null) => sourceOf(settings, scope, pick);
-  const colors = m.appearance.colors;
+  /*
+   * The column-only items are left out where a scope is not a column: the applying side
+   * drops them there (`withoutColumnItems`), so listing them would name a value that is
+   * not in effect on the very surface for reading what is
+   */
+  const columns = site !== 'x';
   return [
-    {
-      label: m.appearance.columnWidth,
-      value: size(effective.columnWidth, m.size.unit),
-      tier: of((n) => n.appearance.columnWidth),
-    },
+    ...(columns
+      ? [
+          {
+            label: m.appearance.columnWidth,
+            value: size(effective.columnWidth, m.size.unit),
+            tier: of((n) => n.appearance.columnWidth),
+          },
+        ]
+      : []),
     {
       label: m.appearance.compact,
       // Unset has a default side too (not packed). Say which one is in effect
@@ -114,15 +126,15 @@ const appearanceRows = (
       tier: of((n) => n.appearance.quoteStyle),
     },
     // Colors are listed in the same order as on the editing surface, so the two can be compared
-    ...COLOR_ORDER.map((key) => ({
-      label: colors[key],
+    ...COLOR_ORDER.filter((key) => columns || !isColumnColor(key)).map((key) => ({
+      label: colorLabel(key, site, m),
       value: effective.colors[key],
       tier: of((n) => n.appearance.colors[key]),
     })),
   ];
 };
 
-export const Effective = ({ settings, scope }: Props) => {
+export const Effective = ({ settings, scope, site }: Props) => {
   const m = useMessages();
   const merged = resolve(settings, scope);
   const filtering = filterApplies(merged.filter.enabled);
@@ -179,7 +191,7 @@ export const Effective = ({ settings, scope }: Props) => {
           tier={sourceOf(settings, scope, (n) => n.appearance.enabled)}
         />
         {!styling && <p class="warning">{m.effective.appearanceStopped}</p>}
-        {appearanceRows(settings, scope, appearance, m).map((row) => (
+        {appearanceRows(settings, scope, appearance, site, m).map((row) => (
           <Row key={row.label} {...row} />
         ))}
       </fieldset>

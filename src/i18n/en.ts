@@ -413,7 +413,7 @@ export const en = {
     /** A color coming down from a wider scope. Unlike a default, it can be traced and changed */
     inherited: (color: string) => `from a wider scope (${color})`,
     /** What an empty box means in fields with no stand-in color (the appearance palette) */
-    unset: 'Not set (X Pro default)',
+    unset: "Not set (X's own)",
     error: 'Enter a color code as #rrggbb, or #rrggbbaa to include opacity',
     /** The picker's (Coloris) messages */
     picker: {
@@ -436,7 +436,12 @@ export const en = {
   appearance: {
     legend: 'Size and display',
     hint: 'Anything left empty or unset keeps the way X Pro shows it.',
+    hintX: 'Anything left empty or unset keeps the way x.com shows it.',
     columnWidth: 'Column width',
+    columnOnly: {
+      legend: 'X Pro only',
+      hint: 'x.com has no columns, so what is set here takes effect on X Pro alone.',
+    },
     compact: 'Pack the posts',
     compactOn: 'Packed',
     compactOff: 'As they are',
@@ -450,6 +455,7 @@ export const en = {
       legend: 'Colors',
       columnHeader: 'Behind the column name',
       background: 'Column background',
+      backgroundX: 'Timeline background',
       columnTitle: 'Column name',
       name: 'Author name',
       text: 'Post text',
@@ -464,8 +470,9 @@ export const en = {
     highlightBase: 'Blend highlights over',
     highlightBases: {
       column: 'The column background',
-      theme: 'X’s background (ignore the column color)',
-    } as { column: string; theme: string },
+      columnX: 'The timeline background',
+      theme: 'X’s background (ignore the background color set above)',
+    } as { column: string; columnX: string; theme: string },
     /** How a post's time is shown */
     timeFormat: 'Time display',
     timeFormats: {

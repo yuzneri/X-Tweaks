@@ -333,7 +333,7 @@ export const ja: Messages = {
     inheritedShort: '上位',
     fallback: (color: string) => `既定（${color}）`,
     inherited: (color: string) => `上位の設定（${color}）`,
-    unset: '未指定（X Pro 標準）',
+    unset: '未指定（X の標準）',
     error: 'カラーコードは #rrggbb か、不透明度を含む #rrggbbaa の形式で入力してください',
     picker: {
       clear: '消す',
@@ -354,7 +354,13 @@ export const ja: Messages = {
   appearance: {
     legend: '大きさと表示',
     hint: '空欄・未指定の項目は、X Pro の表示のままになります。',
+    // x.com には X Pro のカラムに当たるものが無いので、行き先の名前を言い換える
+    hintX: '空欄・未指定の項目は、x.com の表示のままになります。',
     columnWidth: 'カラムの幅',
+    columnOnly: {
+      legend: 'X Pro のみ',
+      hint: 'x.com にはカラムが無いため、ここの指定は X Pro でだけ効きます。',
+    },
     // What happens to the buttons belongs in the label rather than in the options: the label
     // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
     compact: 'ポストを詰める',
@@ -370,6 +376,8 @@ export const ja: Messages = {
       legend: '配色',
       columnHeader: 'カラム名の帯の背景',
       background: 'カラムの背景',
+      // x.com では画面の真ん中のタイムラインそのもの
+      backgroundX: 'タイムラインの背景',
       columnTitle: 'カラム名',
       name: '投稿者の名前',
       text: '本文',
@@ -383,7 +391,9 @@ export const ja: Messages = {
     highlightBase: 'ハイライトの色を重ねる先',
     highlightBases: {
       column: 'カラムの背景',
-      theme: 'X の背景（カラムの色を無視）',
+      // x.com にカラムは無い。同じ設定を、塗る対象の名前で呼ぶ
+      columnX: 'タイムラインの背景',
+      theme: 'X の背景（上で指定した背景色を無視）',
     },
     timeFormat: '時刻の表示',
     timeFormats: {

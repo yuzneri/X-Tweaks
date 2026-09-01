@@ -35,6 +35,7 @@ import {
 import { enabledAt, inheritedFor, type ColumnScope } from '../settings/resolve.ts';
 import type { SurfaceId } from '../surface/index.ts';
 import { VIEW_PREFIX, viewSubjectOf } from '../surface/view.ts';
+import type { AppearanceSite } from './Appearance.tsx';
 import { TierEditor, type Tab } from './TierEditor.tsx';
 import { ScopeHeader, type ReassignTarget } from './ScopeHeader.tsx';
 import { ScopeList, scopeKey, type Scope, type ScopeEntry, type ScopeGroup } from './ScopeList.tsx';
@@ -546,6 +547,12 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
       : null;
 
   /**
+   * Which site the settings on the right are for. The global and account tiers belong to
+   * both, so the appearance groups the column-only items there instead of hiding them.
+   */
+  const site: AppearanceSite = shown.tier === 'columns' ? surfaceOfKey(shown.key) : 'both';
+
+  /**
    * Moves to another screen's settings. The scope goes with it: the one selected here has
    * no counterpart in the list being moved to, and leaving it would show that screen's
    * list beside a scope belonging to the other.
@@ -713,8 +720,11 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                 tab={tab}
                 onTabChange={setTab}
                 inherited={inherited}
+                site={site}
                 // The merged result cannot be built without knowing all three tiers, so it is assembled here and passed in
-                effective={columnScope && <Effective settings={settings} scope={columnScope} />}
+                effective={
+                  columnScope && <Effective settings={settings} scope={columnScope} site={site} />
+                }
               />
               )}
             </div>

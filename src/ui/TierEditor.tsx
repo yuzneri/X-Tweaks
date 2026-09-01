@@ -1,12 +1,13 @@
 /**
- * Edits one tier's settings. It knows neither which tier it belongs to nor which surface it sits on.
+ * Edits one tier's settings. It does not know which tier it belongs to; which site it is
+ * for it passes along without reading, the appearance being the one part that cares.
  * It is split into tabs because stacked vertically it would not fit on one screen.
  */
 import type { ComponentChildren } from 'preact';
 import { filterApplies, syncOrder, type FilterNode, type SettingsNode } from '../settings/schema.ts';
 import type { Inherited } from '../settings/resolve.ts';
 import { BoolSelect } from './fields.tsx';
-import { Appearance } from './Appearance.tsx';
+import { Appearance, type AppearanceSite } from './Appearance.tsx';
 import { useMessages } from './messages.tsx';
 import { Rules } from './Rules.tsx';
 
@@ -25,6 +26,8 @@ type Props = {
   onTabChange: (tab: Tab) => void;
   /** The values coming down from the tiers above. Shown dimmed in the fields left unset */
   inherited: Inherited;
+  /** Which site these settings are for. Only the appearance differs by site (see `AppearanceSite`) */
+  site: AppearanceSite;
   /**
    * The "what is in effect" surface. That tab appears only when this is passed.
    * Its contents cannot be built without knowing all three tiers, so building it is left to the caller.
@@ -32,7 +35,7 @@ type Props = {
   effective?: ComponentChildren;
 };
 
-export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, effective }: Props) => {
+export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, site, effective }: Props) => {
   const m = useMessages();
   const updateFilter = (patch: Partial<FilterNode>) =>
     onChange({ ...node, filter: { ...node.filter, ...patch } });
@@ -107,6 +110,7 @@ export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, effect
         <Appearance
           node={node.appearance}
           inherited={inherited.appearance}
+          site={site}
           onChange={(appearance) => onChange({ ...node, appearance })}
         />
       )}

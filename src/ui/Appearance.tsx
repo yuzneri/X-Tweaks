@@ -8,6 +8,7 @@ import {
   ATTACHMENT_STYLES,
   cardStyleOf,
   collapsesNewlines,
+  COLUMN_COLORS,
   emptyNode,
   HIGHLIGHT_BASES,
   highlightBaseOf,
@@ -19,6 +20,7 @@ import {
   timeFormatOf,
   type AppearanceNode,
 } from '../settings/schema.ts';
+import type { Messages } from '../i18n/index.ts';
 import { BoolSelect, ChoiceSelect, ColorField, SizeField } from './fields.tsx';
 import { useMessages } from './messages.tsx';
 
@@ -38,6 +40,31 @@ export const COLOR_ORDER = [
   'border',
 ] as const;
 
+type ColorKey = (typeof COLOR_ORDER)[number];
+
+/**
+ * Which site these settings are for.
+ *
+ * `both` is the global and account tiers, which the two sites share. The items that only
+ * mean something where a scope is a column of its own are shown there too — set there,
+ * they really do take effect on X Pro — but grouped together and said so, rather than
+ * standing in the row as if they applied everywhere.
+ */
+export type AppearanceSite = 'both' | 'pro' | 'x';
+
+/** Whether that color is one of the column-only ones (`COLUMN_COLORS`, named beside the shape) */
+export const isColumnColor = (key: ColorKey): boolean => COLUMN_COLORS.includes(key);
+
+/**
+ * What that color is called on this site's tab.
+ *
+ * x.com has one timeline down the middle of the page rather than a column, so the
+ * background is named after what is actually painted. Decided in one place because
+ * "what is in effect" lists the same colors in the same order to be compared with these.
+ */
+export const colorLabel = (key: ColorKey, site: AppearanceSite, m: Messages): string =>
+  key === 'background' && site === 'x' ? m.appearance.colors.backgroundX : m.appearance.colors[key];
+
 type Props = {
   node: AppearanceNode;
   onChange: (node: AppearanceNode) => void;
@@ -47,9 +74,11 @@ type Props = {
    * so what is shown dimmed is the effective value as far as it can be resolved.
    */
   inherited: AppearanceNode;
+  /** Which site's settings these are (see `AppearanceSite`) */
+  site: AppearanceSite;
 };
 
-export const Appearance = ({ node, onChange, inherited }: Props) => {
+export const Appearance = ({ node, onChange, inherited, site }: Props) => {
   const m = useMessages();
   /**
    * Whether the appearance applies in this scope, as the effective value looking up to the top.
@@ -64,13 +93,47 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
   const media = (part: Partial<AppearanceNode['media']>) =>
     patch({ media: { ...node.media, ...part } });
 
+  /*
+   * The column-only items. Built here so the same row can stand in its usual place on X
+   * Pro's tab and in the group below on the shared tiers' tab, without being written twice
+   */
+  const columnWidthRow = (
+    <label class="row">
+      <span>{m.appearance.columnWidth}</span>
+      <SizeField
+        value={node.columnWidth}
+        inherited={above.columnWidth}
+        onChange={(columnWidth) => patch({ columnWidth })}
+        label={m.appearance.columnWidth}
+      />
+    </label>
+  );
+
+  const colorRow = (key: ColorKey) => {
+    const label = colorLabel(key, site, m);
+    return (
+      <label class="row" key={key}>
+        <span>{label}</span>
+        <ColorField
+          value={node.colors[key]}
+          onChange={(color) => colors({ [key]: color })}
+          // When an upper tier sets it, that color appears in the swatch and the dimmed text
+          fallback={above.colors[key]}
+          // Not a default color but one that came down from above. It can be traced and changed, so it is worded differently
+          fallbackInherited
+          label={label}
+        />
+      </label>
+    );
+  };
+
   return (
     <>
       {/*
         The only description always shown on this tab is this one.
         "Empty keeps X Pro's own" applies to sizes and colors alike, so it sits at the top of the tab rather than inside a group
       */}
-      <p class="hint">{m.appearance.hint}</p>
+      <p class="hint">{site === 'x' ? m.appearance.hintX : m.appearance.hint}</p>
 
       {/*
         Switches the appearance off entirely. Placed at the top of the tab, in the same shape as the filter's toggle.
@@ -108,19 +171,12 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
       <fieldset>
         <legend>{m.appearance.legend}</legend>
 
-        <label class="row">
-          <span>{m.appearance.columnWidth}</span>
-          <SizeField
-            value={node.columnWidth}
-            inherited={above.columnWidth}
-            onChange={(columnWidth) => patch({ columnWidth })}
-            label={m.appearance.columnWidth}
-          />
-        </label>
+        {site === 'pro' && columnWidthRow}
 
         {/*
           Packs the posts: the padding around them, the avatar, and the row of reply and
-          repost buttons. Placed next to the width, both being about the column as a whole
+          repost buttons. First of the items that are about the timeline as a whole
+          (on X Pro's tab the width stands above it, being the same kind of thing)
         */}
         <label class="row">
           <span>{m.appearance.compact}</span>
@@ -245,21 +301,8 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
       <fieldset>
         <legend>{m.appearance.colors.legend}</legend>
         {/* Every one keeps X Pro's own when unset. The extension does not know the color used instead (fallback is null) */}
-        {COLOR_ORDER.map((key) => (
-          <label class="row" key={key}>
-            <span>{m.appearance.colors[key]}</span>
-            <ColorField
-              value={node.colors[key]}
-              onChange={(color) => colors({ [key]: color })}
-              // When an upper tier sets it, that color appears in the swatch and the dimmed text
-              fallback={above.colors[key]}
-              // Not a default color but one that came down from above. It can be traced and changed, so it is worded differently
-              fallbackInherited
-              label={m.appearance.colors[key]}
-            />
-          </label>
-        ))}
-      
+        {COLOR_ORDER.filter((key) => site === 'pro' || !isColumnColor(key)).map(colorRow)}
+
         {/*
           Shifts the text color only when a highlight or emphasis makes it unreadable.
           Placed in the colors group: it applies to a rule's color rather than the tier's palette, but to the user it is the same subject
@@ -289,12 +332,32 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
             // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
             effective={highlightBaseOf(above.highlightBase)}
             options={HIGHLIGHT_BASES}
-            labels={m.appearance.highlightBases}
+            // Named after what is painted, the same as the background color above
+            labels={
+              site === 'x'
+                ? { ...m.appearance.highlightBases, column: m.appearance.highlightBases.columnX }
+                : m.appearance.highlightBases
+            }
             onChange={(highlightBase) => onChange({ ...node, highlightBase })}
             label={m.appearance.highlightBase}
           />
         </label>
       </fieldset>
+
+      {/*
+        The items that only take effect where a scope is a column. Grouped at the end
+        rather than dimmed in place: dimming would read as "does not work", while what is
+        set here really does apply — on X Pro.
+        x.com's own tab does not get this group at all; there they can never apply
+      */}
+      {site === 'both' && (
+        <fieldset>
+          <legend>{m.appearance.columnOnly.legend}</legend>
+          <p class="hint">{m.appearance.columnOnly.hint}</p>
+          {columnWidthRow}
+          {COLOR_ORDER.filter(isColumnColor).map(colorRow)}
+        </fieldset>
+      )}
     </>
   );
 };
