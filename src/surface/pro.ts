@@ -78,6 +78,9 @@ export const proSurface: Surface = {
     return { groups: decks.map(({ deckId: id, name }) => ({ id, name })), groupId: deckId };
   },
 
+  // A column can be deleted, and X Pro keeps the ones out of the window out of the DOM
+  prunesMissing: true,
+
   scopeElements: () => Array.from(document.querySelectorAll(COLUMN_SELECTOR)),
   scopeOfElement: scopeOfColumn,
   rangeOf: scopeElementOf,

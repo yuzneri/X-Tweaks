@@ -15,6 +15,9 @@ import type { ColumnScope } from '../settings/resolve.ts';
 import type { Surface } from './index.ts';
 import { viewKeyOf } from './view.ts';
 
+/** The one group x.com's views go in. The name is the settings screen's to supply */
+const GROUP = 'all';
+
 /** The account signed in. x.com shows one at a time, in the button that switches them */
 const ACCOUNT_SWITCHER = '[data-testid="SideNav_AccountSwitcher_Button"]';
 
@@ -58,8 +61,14 @@ export const xSurface: Surface = {
    * path moving at all.
    */
   signature: () => `${location.pathname}\n${accountOf() ?? ''}`,
-  // Nothing is written down yet. Reporting a group here is PR ⑤a's second half
-  state: () => ({ groups: [], groupId: null }),
+  /*
+   * One group for the whole site. x.com has nothing like a deck, so there is nothing to
+   * group views by — but the record needs somewhere to put them, and the settings screen
+   * needs something to head the list with.
+   */
+  state: () => ({ groups: [{ id: GROUP, name: null }], groupId: GROUP }),
+  // A view is never deleted; you are simply looking at another one
+  prunesMissing: false,
 
   // The appearance has nowhere to apply until PR ⑥ decides its range, so it is handed nothing
   scopes: () => [],

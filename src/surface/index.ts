@@ -30,6 +30,17 @@ export type SurfaceState = {
   groupId: string | null;
 };
 
+/**
+ * Whether a scope that is no longer on screen may have been deleted.
+ *
+ * X Pro keeps columns outside the window out of the DOM, so "gone from the DOM" and
+ * "merely out of sight" look the same, and the record has to be pruned when a deck is
+ * reopened or deleted columns would pile up forever. x.com's views are a fixed set that
+ * nothing deletes — one simply is not the view being looked at — so pruning there would
+ * mark a view "not found" for the sole reason that you are somewhere else.
+ */
+export type Pruning = boolean;
+
 export type Surface = {
   readonly id: SurfaceId;
 
@@ -56,6 +67,8 @@ export type Surface = {
   signature: () => string;
   /** Where the scopes on screen belong, for the record the settings screen reads */
   state: () => SurfaceState;
+  /** Whether scopes missing from the page may have been deleted (see `Pruning`) */
+  prunesMissing: Pruning;
 
   // --- Where the appearance applies ---
 

@@ -208,11 +208,11 @@ const main = async (): Promise<void> => {
        * "10 columns → 0 → 4", and remembering at the 0 point would lose the chance to
        * rebuild by the time they appear.
        */
-      const rebuild = rebuiltGroup !== found.groupId;
+      const rebuild = surface.prunesMissing && rebuiltGroup !== found.groupId;
       if (scopes.length > 0) rebuiltGroup = found.groupId;
       // Configured scopes not found during a rebuild are marked and kept rather than dropped
       const configured = new Set(Object.keys(current.columns));
-      saveDetected(found.groups, found.groupId, scopes, configured, rebuild).catch(
+      saveDetected(surface.id, found.groups, found.groupId, scopes, configured, rebuild).catch(
         warnSaveFailed('the scopes found on this page')
       );
     },

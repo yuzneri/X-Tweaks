@@ -9,11 +9,12 @@ const at = new Date(2026, 7, 24, 10, 30, 0);
 
 const decks: DetectedGroup[] = [
   {
+    surface: 'pro',
     id: 'd1',
     name: '技術',
     scopes: [{ key: 'col-1', account: 'alice', title: 'ホーム' }],
   },
-  { id: 'd2', name: null, scopes: [] },
+  { surface: 'pro', id: 'd2', name: null, scopes: [] },
 ];
 
 test('書き出した JSON は、保存されている設定をそのまま含む', () => {

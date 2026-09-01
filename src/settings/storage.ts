@@ -8,6 +8,7 @@ import {
   type DetectedScope,
 } from './detected.ts';
 import { MARKERS, type Marker } from '../filter/health.ts';
+import type { SurfaceId } from '../surface/index.ts';
 
 export type { Detected, DetectedScope, DetectedGroup } from './detected.ts';
 
@@ -158,6 +159,7 @@ export const subscribePaused = (callback: (paused: boolean) => void): (() => voi
  * triggering a re-render of the settings screen on every write.
  */
 export const saveDetected = async (
+  surface: SurfaceId,
   groups: { id: string; name: string | null }[],
   currentGroupId: string | null,
   scopes: DetectedScope[],
@@ -166,7 +168,7 @@ export const saveDetected = async (
 ): Promise<void> => {
   const stored = (await api.storage.local.get(DETECTED_KEY))[DETECTED_KEY];
   const previous = fillDetected(stored);
-  const next = mergeDetected(previous, groups, currentGroupId, scopes, configured, rebuild);
+  const next = mergeDetected(previous, surface, groups, currentGroupId, scopes, configured, rebuild);
   if (JSON.stringify(previous) === JSON.stringify(next)) return;
   await api.storage.local.set({ [DETECTED_KEY]: next });
 };

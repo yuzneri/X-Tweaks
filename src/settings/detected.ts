@@ -8,6 +8,10 @@
  * decks off the rail); what is remembered is each group's scopes.
  */
 import { isRecord } from './schema.ts';
+import type { SurfaceId } from '../surface/index.ts';
+
+/** The sites a group can belong to. A record naming anything else is from a version that knew more */
+const SURFACES = new Set<string>(['pro', 'x']);
 
 /** Scopes whose key could not be resolved are not recorded */
 export type DetectedScope = {
@@ -24,6 +28,8 @@ export type DetectedScope = {
 
 /** `name` is used for display only */
 export type DetectedGroup = {
+  /** Which site the group belongs to. The record holds both at once */
+  surface: SurfaceId;
   id: string;
   name: string | null;
   scopes: DetectedScope[];
@@ -42,9 +48,11 @@ const fillScope = (v: unknown): DetectedScope | null => {
 const fillGroup = (v: unknown): DetectedGroup | null => {
   if (!isRecord(v)) return null;
   const id = str(v.id);
-  if (!id) return null;
+  const surface = str(v.surface);
+  if (!id || surface === null || !SURFACES.has(surface)) return null;
   const scopes = Array.isArray(v.scopes) ? v.scopes : [];
   return {
+    surface: surface as SurfaceId,
     id,
     name: str(v.name),
     scopes: scopes.map(fillScope).filter((scope) => scope !== null),
@@ -152,14 +160,18 @@ const mergeScopes = (
 /**
  * Rebuilds the record.
  *
- * - The order and the names follow the list the surface reports. Groups it does not
- *   report are discarded (tidying up deleted decks)
- * - Only the scopes of the group currently on screen are touched; other groups stay as they were
+ * - Only the reporting surface's groups are touched. The other site's stay exactly as
+ *   they were: one page can only ever speak for the site it is on, and dropping what it
+ *   cannot see would empty the other site's list every time you opened this one
+ * - Within that surface, the order and the names follow the list it reports, and groups
+ *   it does not report are discarded (tidying up deleted decks)
+ * - Only the scopes of the group currently on screen are touched
  * - When the list could not be read (`groups` is empty), the previous record is kept and
  *   only the group on screen is updated
  */
 export const mergeDetected = (
   previous: Detected,
+  surface: SurfaceId,
   groups: { id: string; name: string | null }[],
   currentGroupId: string | null,
   scopes: DetectedScope[],
@@ -171,12 +183,15 @@ export const mergeDetected = (
    */
   rebuild: boolean
 ): Detected => {
-  const before = new Map(previous.groups.map((group) => [group.id, group]));
-  const listed =
-    groups.length > 0 ? groups : previous.groups.map(({ id, name }) => ({ id, name }));
+  const elsewhere = previous.groups.filter((group) => group.surface !== surface);
+  const here = previous.groups.filter((group) => group.surface === surface);
+
+  const before = new Map(here.map((group) => [group.id, group]));
+  const listed = groups.length > 0 ? groups : here.map(({ id, name }) => ({ id, name }));
   const known = (id: string) => before.get(id)?.scopes ?? [];
 
   const merged = listed.map(({ id, name }): DetectedGroup => ({
+    surface,
     id,
     name,
     /*
@@ -192,9 +207,11 @@ export const mergeDetected = (
 
   // Showing a group that was not reported should not happen, but if it does it is added rather than dropped
   if (currentGroupId && !merged.some((group) => group.id === currentGroupId)) {
-    merged.push({ id: currentGroupId, name: null, scopes });
+    merged.push({ surface, id: currentGroupId, name: null, scopes });
   }
-  return { groups: merged, currentGroupId };
+  // The other site's groups keep their place at the front, so switching sites does not
+  // shuffle the settings screen's list
+  return { groups: [...elsewhere, ...merged], currentGroupId };
 };
 
 /**

@@ -28,7 +28,7 @@ const merge = (
   currentGroupId: string | null,
   columns: DetectedScope[],
   configured: string[] = []
-): Detected => mergeDetected(previous, decks, currentGroupId, columns, new Set(configured), false);
+): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), false);
 
 /**
  * The merge for reopening a deck.
@@ -40,7 +40,7 @@ const reopen = (
   currentGroupId: string | null,
   columns: DetectedScope[],
   configured: string[] = []
-): Detected => mergeDetected(previous, decks, currentGroupId, columns, new Set(configured), true);
+): Detected => mergeDetected(previous, 'pro', decks, currentGroupId, columns, new Set(configured), true);
 
 test('設定を持つカラムは、別のデッキへ移っても残る', () => {
   const first = merge(emptyDetected(), DECKS, 'd1', [column('c1')], ['c1']);
@@ -193,6 +193,40 @@ test('全デッキのカラムを平らに並べる（未割り当ての判定�
   assert.deepEqual(allScopes(both).map((c) => c.account), ['alice', 'bob']);
 });
 
+test('片方のサイトを開いても、もう片方の記録は消えない', () => {
+  const onPro = merge(emptyDetected(), DECKS, 'd1', [column('c1')]);
+  // x.com はグループを 1 つしか持たない。ここで Pro のデッキが消えてはいけない
+  const onX = mergeDetected(
+    onPro,
+    'x',
+    [{ id: 'all', name: null }],
+    'all',
+    [{ key: 'view:home', account: 'alice', title: null }],
+    new Set(),
+    false
+  );
+
+  assert.deepEqual(
+    onX.groups.map((group) => [group.surface, group.id, group.scopes.map((scope) => scope.key)]),
+    [
+      ['pro', 'd1', ['c1']],
+      ['pro', 'd2', []],
+      ['x', 'all', ['view:home']],
+    ]
+  );
+
+  // 戻っても同じ。x.com の記録は Pro 側の報告で消えない
+  const backOnPro = merge(onX, DECKS, 'd1', [column('c1')]);
+  assert.deepEqual(
+    backOnPro.groups.map((group) => [group.surface, group.id]),
+    [
+      ['x', 'all'],
+      ['pro', 'd1'],
+      ['pro', 'd2'],
+    ]
+  );
+});
+
 test('キーが取れなかったものは記録しない', () => {
   assert.deepEqual(
     recordable([
@@ -230,7 +264,9 @@ test('同じ印が2つの要素に付いていても、1本だけ並べる', () 
 
 test('覚えていた控えに重複が入っていても、1本に戻す', () => {
   const stored = {
-    groups: [{ id: 'd1', name: '技術', scopes: [column('c1'), column('c1'), column('c2')] }],
+    groups: [
+      { surface: 'pro' as const, id: 'd1', name: '技術', scopes: [column('c1'), column('c1'), column('c2')] },
+    ],
     currentGroupId: 'd1',
   };
   const after = merge(stored, DECKS, 'd1', [column('c2')], ['c1']);
