@@ -23,6 +23,7 @@
    * least a select takes. One value so their right edges line up down the panel.
    */
   --field: 104px;
+  /* 104px holds `#rrggbbaa` (nine characters) at 13px monospace with room to spare — measured */
   --error: #f4212e;
   --surface: #f7f9f9;
 }
@@ -381,12 +382,13 @@
   flex: 1;
   min-width: 140px;
   padding: 3px 8px;
-  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
   color: var(--fg);
+  /* `font: inherit` first: as a shorthand it would put the size back to the body's */
   font: inherit;
+  font-size: 13px;
 }
 
 /*
@@ -638,7 +640,8 @@
  * The color-code box. Its selector is made stronger than `input[type="text"]`.
  * `.xpro-ui .colorcode` (0,2,0) alone loses to `.xpro-ui input[type="text"]` (0,2,1), letting
  * `flex: 1` and `min-width` take effect and stretch the box.
- * The width fits both `#rrggbbaa` (nine characters) and the short dimmed text.
+ * The width is `--field`, shared with the size box so their right edges line up. It holds
+ * `#rrggbbaa` (nine characters) and the short dimmed text alike.
  */
 .xpro-ui input[type="text"].colorcode {
   /* Specified as the width including padding and border (the same treatment as `.size-box`) */
