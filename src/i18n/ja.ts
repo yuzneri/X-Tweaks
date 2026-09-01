@@ -103,9 +103,6 @@ export const ja: Messages = {
     columnsEmpty:
       'カラムがまだ1本もありません。pro.x.com を開くと、表示中のデッキのカラムがここに並びます。',
     columnMissing: '見つかりません',
-    columnsUnidentified:
-      'カラムは開いていますが、1本も見分けられなかったため、カラムごとの設定を出せません。' +
-      'pro.x.com を再読み込みすると直ることがあります。',
     unnamedColumn: '（名前のないカラム）',
     missingColumn: '（いま見つからないカラム）',
     unknownColumn: '（まだ見つけていないカラム）',
@@ -170,23 +167,39 @@ export const ja: Messages = {
   effective: {
     hint:
       'グローバル・アカウント・カラムの設定をまとめた、このカラムに実際に適用される内容です。',
-    from: { global: 'グローバル', account: 'アカウント', column: 'このカラム' },
+    hintView:
+      'グローバル・アカウント・ビューの設定をまとめた、このビューに実際に適用される内容です。',
+    // `view` は `Tier` に無い段ではなく、`column` を x.com で呼び替えたもの
+    from: { global: 'グローバル', account: 'アカウント', column: 'このカラム', view: 'このビュー' },
     unset: '指定なし',
     rules: 'ルール（判定する順）',
-    noRules: 'このカラムにルールはありません',
+    // 英語が 'No rules here' と場所を名指さないのに合わせる。段の呼び名を出さずに済む
+    noRules: 'ここにルールはありません',
     disabled: '無効',
     filterStopped: 'フィルタを止めているので、下のルールはどれも効きません。',
     appearanceStopped: '外観を止めているので、下の指定はどれも効きません。',
     appearance: '外観',
   },
 
-  /** Removes one column from the record of detected columns */
+  /**
+   * Removes one scope from the record of what was detected.
+   * 文ごとサイトで分ける。x.com のビューは「消したかどうか分からない」が当てはまらず
+   * （見ていないだけ）、言い回しを差し替えるだけでは通じない
+   */
   forget: {
-    action: 'このカラムを一覧から消す',
-    hint:
-      '消したカラムを片付けます。まだ残っているカラムなら、次に見つけたときまた並びます。' +
-      'X 側で消したかどうかは拡張からは分からないので、この操作でしか消せません。',
-    confirm: 'このカラムの設定も一緒に消えます。元に戻せません。',
+    column: {
+      action: 'このカラムを一覧から消す',
+      hint:
+        '消したカラムを片付けます。まだ残っているカラムなら、次に見つけたときまた並びます。' +
+        'X 側で消したかどうかは拡張からは分からないので、この操作でしか消せません。',
+      confirm: 'このカラムの設定も一緒に消えます。元に戻せません。',
+    },
+    view: {
+      action: 'このビューを一覧から消す',
+      hint:
+        'このビューの記録を片付けます。もう一度そのビューを開けば、また並びます。',
+      confirm: 'このビューの設定も一緒に消えます。元に戻せません。',
+    },
     confirmYes: '設定ごと消す',
     confirmNo: 'やめる',
   },
@@ -206,6 +219,12 @@ export const ja: Messages = {
       moveTo: 'この設定を、いまあるカラムに移す',
       noTargets: '移せるカラムがありません',
       skipConfigured: 'すでに設定があるカラムは、上書きを避けるため移す先に出しません。',
+    },
+    view: {
+      notFound: '対応するビューが見つかりません',
+      moveTo: 'この設定を、いまあるビューに移す',
+      noTargets: '移せるビューがありません',
+      skipConfigured: 'すでに設定があるビューは、上書きを避けるため移す先に出しません。',
     },
   },
 
@@ -228,7 +247,7 @@ export const ja: Messages = {
     open: '設定の入出力',
     legend: '設定の JSON',
     hint:
-      'アカウント名とカラム名が入ります。人に渡す前に中身を確かめてください。' +
+      'アカウント名・カラム名・見たビューが入ります。人に渡す前に中身を確かめてください。' +
       'この欄に貼り付けて読み込むこともできます。',
     save: 'ファイルに保存',
     copy: 'コピー',
@@ -241,9 +260,12 @@ export const ja: Messages = {
     confirmYes: '置き換える',
     confirmNo: 'やめる',
     loaded: '読み込みました',
-    /** Columns that are out of sight are never deleted automatically, so tidying up is done by hand */
-    forget: '検出したカラムの記録を消す',
-    forgotten: '記録を消しました。pro.x.com を開き直すと、いま在るカラムから作り直します',
+    /*
+     * 記録は両サイトぶんが 1 つに入っており、この画面にサイトの区別が無い。
+     * 段の呼び名を出さずに済ませる
+     */
+    forget: '見つけたカラムとビューの記録を消す',
+    forgotten: '記録を消しました。pro.x.com や x.com を開き直すと、いま在るものから作り直します',
     forgetFailed: '記録を消せませんでした。この画面を開き直してからもう一度お試しください',
     errors: {
       badJson: (detail: string) => `JSON として読めません（${detail}）`,
@@ -269,9 +291,17 @@ export const ja: Messages = {
       nothing: 'その投稿への指定を、上位の範囲のものまで含めて止めます。',
     },
     empty: 'まだルールがありません',
-    orderHint:
+    /**
+     * 一番細かい段の呼び名。文中に置くので、見出し用の `tiers.columns` とは別に持つ。
+     * `both`（グローバル・アカウント）は両サイトに効くので両方を挙げる
+     */
+    orderScopes: { pro: 'カラム', x: 'ビュー', both: 'カラム・ビュー' },
+    /**
+     * 呼び名だけを差し込む。文ごと複製すると 3 本になり、文を直すときに揃わなくなる
+     */
+    orderHint: (scope: string) =>
       '上から順に見て、最初に一致したルールの動作を使います。' +
-      '範囲をまたぐときは、カラム設定 → アカウント設定 → グローバル設定の順に見ます。' +
+      `範囲をまたぐときは、${scope}設定 → アカウント設定 → グローバル設定の順に見ます。` +
       '「何もしない」に一致すると、そこで判定が終わります。',
     moveUp: (label: string) => `${label}を上へ`,
     moveDown: (label: string) => `${label}を下へ`,

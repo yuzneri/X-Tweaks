@@ -139,9 +139,6 @@ export const en = {
     /** A column with settings that was not found in the deck when it was reopened */
     columnMissing: 'not found',
     /** When the columns are visible but not one of them could be identified */
-    columnsUnidentified:
-      'Your columns are open, but none of them could be identified, so per-column settings ' +
-      'cannot be shown. Reloading pro.x.com usually fixes this.',
     unnamedColumn: '(column with no name)',
     missingColumn: '(column not found right now)',
     unknownColumn: '(column not found yet)',
@@ -209,7 +206,11 @@ export const en = {
     hint:
       'What actually applies to this column, after combining the global, account ' +
       'and column settings.',
-    from: { global: 'Global', account: 'Account', column: 'This column' },
+    hintView:
+      'What actually applies to this view, after combining the global, account ' +
+      'and view settings.',
+    // `view` is not a tier of its own: it is what `column` is called on x.com
+    from: { global: 'Global', account: 'Account', column: 'This column', view: 'This view' },
     unset: 'Not set',
     rules: 'Rules, in the order they are read',
     noRules: 'No rules here',
@@ -222,11 +223,18 @@ export const en = {
 
   /** What happens to settings with nothing to match */
   forget: {
-    action: 'Remove this column from the list',
-    hint:
-      'Tidies up a column you deleted. If the column is still there, it comes back ' +
-      'the next time it is found. The extension cannot tell deletion from being scrolled out of view.',
-    confirm: 'The settings for this column go with it. This cannot be undone.',
+    column: {
+      action: 'Remove this column from the list',
+      hint:
+        'Tidies up a column you deleted. If the column is still there, it comes back ' +
+        'the next time it is found. The extension cannot tell deletion from being scrolled out of view.',
+      confirm: 'The settings for this column go with it. This cannot be undone.',
+    },
+    view: {
+      action: 'Remove this view from the list',
+      hint: 'Tidies up the record of this view. Opening it again puts it back in the list.',
+      confirm: 'The settings for this view go with it. This cannot be undone.',
+    },
     confirmYes: 'Remove with its settings',
     confirmNo: 'Cancel',
   },
@@ -247,6 +255,12 @@ export const en = {
       noTargets: 'No column to move them to',
       skipConfigured: 'Columns that already have settings are left out, to avoid overwriting them.',
     },
+    view: {
+      notFound: 'No matching view',
+      moveTo: 'Move these settings to a view that exists now',
+      noTargets: 'No view to move them to',
+      skipConfigured: 'Views that already have settings are left out, to avoid overwriting them.',
+    },
   },
 
   filterToggle: {
@@ -260,7 +274,8 @@ export const en = {
     legend: 'Settings as JSON',
     /** The contents reveal things about the user's setup, so they get a look before passing it on */
     hint:
-      'This includes your account names and column names. Check it before sharing. ' +
+      'This includes your account names, column names and the views you visited. ' +
+      'Check it before sharing. ' +
       'You can also paste settings here and load them.',
     save: 'Save to a file',
     copy: 'Copy',
@@ -275,8 +290,8 @@ export const en = {
     confirmYes: 'Replace',
     confirmNo: 'Cancel',
     loaded: 'Loaded',
-    forget: 'Forget the detected columns',
-    forgotten: 'Forgotten. Reload pro.x.com to rebuild it from the columns that are there',
+    forget: 'Forget the columns and views found',
+    forgotten: 'Forgotten. Reload pro.x.com or x.com to rebuild it from what is there',
     forgetFailed: 'Could not forget it. Reopen this page and try again',
     errors: {
       badJson: (detail: string) => `Not valid JSON (${detail})`,
@@ -324,9 +339,11 @@ export const en = {
      * This is the one description always shown on the filter tab, so the order across
      * tiers is gathered here as well.
      */
-    orderHint:
+    /** The innermost tier's name, as it reads inside the sentence below */
+    orderScopes: { pro: 'column', x: 'view', both: 'column or view' },
+    orderHint: (scope: string) =>
       'Rules are read from the top, and the first one that matches decides what happens. ' +
-      'Across tiers they are read column first, then account, then global. ' +
+      `Across tiers they are read ${scope} first, then account, then global. ` +
       '“Do nothing” ends the decision right there.',
     moveUp: (label: string) => `Move ${label} up`,
     moveDown: (label: string) => `Move ${label} down`,

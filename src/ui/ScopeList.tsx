@@ -5,6 +5,15 @@
 import { useMessages } from './messages.tsx';
 
 /** Where settings are edited. The tier and the key gathered into one value */
+/**
+ * Which site the settings on the right belong to.
+ *
+ * `both` is the global and account tiers, which the two sites share. What differs by site
+ * is what a scope *is* there — a column of X Pro's deck, or a view of x.com — so anything
+ * that names one takes this.
+ */
+export type Site = 'both' | 'pro' | 'x';
+
 export type Scope =
   | { tier: 'global' }
   | { tier: 'accounts'; key: string }

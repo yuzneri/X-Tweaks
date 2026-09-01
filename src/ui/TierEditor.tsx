@@ -7,7 +7,8 @@ import type { ComponentChildren } from 'preact';
 import { filterApplies, syncOrder, type FilterNode, type SettingsNode } from '../settings/schema.ts';
 import type { Inherited } from '../settings/resolve.ts';
 import { BoolSelect } from './fields.tsx';
-import { Appearance, type AppearanceSite } from './Appearance.tsx';
+import { Appearance } from './Appearance.tsx';
+import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 import { Rules } from './Rules.tsx';
 
@@ -26,8 +27,8 @@ type Props = {
   onTabChange: (tab: Tab) => void;
   /** The values coming down from the tiers above. Shown dimmed in the fields left unset */
   inherited: Inherited;
-  /** Which site these settings are for. Only the appearance differs by site (see `AppearanceSite`) */
-  site: AppearanceSite;
+  /** Which site these settings are for. It names the innermost tier and picks the appearance's items (see `Site`) */
+  site: Site;
   /**
    * The "what is in effect" surface. That tab appears only when this is passed.
    * Its contents cannot be built without knowing all three tiers, so building it is left to the caller.
@@ -73,7 +74,7 @@ export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, site, 
             The judging order needs to be known before there is even one rule.
             The order across tiers is gathered here as well (there was nowhere left outside the tabs)
           */}
-          <p class="hint">{m.rules.orderHint}</p>
+          <p class="hint">{m.rules.orderHint(m.rules.orderScopes[site])}</p>
 
           {/*
             With only one field, no group box is drawn around it.

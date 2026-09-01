@@ -23,7 +23,8 @@ import {
   type Tier,
 } from '../settings/resolve.ts';
 import type { Messages } from '../i18n/index.ts';
-import { COLOR_ORDER, colorLabel, isColumnColor, type AppearanceSite } from './Appearance.tsx';
+import { COLOR_ORDER, colorLabel, isColumnColor } from './Appearance.tsx';
+import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
 type Props = {
@@ -31,16 +32,29 @@ type Props = {
   /** Which column it is shown for. This surface appears only while a column is selected */
   scope: ColumnScope;
   /** Which site it belongs to. The column-only items are left out where they cannot apply */
-  site: AppearanceSite;
+  site: Site;
 };
 
-const From = ({ tier }: { tier: Tier | null }) => {
+const From = ({ tier, site }: { tier: Tier | null; site: Site }) => {
   const m = useMessages();
-  return tier ? <span class="from">{m.effective.from[tier]}</span> : null;
+  if (!tier) return null;
+  // `view` is `column` under another name, so it is picked here rather than being a tier
+  const words = m.effective.from;
+  return <span class="from">{tier === 'column' && site === 'x' ? words.view : words[tier]}</span>;
 };
 
 /** One row of value and origin. An item with no value reads "Not set" */
-const Row = ({ label, value, tier }: { label: string; value: string | null; tier: Tier | null }) => {
+const Row = ({
+  label,
+  value,
+  tier,
+  site,
+}: {
+  label: string;
+  value: string | null;
+  tier: Tier | null;
+  site: Site;
+}) => {
   const m = useMessages();
   return (
     <div class="effective-row">
@@ -48,7 +62,7 @@ const Row = ({ label, value, tier }: { label: string; value: string | null; tier
       <span class={value === null ? 'effective-value unset' : 'effective-value'}>
         {value ?? m.effective.unset}
       </span>
-      <From tier={tier} />
+      <From tier={tier} site={site} />
     </div>
   );
 };
@@ -61,7 +75,7 @@ const appearanceRows = (
   settings: Settings,
   scope: ColumnScope,
   effective: AppearanceNode,
-  site: AppearanceSite,
+  site: Site,
   m: Messages
 ): { label: string; value: string | null; tier: Tier | null }[] => {
   const of = <T,>(pick: (node: SettingsNode) => T | null) => sourceOf(settings, scope, pick);
@@ -152,7 +166,7 @@ export const Effective = ({ settings, scope, site }: Props) => {
 
   return (
     <>
-      <p class="hint">{m.effective.hint}</p>
+      <p class="hint">{site === 'x' ? m.effective.hintView : m.effective.hint}</p>
 
       <fieldset>
         <legend>{m.effective.rules}</legend>
@@ -164,6 +178,7 @@ export const Effective = ({ settings, scope, site }: Props) => {
           label={m.filterToggle.label}
           value={filtering ? m.filterToggle.on : m.filterToggle.off}
           tier={sourceOf(settings, scope, (n) => n.filter.enabled)}
+          site={site}
         />
         {!filtering && <p class="warning">{m.effective.filterStopped}</p>}
         {rules.length === 0 ? (
@@ -176,7 +191,7 @@ export const Effective = ({ settings, scope, site }: Props) => {
                 <span class="action-badge">{m.actions[rule.action]}</span>
                 {/* Rules stopped rather than deleted are shown too, this being the screen for tracing "why is this not applying" */}
                 {!rule.enabled && <span class="rule-meta">{m.effective.disabled}</span>}
-                <From tier={ruleSourceOf(settings, scope, rule.id)} />
+                <From tier={ruleSourceOf(settings, scope, rule.id)} site={site} />
               </li>
             ))}
           </ol>
@@ -189,10 +204,11 @@ export const Effective = ({ settings, scope, site }: Props) => {
           label={m.appearanceToggle.label}
           value={styling ? m.appearanceToggle.on : m.appearanceToggle.off}
           tier={sourceOf(settings, scope, (n) => n.appearance.enabled)}
+          site={site}
         />
         {!styling && <p class="warning">{m.effective.appearanceStopped}</p>}
         {appearanceRows(settings, scope, appearance, site, m).map((row) => (
-          <Row key={row.label} {...row} />
+          <Row key={row.label} {...row} site={site} />
         ))}
       </fieldset>
     </>

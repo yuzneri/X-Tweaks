@@ -22,6 +22,7 @@ import {
 } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
 import { BoolSelect, ChoiceSelect, ColorField, SizeField } from './fields.tsx';
+import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
 /**
@@ -42,16 +43,6 @@ export const COLOR_ORDER = [
 
 type ColorKey = (typeof COLOR_ORDER)[number];
 
-/**
- * Which site these settings are for.
- *
- * `both` is the global and account tiers, which the two sites share. The items that only
- * mean something where a scope is a column of its own are shown there too — set there,
- * they really do take effect on X Pro — but grouped together and said so, rather than
- * standing in the row as if they applied everywhere.
- */
-export type AppearanceSite = 'both' | 'pro' | 'x';
-
 /** Whether that color is one of the column-only ones (`COLUMN_COLORS`, named beside the shape) */
 export const isColumnColor = (key: ColorKey): boolean => COLUMN_COLORS.includes(key);
 
@@ -62,7 +53,7 @@ export const isColumnColor = (key: ColorKey): boolean => COLUMN_COLORS.includes(
  * background is named after what is actually painted. Decided in one place because
  * "what is in effect" lists the same colors in the same order to be compared with these.
  */
-export const colorLabel = (key: ColorKey, site: AppearanceSite, m: Messages): string =>
+export const colorLabel = (key: ColorKey, site: Site, m: Messages): string =>
   key === 'background' && site === 'x' ? m.appearance.colors.backgroundX : m.appearance.colors[key];
 
 type Props = {
@@ -74,8 +65,8 @@ type Props = {
    * so what is shown dimmed is the effective value as far as it can be resolved.
    */
   inherited: AppearanceNode;
-  /** Which site's settings these are (see `AppearanceSite`) */
-  site: AppearanceSite;
+  /** Which site's settings these are (see `Site`) */
+  site: Site;
 };
 
 export const Appearance = ({ node, onChange, inherited, site }: Props) => {

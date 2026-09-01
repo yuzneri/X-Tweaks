@@ -35,10 +35,16 @@ import {
 import { enabledAt, inheritedFor, type ColumnScope } from '../settings/resolve.ts';
 import type { SurfaceId } from '../surface/index.ts';
 import { VIEW_PREFIX, viewSubjectOf } from '../surface/view.ts';
-import type { AppearanceSite } from './Appearance.tsx';
 import { TierEditor, type Tab } from './TierEditor.tsx';
 import { ScopeHeader, type ReassignTarget } from './ScopeHeader.tsx';
-import { ScopeList, scopeKey, type Scope, type ScopeEntry, type ScopeGroup } from './ScopeList.tsx';
+import {
+  ScopeList,
+  scopeKey,
+  type Scope,
+  type ScopeEntry,
+  type ScopeGroup,
+  type Site,
+} from './ScopeList.tsx';
 import { Transfer } from './Transfer.tsx';
 import { About } from './About.tsx';
 import { Compose } from './Compose.tsx';
@@ -148,6 +154,20 @@ const viewLabel = (key: string, m: Messages): string | null => {
   if (rest.startsWith('list:')) return names.list;
   return null;
 };
+
+/**
+ * What that scope is called: what X called it, as read off the page, or failing that the
+ * name the extension gives the view. null where neither can name it, and the caller says
+ * what to put in its place — the three lists that show scopes each have their own reason
+ * for a name being absent, and their own thing to say about it.
+ */
+const scopeName = (key: string, title: string | null, m: Messages): string | null =>
+  title ?? (surfaceOfKey(key) === 'x' ? viewLabel(key, m) : null);
+
+/** The same, with what to call one nothing names. Used where being unnamed is unremarkable */
+const scopeLabel = (key: string, title: string | null, m: Messages): string =>
+  scopeName(key, title, m) ??
+  (surfaceOfKey(key) === 'x' ? m.tiers.views : m.tiers.unnamedColumn);
 
 /**
  * The tab a scope belongs to. Used to land on the right one when the settings are opened
@@ -298,7 +318,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
       // x.com has one group and no name for it, so the list is headed by what it holds
       label: group.surface === 'x' ? m.tiers.views : (group.name ?? m.tiers.deckNth(index + 1)),
       note: group.id === found.currentGroupId ? m.tiers.deckShowing : undefined,
-      empty: m.tiers.columnsEmpty,
+      // What an empty group says depends on the site: x.com's explanation names the
+      // wrong site and the wrong thing if X Pro's is used
+      empty: group.surface === 'x' ? m.tiers.viewsEmpty : m.tiers.columnsEmpty,
       entries: group.scopes.map((column): ScopeEntry => {
         const identity = identityOf(column);
         const order = (seen.get(identity) ?? 0) + 1;
@@ -307,16 +329,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         const number = duplicated.has(identity) ? m.tiers.nth(order) : null;
         // It has settings but was not found when this deck was reopened
         const missing = column.missing ? m.tiers.columnMissing : null;
-        /*
-         * What X called it, as read off the page. A view X names after its content rather
-         * than itself (a profile, a search) has none recorded, and falls back to the name
-         * the extension gives that view.
-         */
-        const named =
-          column.title ?? (group.surface === 'x' ? viewLabel(column.key, m) : null);
         return {
           scope: { tier: 'columns', key: column.key },
-          label: named ?? (group.surface === 'x' ? m.tiers.views : m.tiers.unnamedColumn),
+          label: scopeLabel(column.key, column.title, m),
           detail: [missing, account, number].filter(Boolean).join(' / ') || undefined,
           unassigned: false,
           configured: marked(settings.columns[column.key], {
@@ -343,7 +358,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
       .sort()
       .map((id) => {
         const surface = surfaceOfKey(id);
-        const named = surface === 'x' ? viewLabel(id, m) : null;
+        const named = scopeName(id, null, m);
         const seen = detectingOn[surface];
         return {
         surface,
@@ -481,7 +496,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         .filter((scope) => surfaceOfKey(scope.key) === surface && !settings.columns[scope.key])
         .map((scope) => ({
           key: scope.key,
-          label: `${scope.title ?? m.tiers.unnamedColumn}${scope.account ? ` / @${scope.account}` : ''}`,
+          // Named the same way as in the list on the left. A view X names after its
+          // content carries no title, and `viewLabel` is the only thing that can name it
+          label: `${scopeLabel(scope.key, scope.title, m)}${scope.account ? ` / @${scope.account}` : ''}`,
         }));
     }
     return [];
@@ -558,7 +575,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
    * Which site the settings on the right are for. The global and account tiers belong to
    * both, so the appearance groups the column-only items there instead of hiding them.
    */
-  const site: AppearanceSite = shown.tier === 'columns' ? surfaceOfKey(shown.key) : 'both';
+  const site: Site = shown.tier === 'columns' ? surfaceOfKey(shown.key) : 'both';
 
   /**
    * Moves to another screen's settings. The scope goes with it: the one selected here has
@@ -685,6 +702,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
               <ScopeHeader
                 key={scopeKey(current.scope)}
                 entry={current}
+                site={site}
                 targets={reassignTargets}
                 onReassign={reassign}
                 onRemove={removeCurrent}

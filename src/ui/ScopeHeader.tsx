@@ -5,7 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { useMessages } from './messages.tsx';
-import type { ScopeEntry } from './ScopeList.tsx';
+import type { ScopeEntry, Site } from './ScopeList.tsx';
 
 export type ReassignTarget = { key: string; label: string };
 
@@ -15,15 +15,23 @@ type Props = {
   targets: ReassignTarget[];
   onReassign: (to: string) => void;
   onRemove: () => void;
-  /** Removes it from the record of detected columns. Passed only while a column tier is selected */
+  /** Removes it from the record of what was detected. Passed only while a column tier is selected */
   onForget?: () => void;
+  /** Which site the scope belongs to. x.com holds views, which are not columns */
+  site: Site;
 };
 
-export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget }: Props) => {
+export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, site }: Props) => {
   const m = useMessages();
   const [forgetting, setForgetting] = useState(false);
-  // Whole sentences change with the language, so a branch of the dictionary is chosen rather than a word slotted in
-  const words = entry.scope.tier === 'accounts' ? m.unassigned.account : m.unassigned.column;
+  /*
+   * Whole sentences change with the language, so a branch of the dictionary is chosen
+   * rather than a word slotted in. The same holds across sites: a column of X Pro's deck
+   * and a view of x.com are not the same thing, and one sentence cannot cover both
+   */
+  const scopeWords = site === 'x' ? m.unassigned.view : m.unassigned.column;
+  const words = entry.scope.tier === 'accounts' ? m.unassigned.account : scopeWords;
+  const forgetWords = site === 'x' ? m.forget.view : m.forget.column;
 
   return (
     <>
@@ -75,7 +83,7 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget }: 
       {onForget && !entry.unassigned && (
         forgetting ? (
           <div class="row add confirm">
-            <span>{m.forget.confirm}</span>
+            <span>{forgetWords.confirm}</span>
             <button
               type="button"
               class="danger"
@@ -94,10 +102,10 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget }: 
           <div class="row add remove-row">
             <button
               type="button"
-              title={m.forget.hint}
+              title={forgetWords.hint}
               onClick={() => (entry.configured ? setForgetting(true) : onForget())}
             >
-              {m.forget.action}
+              {forgetWords.action}
             </button>
           </div>
         )
