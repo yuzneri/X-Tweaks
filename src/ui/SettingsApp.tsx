@@ -260,13 +260,21 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
   /** Lists the accounts detected, and the accounts only their settings remain for */
   const accountEntries = useMemo<ScopeEntry[]>(() => {
     const live = new Set(detected.map((scope) => scope.account).filter((a) => a !== null));
+    /*
+     * What that account holds. An account spans both sites, so the two are counted apart:
+     * on x.com they are views rather than columns, and calling them columns would name
+     * something the site does not have
+     */
+    const countFor = (account: string): string => {
+      const mine = detected.filter((scope) => scope.account === account);
+      const views = mine.filter((scope) => surfaceOfKey(scope.key) === 'x').length;
+      return m.tiers.scopeCount(mine.length - views, views);
+    };
     const keys = [...new Set([...live, ...Object.keys(settings.accounts)])];
     return keys.sort().map((account) => ({
       scope: { tier: 'accounts', key: account },
       label: `@${account}`,
-      detail: live.has(account)
-        ? m.tiers.columnCount(detected.filter((scope) => scope.account === account).length)
-        : undefined,
+      detail: live.has(account) ? countFor(account) : undefined,
       unassigned: detecting && !live.has(account),
       configured: marked(settings.accounts[account], { account, columnId: null }),
     }));
@@ -597,7 +605,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
           it does not rely on the outside to pass a height down */}
       <div class="settings">
         <header>
-          <h1>X Pro Tweaks</h1>
+          <h1>X Tweaks</h1>
           <p
             id="status"
             role="status"

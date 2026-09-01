@@ -53,7 +53,7 @@ export const watch = (onClick: () => void): void => {
         onClick();
       } catch (error) {
         console.log(
-          '%c[X Pro Tweaks]%c Failed to open the settings panel',
+          '%c[X Tweaks]%c Failed to open the settings panel',
           'color:#1d9bf0;font-weight:bold',
           'color:#ef4444',
           error

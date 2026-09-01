@@ -131,7 +131,7 @@ export const watch = (onOpen: (start: Start) => void): void => {
         const columnId = columnIdFor(target);
         // Leaves behind what it takes to narrow down "it does not open" or "the wrong column came up"
         console.log(
-          '%c[X Pro Tweaks]%c Opening column settings',
+          '%c[X Tweaks]%c Opening column settings',
           'color:#1d9bf0;font-weight:bold',
           '',
           {
@@ -145,7 +145,7 @@ export const watch = (onOpen: (start: Start) => void): void => {
         onOpenPanel?.(columnId === null ? { tier: 'global' } : { tier: 'columns', key: columnId });
       } catch (error) {
         console.log(
-          '%c[X Pro Tweaks]%c Failed to open the settings panel',
+          '%c[X Tweaks]%c Failed to open the settings panel',
           'color:#1d9bf0;font-weight:bold',
           'color:#ef4444',
           error

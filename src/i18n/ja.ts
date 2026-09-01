@@ -109,7 +109,12 @@ export const ja: Messages = {
     unnamedColumn: '（名前のないカラム）',
     missingColumn: '（いま見つからないカラム）',
     unknownColumn: '（まだ見つけていないカラム）',
-    columnCount: (n: number) => `カラム ${n} 個`,
+    // アカウントは両サイトに跨るので、カラムとビューを分けて数える。
+    // 片方が 0 のときはその側を出さない
+    scopeCount: (columns: number, views: number) =>
+      [columns ? `カラム ${columns} 個` : null, views ? `ビュー ${views} 個` : null]
+        .filter((part) => part !== null)
+        .join('・'),
     nth: (n: number) => `${n} 番目`,
     /** What a deck is called when its name is unreadable. Names depend on the UI language, whereas a number never breaks */
     deckNth: (n: number) => `デッキ ${n}`,
@@ -453,7 +458,7 @@ export const ja: Messages = {
 
   unset: '未指定',
 
-  title: 'X Pro Tweaks の設定',
+  title: 'X Tweaks の設定',
 
   panel: {
     close: '設定を閉じる',

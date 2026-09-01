@@ -145,7 +145,13 @@ export const en = {
     unnamedColumn: '(column with no name)',
     missingColumn: '(column not found right now)',
     unknownColumn: '(column not found yet)',
-    columnCount: (n: number) => `${n} ${n === 1 ? 'column' : 'columns'}`,
+    scopeCount: (columns: number, views: number) =>
+      [
+        columns ? `${columns} ${columns === 1 ? 'column' : 'columns'}` : null,
+        views ? `${views} ${views === 1 ? 'view' : 'views'}` : null,
+      ]
+        .filter((part) => part !== null)
+        .join(', '),
     nth: (n: number) => `no. ${n}`,
     deckNth: (n: number) => `Deck ${n}`,
     deckShowing: 'showing',
@@ -572,7 +578,7 @@ export const en = {
   /** Not set (on toggle-style rules, inheriting the setting from above) */
   unset: 'Not set',
 
-  title: 'X Pro Tweaks settings',
+  title: 'X Tweaks settings',
 
   /** The panel that opens inside pro.x.com */
   panel: {

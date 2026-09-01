@@ -41,11 +41,11 @@ import {
 import { injectStyles as injectComposeStyles } from './compose/styles.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
-const log = (...args: unknown[]) => console.log('%c[X Pro Tweaks]', PREFIX_STYLE, ...args);
+const log = (...args: unknown[]) => console.log('%c[X Tweaks]', PREFIX_STYLE, ...args);
 // Format specifiers are only interpreted in the leading argument, so a colored body
 // is assembled by a dedicated function
 const logStyled = (message: string, style: string) =>
-  console.log(`%c[X Pro Tweaks]%c ${message}`, PREFIX_STYLE, style);
+  console.log(`%c[X Tweaks]%c ${message}`, PREFIX_STYLE, style);
 
 /**
  * The settings applied while paused. Applying empty settings stops the filter and the

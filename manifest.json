@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "X Pro Tweaks",
+  "name": "X Tweaks",
   "version": "0.1.0",
   "default_locale": "en",
   "description": "__MSG_extensionDescription__",
@@ -53,6 +53,6 @@
   },
   "action": {
     "default_popup": "dist/popup.html",
-    "default_title": "X Pro Tweaks"
+    "default_title": "X Tweaks"
   }
 }

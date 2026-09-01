@@ -531,7 +531,7 @@ const watchPosts = (): void => {
       });
       followPost().catch((error) => {
         console.log(
-          '%c[X Pro Tweaks]%c Failed to follow the post through',
+          '%c[X Tweaks]%c Failed to follow the post through',
           PREFIX_STYLE,
           'color:#ef4444',
           error
