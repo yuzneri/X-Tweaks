@@ -5,6 +5,11 @@
 A browser extension that hides unwanted posts from the X Pro (pro.x.com, formerly TweetDeck) timeline and changes how it looks.
 Settings can be placed in three scopes: global, account and column.
 
+## Install
+
+- [Firefox add-on](https://addons.mozilla.org/firefox/addon/x-tweaks/)
+- [Chrome extension](https://chromewebstore.google.com/detail/knbinffoidihjchpoahlnfpippkllcia)
+
 ## Filter
 
 The conditions available are:
@@ -31,13 +36,15 @@ Each rule can be switched on and off without being deleted.
 The following can be changed per column:
 
 - **Column width**
-- **How tightly posts sit**: packs the padding around a post, shrinks the avatar, and folds away the row of buttons. Repost and like move up beside the name, to the left of the “…”, while reply and the view count are hidden
+- **Pack the posts**: packs the padding around a post, shrinks the avatar, and folds away the row of buttons. Repost and like move up beside the name, to the left of the “…”, while reply and the view count are hidden. No “Show more” is shown either, X’s own included: the rest of a post is read by opening it
 - **Post text size**
-- **Post text line limit**: a post past the limit opens with “Show more”
+- **Post text line limit**: a post past the limit opens with “Show more” (not while the posts are packed)
 - **Line breaks in the post text**: each is folded into a single space, so a post takes less room
+- **Photos and videos**: as they are, as a mark (they come off the timeline and a mark, 📷 or 🎬, goes into the post where they were), or not shown at all (off the timeline with nothing left behind)
 - **Largest thumbnail height**
-- **Photos and videos**: they can be taken out of the timeline
-- **Time display**: as X shows it, the date and time, or both
+- **Link cards and articles**: as they are, as text in the post (each goes into the end of the post body as one line — “🔗 headline (domain)”, “📄 the article's headline” — and the box itself goes; a card's line keeps its link, in X’s own link color), as a mark (the words are dropped, leaving 🔗 or 📄), or not shown at all
+- **Quoted posts**: the same four ways. As text it reads “💬 what the quote says (name @id)”, cut at 80 characters with the rest on hover. The line does not open anything: X Pro writes no address on a quote frame
+- **Time display**: as it is, the date and time, or both
 - **Colors**: eight places can be colored
   - Behind the column name
   - Column background
@@ -45,12 +52,15 @@ The following can be changed per column:
   - Author name
   - Post text
   - Secondary text (times, counts, reply-to)
-  - Links and “Show more”
+  - Links
   - Line between posts
 - **What highlights blend over**: the column background, or X’s background with the column color ignored
 - **When a highlight makes text unreadable**: whether the text color is fixed automatically
 
 Anything left unset keeps the way X Pro shows it.
+A line put into a post goes at the end of the body: on a line of its own where the post's line breaks are kept, and on from the body where they are folded into spaces.
+With a line limit set it is a mark alone, and a post the mark still fits under keeps it at the end. A post it does not fit under takes it in front of the body instead, so the limit neither cuts it away nor gives it a line of its own. On a post with no body it takes the place the box was in.
+In a column with a post opened, the packing, the line limit, the folding of line breaks and the hiding of cards and photos all stand down: that post is there to be read.
 
 ## Posting
 
