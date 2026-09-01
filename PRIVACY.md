@@ -2,10 +2,10 @@
 
 [日本語](PRIVACY.ja.md)
 
-X Pro Tweaks sends nothing anywhere.
+X Tweaks sends nothing anywhere.
 It makes no network requests of its own, and it contains no analytics, no telemetry and no remotely hosted code.
 
-Last updated: 2026-08-26.
+Last updated: 2026-09-01.
 
 ## What is stored
 
@@ -30,8 +30,8 @@ No data is sent to the author of this extension, and none is sent to any third p
 ## Permissions
 
 - **`storage`**: to keep the settings above.
-- **`activeTab`**: the toolbar button opens the settings panel inside the X Pro tab you are looking at. This grants access to that one tab, and only after you click the button.
-- **Access to `https://pro.x.com/*`**: the extension only works on X Pro, so it runs only there. It has no access to any other site.
+- **`activeTab`**: the toolbar button opens the settings panel inside the X Pro or x.com tab you are looking at. This grants access to that one tab, and only after you click the button.
+- **Access to `https://pro.x.com/*` and `https://x.com/*`**: the extension works on X Pro and on x.com, so it runs only there. It has no access to any other site.
 
 ## Removing your data
 

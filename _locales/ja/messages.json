@@ -1,6 +1,6 @@
 {
   "extensionDescription": {
-    "message": "X Pro のタイムラインをカラム単位で絞り込み、見た目を整える。投稿の折りたたみ・非表示・ハイライトと、幅・配色・時刻表示の変更ができる。",
+    "message": "X Pro と x.com のタイムラインを絞り込み、見た目を整える。投稿の折りたたみ・非表示・ハイライトと、字の大きさ・配色・時刻表示の変更ができる。",
     "description": "The add-on description shown in about:addons and on addons.mozilla.org."
   }
 }
