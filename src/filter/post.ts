@@ -15,8 +15,20 @@ const TWEET_TEXT = '[data-testid="tweetText"]';
 const SOCIAL_CONTEXT = '[data-testid="socialContext"]';
 const AUTHOR_AVATAR = '[data-testid="Tweet-User-Avatar"]';
 const USER_NAME = '[data-testid="User-Name"]';
+/**
+ * The avatar marker X writes the screen name into. Exported because the same marker
+ * names the account a column belongs to (X Pro) and the one signed in (x.com), and three
+ * copies of the string would drift apart.
+ */
 const AVATAR_NAME_PREFIX = 'UserAvatar-Container-';
-const AVATAR_NAME = `[data-testid^="${AVATAR_NAME_PREFIX}"]`;
+export const AVATAR_NAME = `[data-testid^="${AVATAR_NAME_PREFIX}"]`;
+
+/** The screen name written into an avatar's marker. null when that is not what the element is */
+export const avatarNameOf = (avatar: Element | null | undefined): string | null => {
+  const testId = avatar?.getAttribute('data-testid');
+  return testId?.startsWith(AVATAR_NAME_PREFIX) ? testId.slice(AVATAR_NAME_PREFIX.length) : null;
+};
+
 /**
  * The photos and the videos in a post. Told apart because the appearance marks them
  * separately: which one hung off the post is worth saying.
@@ -104,11 +116,8 @@ const AD_PLACEMENT = '[data-testid="placementTracking"]';
  * It takes the first avatar found within, so passing the quote frame returns the
  * quoted post's author.
  */
-export const authorOf = (root: Element): string | null => {
-  const avatar = root.querySelector(AUTHOR_AVATAR)?.querySelector(AVATAR_NAME);
-  const testId = avatar?.getAttribute('data-testid');
-  return testId ? testId.slice(AVATAR_NAME_PREFIX.length) : null;
-};
+export const authorOf = (root: Element): string | null =>
+  avatarNameOf(root.querySelector(AUTHOR_AVATAR)?.querySelector(AVATAR_NAME));
 
 /**
  * The profile name (display name). As with `authorOf`, whose name it is depends on

@@ -11,6 +11,7 @@
  */
 import type { ColumnScope } from '../settings/resolve.ts';
 import { deckIdOf, deckStateFrom, UNKNOWN_DECK, type DeckState } from './deck.ts';
+import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
 
 /** Also carries what the settings screen needs to show which columns exist */
 export type ColumnInfo = ColumnScope & { title: string | null };
@@ -20,7 +21,7 @@ const RESPONSE = 'xpro-tweaks:response-columns';
 
 export const COLUMN_SELECTOR = '[data-testid="multi-column-layout-column-content"]';
 const TITLE_SELECTOR = '[data-testid="column-title-wrapper"]';
-const AVATAR_PREFIX = 'UserAvatar-Container-';
+
 
 /** The marker the MAIN world stamps. That side imports nothing, so the name is kept in sync by hand */
 const COLUMN_ID_ATTR = 'data-xpro-column-id';
@@ -104,11 +105,10 @@ const columnScopeOf = (columnEl: Element, maxDepth = 10): Element => {
  */
 const accountOf = (columnEl: Element): string | null => {
   const scope = columnScopeOf(columnEl);
-  const avatar = Array.from(scope.querySelectorAll(`[data-testid^="${AVATAR_PREFIX}"]`)).find(
+  const avatar = Array.from(scope.querySelectorAll(AVATAR_NAME)).find(
     (el) => !el.closest(COLUMN_SELECTOR)
   );
-  const testId = avatar?.getAttribute('data-testid');
-  return testId ? testId.slice(AVATAR_PREFIX.length) : null;
+  return avatarNameOf(avatar);
 };
 
 /**
