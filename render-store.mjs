@@ -11,6 +11,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { fillDetected } from './src/settings/detected.ts';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,6 +98,26 @@ const detected = {
     },
   ],
 };
+
+/*
+ * The stub is plain data, so nothing checks it against the shape the settings screen reads.
+ * It has already gone stale once: after the record grew a `surface` and turned decks into
+ * groups, the old shape was dropped on the floor and every listing image came out showing
+ * an empty settings screen. Run it through the same normalization the screen uses, and
+ * stop if anything was dropped.
+ */
+const kept = fillDetected(detected);
+if (kept.groups.length !== detected.groups.length || kept.currentGroupId === null) {
+  throw new Error(
+    `The stub no longer matches what the settings screen reads: ` +
+      `${kept.groups.length} of ${detected.groups.length} groups survived. See settings/detected.ts.`
+  );
+}
+for (const [i, group] of detected.groups.entries()) {
+  if (kept.groups[i].scopes.length !== group.scopes.length) {
+    throw new Error(`Group ${group.id} lost scopes in normalization. See settings/detected.ts.`);
+  }
+}
 
 /** Stands in for storage.local. The options page touches no other extension API. */
 const stub = `
