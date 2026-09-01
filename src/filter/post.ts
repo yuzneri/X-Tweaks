@@ -54,18 +54,10 @@ const NOTE_RATING_ARROW = '[data-testid="icon-arrow-right"]';
  */
 const CARD = '[data-testid="card.wrapper"]';
 const CAROUSEL = '[data-testid="Carousel-NavRight"]';
-/**
- * A card's detail. The first child is the linked domain, the second the headline.
- * Exported because the appearance reads the same two children when it moves a card's
- * text into the post.
- */
-export const CARD_DETAIL = '[data-testid$=".detail"]';
-/**
- * Where the large layout keeps its text instead: the last block of the link. X Pro's ads
- * carry a call to action there, x.com the domain and the headline.
- * Read by the appearance, which moves that text into the post.
- */
-export const CARD_LARGE_TEXT = '[data-testid="card.layoutLarge.media"] > a > div:last-child';
+/** A card's detail, in the small layout. Read through `cardTextOf` */
+const CARD_DETAIL = '[data-testid$=".detail"]';
+/** Where the large layout keeps its text instead: the last block of the link. Read through `cardTextOf` */
+const CARD_LARGE_TEXT = '[data-testid="card.layoutLarge.media"] > a > div:last-child';
 /** A Space's container. The first child is the host's name, the second the title */
 const SPACE_BOX = '[data-testid="wrapperView"]';
 const POLL = '[data-testid="cardPoll"]';
@@ -391,14 +383,42 @@ const pollChoicesIn = (tweet: Element): string[] =>
     (el) => el.querySelector('span')?.textContent?.trim() ?? ''
   ).filter((text) => text !== '');
 
+/** What a card says. Either part is null when the card does not carry it */
+export type CardText = { domain: string | null; title: string | null };
+
+const trimmed = (el: Element | null | undefined): string | null => el?.textContent?.trim() || null;
+
 /**
- * The Nth child of a card's detail: 0 is the linked domain, 1 the headline.
- * A card's link is a `t.co` short URL, so nothing beyond the domain can be obtained.
+ * Reads a card's text. A card's link is a `t.co` short URL, so nothing beyond the domain
+ * can be obtained.
+ *
+ * X draws a card in one of two layouts, and which one it picks is not a matter of which
+ * site it is: both appear on both x.com and X Pro. The card itself decides.
+ *   - small: a detail node lists the domain and the headline as its children
+ *   - large: no detail node. The last block of the link holds them instead, as two
+ *     children — or as one, when the card carries a call to action rather than a
+ *     headline (X Pro's and x.com's ads both do). That one names no domain
+ *
+ * The appearance reads the same two parts when it moves a card's text into the post, so
+ * it goes through here as well and the two sides cannot drift apart.
  */
-const cardDetailIn = (tweet: Element, index: number): string[] =>
+export const cardTextOf = (card: Element): CardText => {
+  const detail = card.querySelector(CARD_DETAIL);
+  if (detail) return { domain: trimmed(detail.children[0]), title: trimmed(detail.children[1]) };
+
+  const large = card.querySelector(CARD_LARGE_TEXT);
+  if (!large) return { domain: null, title: null };
+  if (large.children.length >= 2) {
+    return { domain: trimmed(large.children[0]), title: trimmed(large.children[1]) };
+  }
+  return { domain: null, title: trimmed(large) };
+};
+
+/** One entry per card that carries that part. Cards without it are left out */
+const cardTextsIn = (tweet: Element, pick: (card: CardText) => string | null): string[] =>
   linkCardsIn(tweet)
-    .map((card) => card.querySelector(CARD_DETAIL)?.children[index]?.textContent?.trim() ?? '')
-    .filter((text) => text !== '');
+    .map((card) => pick(cardTextOf(card)))
+    .filter((text): text is string => text !== null);
 
 /**
  * A Space's name, read only once it is known to be a Space.
@@ -477,8 +497,8 @@ export const readPost = (cell: Element): Post | null => {
       quotedDisplayName: some(quote ? displayNameOf(quote) : null),
       replyTo: replyTo(replyLinks, followsThread, author),
       pollChoice: pollChoicesIn(tweet),
-      cardDomain: cardDetailIn(tweet, 0),
-      cardTitle: cardDetailIn(tweet, 1),
+      cardDomain: cardTextsIn(tweet, (card) => card.domain),
+      cardTitle: cardTextsIn(tweet, (card) => card.title),
       spaceName: spaceNameIn(tweet),
       articleText: articleTextIn(tweet),
     },

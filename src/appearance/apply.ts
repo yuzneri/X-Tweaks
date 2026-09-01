@@ -7,8 +7,7 @@ import { COLUMN_SELECTOR, scopeElementOf, scopeOfColumn } from '../columns/regis
 import {
   ARTICLE,
   authorOf,
-  CARD_DETAIL,
-  CARD_LARGE_TEXT,
+  cardTextOf,
   CELL_SELECTOR,
   displayNameOf,
   LINK_CARD,
@@ -308,13 +307,12 @@ const paintLine = (el: HTMLElement, line: Line, readLinkColor: () => string | nu
 const trimmed = (el: Element | null | undefined): string | null => el?.textContent?.trim() || null;
 
 /**
- * What a card says. The small layout lists the domain and the headline as the two
- * children of its detail; the large layout has one block of text and no domain.
+ * What a card says. Which layout X drew it in is `cardTextOf`'s business, so that the
+ * line put into the post and the "the card's domain is ○○" rules read one card alike.
  */
 const cardPartsOf = (card: Element): LineParts => {
-  const detail = card.querySelector(CARD_DETAIL);
-  if (detail) return { source: trimmed(detail.children[0]), words: trimmed(detail.children[1]) };
-  return { source: null, words: trimmed(card.querySelector(CARD_LARGE_TEXT)) };
+  const { domain, title } = cardTextOf(card);
+  return { source: domain, words: title };
 };
 
 /**
