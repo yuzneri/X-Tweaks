@@ -82,7 +82,7 @@ Most editing happens inside the site itself.
 | --- | --- | --- |
 | X Pro | A column’s options (the “…” in its header) | That column’s settings |
 | X Pro | The bottom-left menu | The global settings |
-| x.com | The “More” menu in the side navigation | The global settings |
+| x.com | The “More” menu in the side navigation | The settings for the view you are on |
 
 The settings are split into tabs by site, because X Pro’s columns and x.com’s views never appear together on one screen.
 
