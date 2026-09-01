@@ -3,13 +3,13 @@ import { SCHEMA_VERSION, emptySettings, fillAll, isRecord, type Settings } from 
 import {
   fillDetected,
   mergeDetected,
-  withoutColumn,
+  withoutScope,
   type Detected,
-  type DetectedColumn,
+  type DetectedScope,
 } from './detected.ts';
 import { MARKERS, type Marker } from '../filter/health.ts';
 
-export type { Detected, DetectedColumn, DetectedDeck } from './detected.ts';
+export type { Detected, DetectedScope, DetectedGroup } from './detected.ts';
 
 // Namespace resolution only; no polyfill.
 // Chrome MV3's chrome.* returns Promises too, so either resolution is handled the same way
@@ -18,9 +18,9 @@ const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
 
 const STORAGE_KEY = 'settings';
 /**
- * The record of which columns are currently in a deck. It is not a setting, so it lives
- * under a separate key.
- * The settings screen consults it to decide what to list in the account and column tiers.
+ * The record of which scopes are currently on screen, grouped the way the surface groups
+ * them. It is not a setting, so it lives under a separate key.
+ * The settings screen consults it to decide what to list in the account and scope tiers.
  */
 const DETECTED_KEY = 'detected';
 
@@ -150,23 +150,23 @@ export const subscribePaused = (callback: (paused: boolean) => void): (() => voi
   watch(PAUSED_KEY, fillPaused, callback);
 
 /**
- * Records the columns detected. Only the content script writes; the settings screen only reads.
+ * Records the scopes detected. Only the content script writes; the settings screen only reads.
  *
- * What is remembered is each deck's columns; the list of decks itself can be read from
+ * What is remembered is each group's scopes; the list of groups itself can be read from
  * the rail every time.
  * The merging rules live in `detected.ts`. Identical contents are not written, to avoid
  * triggering a re-render of the settings screen on every write.
  */
 export const saveDetected = async (
-  decks: { deckId: string; name: string | null }[],
-  currentDeckId: string | null,
-  columns: DetectedColumn[],
+  groups: { id: string; name: string | null }[],
+  currentGroupId: string | null,
+  scopes: DetectedScope[],
   configured: ReadonlySet<string>,
   rebuild: boolean
 ): Promise<void> => {
   const stored = (await api.storage.local.get(DETECTED_KEY))[DETECTED_KEY];
   const previous = fillDetected(stored);
-  const next = mergeDetected(previous, decks, currentDeckId, columns, configured, rebuild);
+  const next = mergeDetected(previous, groups, currentGroupId, scopes, configured, rebuild);
   if (JSON.stringify(previous) === JSON.stringify(next)) return;
   await api.storage.local.set({ [DETECTED_KEY]: next });
 };
@@ -178,18 +178,18 @@ export const subscribeDetected = (callback: (detected: Detected) => void): (() =
   watch(DETECTED_KEY, fillDetected, callback);
 
 /**
- * Removes one column from the record. Called from the settings screen.
- * A column that is still there gets listed again on the next detection, so it can be undone.
+ * Removes one scope from the record. Called from the settings screen.
+ * A scope that is still there gets listed again on the next detection, so it can be undone.
  */
-export const forgetColumn = async (columnId: string): Promise<void> => {
+export const forgetScope = async (key: string): Promise<void> => {
   const stored = (await api.storage.local.get(DETECTED_KEY))[DETECTED_KEY];
-  await api.storage.local.set({ [DETECTED_KEY]: withoutColumn(fillDetected(stored), columnId) });
+  await api.storage.local.set({ [DETECTED_KEY]: withoutScope(fillDetected(stored), key) });
 };
 
 /**
- * Throws away the whole record of detected columns.
+ * Throws away the whole record of detected scopes.
  *
- * Columns that are out of sight are never deleted, so a column that was removed does not
+ * Scopes that are out of sight are never deleted, so a column that was removed does not
  * drop out on its own. This is the only way to clear out what has piled up. The settings
  * themselves are untouched.
  */

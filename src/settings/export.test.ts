@@ -2,18 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildExport, exportFileName, EXPORT_APP } from './export.ts';
 import { emptySettings, fillAll } from './schema.ts';
-import type { DetectedDeck } from './storage.ts';
+import type { DetectedGroup } from './storage.ts';
 
 /** Built in local time. The file name uses the device's date, so this form is not swayed by region */
 const at = new Date(2026, 7, 24, 10, 30, 0);
 
-const decks: DetectedDeck[] = [
+const decks: DetectedGroup[] = [
   {
-    deckId: 'd1',
+    id: 'd1',
     name: '技術',
-    columns: [{ columnId: 'col-1', account: 'alice', title: 'ホーム' }],
+    scopes: [{ key: 'col-1', account: 'alice', title: 'ホーム' }],
   },
-  { deckId: 'd2', name: null, columns: [] },
+  { id: 'd2', name: null, scopes: [] },
 ];
 
 test('書き出した JSON は、保存されている設定をそのまま含む', () => {

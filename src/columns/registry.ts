@@ -10,11 +10,11 @@
  * becomes another column's settings as it stands.
  */
 import type { ColumnScope } from '../settings/resolve.ts';
+import type { ScopeInfo } from '../surface/index.ts';
 import { deckIdOf, deckStateFrom, UNKNOWN_DECK, type DeckState } from './deck.ts';
 import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
 
-/** Also carries what the settings screen needs to show which columns exist */
-export type ColumnInfo = ColumnScope & { title: string | null };
+
 
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';
@@ -214,7 +214,7 @@ const scopeOfElement = (column: Element): ColumnScope => {
  * be called on every settling. Names arrive late even when the set of columns is
  * unchanged, so re-reading is necessary.
  */
-export const detect = (): ColumnInfo[] =>
+export const detect = (): ScopeInfo[] =>
   columnElements().map((element) => ({ ...scopeOfElement(element), title: titleOf(element) }));
 
 /**
@@ -222,7 +222,7 @@ export const detect = (): ColumnInfo[] =>
  * The MAIN world stamps the markers first, then they are read, and the remembered
  * scopes are thrown away.
  */
-export const refresh = async (): Promise<ColumnInfo[]> => {
+export const refresh = async (): Promise<ScopeInfo[]> => {
   if (document.querySelector(COLUMN_SELECTOR)) await stampIds();
   resolved = new WeakMap();
   return detect();

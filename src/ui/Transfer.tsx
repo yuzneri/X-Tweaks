@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { buildExport, exportFileName } from '../settings/export.ts';
 import { parseImport, type ImportError } from '../settings/import.ts';
 import { SCHEMA_VERSION, type Settings } from '../settings/schema.ts';
-import { clearDetected, type DetectedDeck } from '../settings/storage.ts';
+import { clearDetected, type DetectedGroup } from '../settings/storage.ts';
 import type { Messages } from '../i18n/index.ts';
 import { useMessages } from './messages.tsx';
 import { noteOf } from './transfer-note.ts';
@@ -14,7 +14,7 @@ import { noteOf } from './transfer-note.ts';
 type Props = {
   settings: Settings;
   /** The columns attached to an export. Empty when pro.x.com is not open */
-  detected: DetectedDeck[];
+  detected: DetectedGroup[];
   /** Replaces the settings with the ones loaded. The confirmation has already happened */
   onLoad: (settings: Settings) => void;
   onClose: () => void;

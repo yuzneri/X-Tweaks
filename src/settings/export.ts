@@ -3,7 +3,7 @@
  * columns have been detected, so the screen alone never shows the whole picture.
  */
 import type { Settings } from './schema.ts';
-import type { DetectedDeck } from './detected.ts';
+import type { DetectedGroup } from './detected.ts';
 
 /** The mark identifying a file as one of ours. The import checks it too */
 export const EXPORT_APP = 'x-pro-tweaks';
@@ -21,7 +21,7 @@ export type ExportedSettings = {
    * about which column is which. Empty when pro.x.com is not open. Not used by the
    * import (it is attached for reference only).
    */
-  detectedDecks: DetectedDeck[];
+  detectedDecks: DetectedGroup[];
 };
 
 /**
@@ -32,7 +32,7 @@ export type ExportedSettings = {
  */
 export const buildExport = (
   settings: Settings,
-  detectedDecks: DetectedDeck[],
+  detectedDecks: DetectedGroup[],
   at: Date
 ): string => {
   const exported: ExportedSettings = {

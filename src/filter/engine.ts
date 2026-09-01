@@ -4,8 +4,7 @@
 import { adjustsContrast, highlightBaseOf, type Settings } from '../settings/schema.ts';
 import { resolve, type ColumnScope } from '../settings/resolve.ts';
 import { surface } from '../surface/index.ts';
-import type { ColumnInfo } from '../columns/registry.ts';
-import type { DeckState } from '../columns/deck.ts';
+import type { ScopeInfo, SurfaceState } from '../surface/index.ts';
 import { adJudgementBroken, compileFilter, decide, type CompiledFilter } from './decide.ts';
 import {
   brokenMarkers,
@@ -249,7 +248,7 @@ let hooks: EngineHooks | null = null;
  * They are re-read on every settling, and reporting each time would repeat the
  * reading and writing of storage.
  */
-const report = (columns: ColumnInfo[]): void => {
+const report = (columns: ScopeInfo[]): void => {
   // The recording side needs to know which deck the columns belong to, so the deck state goes along
   const found = { ...surface().state(), columns };
   const key = JSON.stringify(found);
@@ -268,7 +267,7 @@ let refreshing = false;
 /** Whether the arrangement changed during a resolve. Remembered so it can be chased once that finishes */
 let pending = false;
 
-const refreshColumns = async (): Promise<ColumnInfo[]> => {
+const refreshColumns = async (): Promise<ScopeInfo[]> => {
   // Nothing is queued while one is running. Only the fact that something changed is
   // passed on, to be chased after it finishes
   if (refreshing) {
@@ -289,7 +288,7 @@ const refreshColumns = async (): Promise<ColumnInfo[]> => {
     effective.clear();
     columnsBroken = columnsUnresolved(
       columns.length,
-      columns.filter((column) => column.columnId !== null).length
+      columns.filter((scope) => scope.columnId !== null).length
     );
     // Columns changing places changes what the rules target, so the appearance is set again
     if (current) applyAppearance(current, surface().scopes(), messages);
@@ -384,7 +383,7 @@ export type EngineHooks = {
   onSettle?: () => void;
   logStyled: (message: string, style: string) => void;
   /** Called when the columns are resolved. Used to tell the settings screen */
-  onColumns: (found: DeckState & { columns: ColumnInfo[] }) => void;
+  onColumns: (found: SurfaceState & { columns: ScopeInfo[] }) => void;
 };
 
 export const start = async (settings: Settings, given: EngineHooks): Promise<void> => {

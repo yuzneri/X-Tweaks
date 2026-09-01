@@ -14,7 +14,7 @@ import {
   type SettingsNode,
 } from '../settings/schema.ts';
 import {
-  forgetColumn,
+  forgetScope,
   loadAdGuard,
   loadDetected,
   loadHealth,
@@ -26,10 +26,10 @@ import {
 } from '../settings/storage.ts';
 import type { Marker } from '../filter/health.ts';
 import {
-  allColumns,
+  allScopes,
   emptyDetected,
   type Detected,
-  type DetectedColumn,
+  type DetectedScope,
 } from '../settings/detected.ts';
 import { enabledAt, inheritedFor, type ColumnScope } from '../settings/resolve.ts';
 import { TierEditor, type Tab } from './TierEditor.tsx';
@@ -148,7 +148,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   const { detected: found, loaded: detectedLoaded } = useDetected();
   // "What exists now" is taken from every deck in the record.
   // Going by the deck on screen alone would drop other decks' columns and accounts into "unassigned"
-  const detected = useMemo(() => allColumns(found), [found]);
+  const detected = useMemo(() => allScopes(found), [found]);
   const paused = usePaused();
   const adGuard = useAdGuard();
   const broken = useHealth();
@@ -156,7 +156,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   const ready = loaded && detectedLoaded;
   // With pro.x.com not open, nothing can be detected.
   // Showing "unassigned" in that state would look as though the settings had come loose
-  const detecting = found.decks.length > 0;
+  const detecting = found.groups.length > 0;
 
   const updateGlobal = (node: SettingsNode) => update({ ...settings, global: node });
   /**
@@ -193,13 +193,13 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
 
   /** Lists the accounts detected, and the accounts only their settings remain for */
   const accountEntries = useMemo<ScopeEntry[]>(() => {
-    const live = new Set(detected.map((column) => column.account).filter((a) => a !== null));
+    const live = new Set(detected.map((scope) => scope.account).filter((a) => a !== null));
     const keys = [...new Set([...live, ...Object.keys(settings.accounts)])];
     return keys.sort().map((account) => ({
       scope: { tier: 'accounts', key: account },
       label: `@${account}`,
       detail: live.has(account)
-        ? m.tiers.columnCount(detected.filter((column) => column.account === account).length)
+        ? m.tiers.columnCount(detected.filter((scope) => scope.account === account).length)
         : undefined,
       unassigned: detecting && !live.has(account),
       configured: marked(settings.accounts[account], { account, columnId: null }),
@@ -213,18 +213,17 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
    */
   const deckGroups = useMemo<ScopeGroup[]>(() => {
     const all = detected;
-    const identityOf = (column: DetectedColumn) =>
-      JSON.stringify([column.title, column.account]);
+    const identityOf = (scope: DetectedScope) => JSON.stringify([scope.title, scope.account]);
     const duplicated = new Set(
       all.map(identityOf).filter((key, i, keys) => keys.indexOf(key) !== i)
     );
     const seen = new Map<string, number>();
 
-    return found.decks.map((deck, index) => ({
-      label: deck.name ?? m.tiers.deckNth(index + 1),
-      note: deck.deckId === found.currentDeckId ? m.tiers.deckShowing : undefined,
+    return found.groups.map((group, index) => ({
+      label: group.name ?? m.tiers.deckNth(index + 1),
+      note: group.id === found.currentGroupId ? m.tiers.deckShowing : undefined,
       empty: m.tiers.columnsEmpty,
-      entries: deck.columns.map((column): ScopeEntry => {
+      entries: group.scopes.map((column): ScopeEntry => {
         const identity = identityOf(column);
         const order = (seen.get(identity) ?? 0) + 1;
         seen.set(identity, order);
@@ -233,13 +232,13 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         // It has settings but was not found when this deck was reopened
         const missing = column.missing ? m.tiers.columnMissing : null;
         return {
-          scope: { tier: 'columns', key: column.columnId },
+          scope: { tier: 'columns', key: column.key },
           label: column.title ?? m.tiers.unnamedColumn,
           detail: [missing, account, number].filter(Boolean).join(' / ') || undefined,
           unassigned: false,
-          configured: marked(settings.columns[column.columnId], {
+          configured: marked(settings.columns[column.key], {
             account: column.account,
-            columnId: column.columnId,
+            columnId: column.key,
           }),
         };
       }),
@@ -247,7 +246,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   }, [found, detected, settings, m]);
 
   const missingColumns = useMemo<ScopeEntry[]>(() => {
-    const liveIds = new Set(detected.map((column) => column.columnId));
+    const liveIds = new Set(detected.map((scope) => scope.key));
     return Object.keys(settings.columns)
       .filter((id) => !liveIds.has(id))
       .sort()
@@ -308,17 +307,17 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   /** Where it can be moved to. Ones that already have settings are left out, to avoid overwriting */
   const reassignTargets = useMemo<ReassignTarget[]>(() => {
     if (current.scope.tier === 'accounts') {
-      return [...new Set(detected.map((column) => column.account).filter((a) => a !== null))]
+      return [...new Set(detected.map((scope) => scope.account).filter((a) => a !== null))]
         .filter((account) => !settings.accounts[account])
         .sort()
         .map((account) => ({ key: account, label: `@${account}` }));
     }
     if (current.scope.tier === 'columns') {
       return detected
-        .filter((column) => column.columnId !== null && !settings.columns[column.columnId])
-        .map((column) => ({
-          key: column.columnId!,
-          label: `${column.title ?? m.tiers.unnamedColumn}${column.account ? ` / @${column.account}` : ''}`,
+        .filter((scope) => !settings.columns[scope.key])
+        .map((scope) => ({
+          key: scope.key,
+          label: `${scope.title ?? m.tiers.unnamedColumn}${scope.account ? ` / @${scope.account}` : ''}`,
         }));
     }
     return [];
@@ -344,7 +343,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   const forgetCurrent = () => {
     const from = current.scope;
     if (from.tier !== 'columns') return;
-    forgetColumn(from.key).catch(reportSaveFailed);
+    forgetScope(from.key).catch(reportSaveFailed);
     if (settings.columns[from.key]) {
       update({ ...settings, columns: removeFrom(settings.columns, from.key) });
     }
@@ -370,7 +369,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     const target = current.scope;
     if (target.tier === 'global') return inheritedFor(settings, { tier: 'global' });
     if (target.tier === 'accounts') return inheritedFor(settings, { tier: 'accounts' });
-    const account = detected.find((column) => column.columnId === target.key)?.account ?? null;
+    const account = detected.find((scope) => scope.key === target.key)?.account ?? null;
     return inheritedFor(settings, { tier: 'columns', account });
   }, [current.scope, settings, detected]);
 
@@ -382,7 +381,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
   const columnScope: ColumnScope | null =
     shown.tier === 'columns'
       ? {
-          account: detected.find((column) => column.columnId === shown.key)?.account ?? null,
+          account: detected.find((scope) => scope.key === shown.key)?.account ?? null,
           columnId: shown.key,
         }
       : null;
@@ -501,7 +500,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
         {ready && transferring && (
           <Transfer
             settings={settings}
-            detected={found.decks}
+            detected={found.groups}
             onLoad={update}
             onClose={() => {
               setTransferring(false);

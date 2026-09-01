@@ -154,8 +154,8 @@ const main = async (): Promise<void> => {
    */
   let started = false;
   let missed = false;
-  /** The deck whose records were rebuilt on this page. Starts empty per page */
-  let rebuiltDeck: string | null = null;
+  /** The group whose records were rebuilt on this page. Starts empty per page */
+  let rebuiltGroup: string | null = null;
   const reapply = (): boolean => {
     /*
      * The compose form is told first and unconditionally. What holds the rest back is
@@ -195,25 +195,25 @@ const main = async (): Promise<void> => {
   await start(effectiveSettings(current, paused), {
     log,
     logStyled,
-    // While the rail and the URL disagree, `deckId` is null. Writing without being able
-    // to tell which deck the columns belong to would erase the records of the deck
-    // being viewed until a moment ago
+    // While what the surface reports and the page disagree, `groupId` is null. Writing
+    // without being able to tell which group the scopes belong to would erase the records
+    // of the group being viewed until a moment ago
     onColumns: (found) => {
-      if (found.deckId === null) return;
-      const columns = recordable(found.columns);
+      if (found.groupId === null) return;
+      const scopes = recordable(found.columns);
       /*
-       * A deck not yet rebuilt on this page gets rebuilt. The memory is per page, so a
+       * A group not yet rebuilt on this page gets rebuilt. The memory is per page, so a
        * reload rebuilds just as a switch does.
-       * Nothing is remembered while no column is visible: a switch goes
+       * Nothing is remembered while no scope is visible: a deck switch goes
        * "10 columns → 0 → 4", and remembering at the 0 point would lose the chance to
-       * rebuild by the time columns appear.
+       * rebuild by the time they appear.
        */
-      const rebuild = rebuiltDeck !== found.deckId;
-      if (columns.length > 0) rebuiltDeck = found.deckId;
-      // Configured columns not found during a rebuild are marked and kept rather than dropped
+      const rebuild = rebuiltGroup !== found.groupId;
+      if (scopes.length > 0) rebuiltGroup = found.groupId;
+      // Configured scopes not found during a rebuild are marked and kept rather than dropped
       const configured = new Set(Object.keys(current.columns));
-      saveDetected(found.decks, found.deckId, columns, configured, rebuild).catch(
-        warnSaveFailed('the columns found on this page')
+      saveDetected(found.groups, found.groupId, scopes, configured, rebuild).catch(
+        warnSaveFailed('the scopes found on this page')
       );
     },
     onSettle: () => {

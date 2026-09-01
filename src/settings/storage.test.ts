@@ -116,21 +116,21 @@ test('local 以外の領域や、別のキーの変更は無視する', async ()
 });
 
 const DECKS = [
-  { deckId: 'd1', name: '技術' },
-  { deckId: 'd2', name: 'ニュース' },
+  { id: 'd1', name: '技術' },
+  { id: 'd2', name: 'ニュース' },
 ];
 
 /** No column has settings (the default). One that goes out of sight is not dropped */
 const NONE: ReadonlySet<string> = new Set();
 
 test('検出したカラムは、デッキごとに書いたとおりに読み戻せる', async () => {
-  await saveDetected(DECKS, 'd1', [{ columnId: 'c1', account: 'alice', title: 'ホーム' }], NONE, true);
+  await saveDetected(DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], NONE, true);
   assert.deepEqual(await loadDetected(), {
-    currentDeckId: 'd1',
-    decks: [
-      { deckId: 'd1', name: '技術', columns: [{ columnId: 'c1', account: 'alice', title: 'ホーム' }] },
+    currentGroupId: 'd1',
+    groups: [
+      { id: 'd1', name: '技術', scopes: [{ key: 'c1', account: 'alice', title: 'ホーム' }] },
       // A deck that is not on screen has no columns known yet
-      { deckId: 'd2', name: 'ニュース', columns: [] },
+      { id: 'd2', name: 'ニュース', scopes: [] },
     ],
   });
 });
@@ -138,55 +138,55 @@ test('検出したカラムは、デッキごとに書いたとおりに読み�
 test('別のデッキへ移っても、前のデッキのカラムは残る', async () => {
   // A deck that is not on screen is not touched
   const configured = new Set(['c1']);
-  await saveDetected(DECKS, 'd1', [{ columnId: 'c1', account: 'alice', title: 'ホーム' }], configured, true);
-  await saveDetected(DECKS, 'd2', [{ columnId: 'c2', account: 'bob', title: '通知' }], configured, true);
+  await saveDetected(DECKS, 'd1', [{ key: 'c1', account: 'alice', title: 'ホーム' }], configured, true);
+  await saveDetected(DECKS, 'd2', [{ key: 'c2', account: 'bob', title: '通知' }], configured, true);
   const found = await loadDetected();
-  assert.equal(found.currentDeckId, 'd2');
+  assert.equal(found.currentGroupId, 'd2');
   assert.deepEqual(
-    found.decks.map((deck) => [deck.deckId, deck.columns.map((column) => column.columnId)]),
+    found.groups.map((deck) => [deck.id, deck.scopes.map((column) => column.key)]),
     [['d1', ['c1']], ['d2', ['c2']]]
   );
 });
 
 test('検出したカラムが壊れていても、読めるものだけを返す', async () => {
   store.set('detected', {
-    currentDeckId: 'd1',
-    decks: [
+    currentGroupId: 'd1',
+    groups: [
       {
-        deckId: 'd1',
+        id: 'd1',
         name: '技術',
-        columns: [
-          { columnId: 'c1', account: 'alice', title: 'ホーム' },
+        scopes: [
+          { key: 'c1', account: 'alice', title: 'ホーム' },
           'これは配列の要素として不正',
-          // A column whose columnId cannot be read is not recorded
-          { columnId: 42, account: '', title: undefined },
+          // A scope whose key cannot be read is not recorded
+          { key: 42, account: '', title: undefined },
         ],
       },
       { name: 'ID の無いデッキ' },
     ],
   });
   assert.deepEqual(await loadDetected(), {
-    currentDeckId: 'd1',
-    decks: [
-      { deckId: 'd1', name: '技術', columns: [{ columnId: 'c1', account: 'alice', title: 'ホーム' }] },
+    currentGroupId: 'd1',
+    groups: [
+      { id: 'd1', name: '技術', scopes: [{ key: 'c1', account: 'alice', title: 'ホーム' }] },
     ],
   });
 });
 
 test('何も検出していなければ空', async () => {
-  assert.deepEqual(await loadDetected(), { decks: [], currentDeckId: null });
+  assert.deepEqual(await loadDetected(), { groups: [], currentGroupId: null });
   store.set('detected', 'ごみ');
-  assert.deepEqual(await loadDetected(), { decks: [], currentDeckId: null });
+  assert.deepEqual(await loadDetected(), { groups: [], currentGroupId: null });
 });
 
 test('中身が変わらないときは書かない。設定画面の描き直しを起こさないため', async () => {
-  const columns = [{ columnId: 'c1', account: 'alice', title: 'ホーム' }];
+  const columns = [{ key: 'c1', account: 'alice', title: 'ホーム' }];
   const notices = [] as number[];
   const unsubscribe = subscribeDetected(() => notices.push(1));
 
   await saveDetected(DECKS, 'd1', columns, NONE, true);
   await saveDetected(DECKS, 'd1', [...columns], NONE, false);
-  await saveDetected(DECKS, 'd1', [{ columnId: 'c2', account: 'bob', title: '通知' }], NONE, false);
+  await saveDetected(DECKS, 'd1', [{ key: 'c2', account: 'bob', title: '通知' }], NONE, false);
 
   assert.deepEqual(notices, [1, 1]);
   unsubscribe();

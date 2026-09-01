@@ -71,7 +71,12 @@ export const proSurface: Surface = {
   detect,
   refresh,
   signature: columnSignature,
-  state: deckState,
+  // X Pro's decks are its groups. The two names are kept apart on purpose: `deck.ts`
+  // talks about decks because that is what they are, and the seam does not
+  state: () => {
+    const { decks, deckId } = deckState();
+    return { groups: decks.map(({ deckId: id, name }) => ({ id, name })), groupId: deckId };
+  },
 
   scopeElements: () => Array.from(document.querySelectorAll(COLUMN_SELECTOR)),
   scopeOfElement: scopeOfColumn,

@@ -9,12 +9,26 @@
  * origins, so no navigation turns one into the other.
  */
 import type { ColumnScope } from '../settings/resolve.ts';
-import type { ColumnInfo } from '../columns/registry.ts';
-import type { DeckState } from '../columns/deck.ts';
 import type { Messages } from '../i18n/index.ts';
 import type { Start } from '../panel/panel.tsx';
 
 export type SurfaceId = 'pro' | 'x';
+
+/** A scope, with what the settings screen needs to name it */
+export type ScopeInfo = ColumnScope & { title: string | null };
+
+/**
+ * Where the scopes on screen belong. X Pro groups its columns by deck; x.com has one
+ * group and calls it nothing.
+ *
+ * An empty `groups` means "the list is unknown"; a null `groupId` means "which group is
+ * on screen cannot be decided". The recording side uses that distinction to avoid
+ * deleting what it does not know.
+ */
+export type SurfaceState = {
+  groups: { id: string; name: string | null }[];
+  groupId: string | null;
+};
 
 export type Surface = {
   readonly id: SurfaceId;
@@ -35,13 +49,13 @@ export type Surface = {
   /** The scopes on screen. Read without asking anything, so it can be called on every settling */
   scopes: () => ColumnScope[];
   /** The same, with what the settings screen needs to name them */
-  detect: () => ColumnInfo[];
+  detect: () => ScopeInfo[];
   /** Resolves again after the arrangement changed. May have to ask the page, so it is async */
-  refresh: () => Promise<ColumnInfo[]>;
+  refresh: () => Promise<ScopeInfo[]>;
   /** A string that changes when the arrangement does. The signal to call `refresh` */
   signature: () => string;
   /** Where the scopes on screen belong, for the record the settings screen reads */
-  state: () => DeckState;
+  state: () => SurfaceState;
 
   // --- Where the appearance applies ---
 

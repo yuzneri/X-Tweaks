@@ -58,9 +58,8 @@ export const xSurface: Surface = {
    * path moving at all.
    */
   signature: () => `${location.pathname}\n${accountOf() ?? ''}`,
-  // No deck. `deckId: null` is what tells the recording side to write nothing down; what
-  // takes its place on a surface without decks is PR ⑤a's question
-  state: () => ({ decks: [], deckId: null }),
+  // Nothing is written down yet. Reporting a group here is PR ⑤a's second half
+  state: () => ({ groups: [], groupId: null }),
 
   // The appearance has nowhere to apply until PR ⑥ decides its range, so it is handed nothing
   scopes: () => [],
