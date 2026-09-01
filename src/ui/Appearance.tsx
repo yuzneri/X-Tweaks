@@ -317,7 +317,10 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           Placed after the column background field, since it only starts to matter once that is set
         */}
         <label class="row">
-          <span>{m.appearance.highlightBase}</span>
+          <span>
+            {m.appearance.highlightBase}
+            <small>{m.appearance.highlightBaseNote}</small>
+          </span>
           <ChoiceSelect
             value={node.highlightBase}
             // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)

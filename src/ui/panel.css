@@ -18,6 +18,11 @@
   --muted: #536471;
   --border: #cfd9de;
   --accent: #1d9bf0;
+  /*
+   * How wide the box on the right of a row is: the size box, the color code, and the
+   * least a select takes. One value so their right edges line up down the panel.
+   */
+  --field: 104px;
   --error: #f4212e;
   --surface: #f7f9f9;
 }
@@ -47,14 +52,6 @@
 }
 
 /* The language selector. Placed at the right end so it does not mix with the settings fields */
-.xpro-ui .language {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-left: auto;
-  font-size: 13px;
-}
-
 /*
  * The notice goes on its own line. On the same line, a long sentence would squash the heading, the language selector and the button alike.
  * "Could not save" is a notice that never clears, so it would stay squashed.
@@ -219,13 +216,38 @@
 
 .xpro-ui .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
 
+/*
+ * A button keeps its words on one line. Left to shrink, three of them in a narrow panel
+ * each break mid-word; the row wrapping instead costs a line and stays readable.
+ */
+.xpro-ui .row > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .xpro-ui .row > span:first-child {
   flex: 1;
+}
+
+/*
+ * An explanation that belongs to one row, under its name.
+ *
+ * It goes here rather than into the control: an option carrying its own explanation makes
+ * the select as wide as that sentence, and the select takes the width out of the name
+ * beside it. Sitting under the name, the same words cost no width at all.
+ */
+.xpro-ui .row > span:first-child > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 /* A standalone field with no group box. The gap to the next box is the same as between boxes */
@@ -250,9 +272,14 @@
   margin-left: 20px;
 }
 
+/*
+ * The switch for the whole tab. It stands outside the group boxes, so without the same
+ * inset its control would sit 16px to the right of every control below it.
+ */
 .xpro-ui .row.filter-toggle,
 .xpro-ui .row.appearance-toggle {
   margin-bottom: 20px;
+  padding-right: 16px;
 }
 
 .xpro-ui .row.add {
@@ -320,7 +347,8 @@
 .xpro-ui input[type="text"] {
   flex: 1;
   min-width: 140px;
-  padding: 6px 8px;
+  padding: 3px 8px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
@@ -328,22 +356,36 @@
   font: inherit;
 }
 
+/*
+ * The controls are a size down from the body text (the mock's proportions). A row is
+ * label and control side by side, and at the same size the control competes with the
+ * name of the thing it sets.
+ */
 .xpro-ui select {
-  padding: 5px 8px;
+  padding: 3px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
   color: var(--fg);
   font: inherit;
+  font-size: 13px;
+  /*
+   * A select is as wide as its widest option, and with the label on `flex: 1` it takes
+   * that width out of the label. The cap is a backstop: no option in either language
+   * reaches it, and an option that did would be too long to read in a select anyway.
+   */
+  max-width: 180px;
 }
 
+/* A size down from the body text, the same as the fields (see `select`) */
 .xpro-ui button {
-  padding: 6px 14px;
+  padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
   color: var(--fg);
   font: inherit;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -569,7 +611,7 @@
   /* Specified as the width including padding and border (the same treatment as `.size-box`) */
   box-sizing: border-box;
   flex: 0 0 auto;
-  width: 116px;
+  width: var(--field);
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -597,9 +639,10 @@
    * `min-width: 0` stops that default width from taking effect as a minimum.
    */
   flex: 0 0 auto;
-  width: 112px;
+  width: var(--field);
   min-width: 0;
-  padding: 6px 8px;
+  padding: 3px 8px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);

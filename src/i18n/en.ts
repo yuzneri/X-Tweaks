@@ -494,10 +494,11 @@ export const en = {
     autoContrastOff: 'Nothing',
     /** What a highlight color is laid over */
     highlightBase: 'Blend highlights over',
+    highlightBaseNote: '“X’s own” ignores the background color set above.',
     highlightBases: {
-      column: 'The column background',
-      columnX: 'The timeline background',
-      theme: 'X’s background (ignore the background color set above)',
+      column: 'Column background',
+      columnX: 'Timeline background',
+      theme: 'X’s own',
     } as { column: string; columnX: string; theme: string },
     /** How a post's time is shown */
     timeFormat: 'Time display',

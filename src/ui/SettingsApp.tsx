@@ -112,7 +112,7 @@ const LanguageSelect = ({
 }) => {
   const m = useMessages();
   return (
-    <label class="language">
+    <label class="row">
       <span>{m.language.label}</span>
       <select value={value} onChange={(e) => onChange(e.currentTarget.value as Language)}>
         {LANGUAGES.map((language) => (

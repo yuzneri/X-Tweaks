@@ -421,14 +421,17 @@ export const ja: Messages = {
       border: '投稿と投稿の境目の線',
     },
     autoContrast: 'ハイライトで文字が読めなくなったとき',
-    autoContrastOn: '文字色を自動で直す',
+    // ラベルが「読めなくなったとき」と言っているので、選択肢は動作だけでよい（en もそうしている）
+    autoContrastOn: '文字色を直す',
     autoContrastOff: '何もしない',
     highlightBase: 'ハイライトの色を重ねる先',
+    // 選択肢に説明を入れると、select が幅を取ってラベルを潰す。説明は行の注記に置く
+    highlightBaseNote: '「X の背景」にすると、上で指定した背景色を無視します。',
     highlightBases: {
       column: 'カラムの背景',
       // x.com にカラムは無い。同じ設定を、塗る対象の名前で呼ぶ
       columnX: 'タイムラインの背景',
-      theme: 'X の背景（上で指定した背景色を無視）',
+      theme: 'X の背景',
     },
     timeFormat: '時刻の表示',
     timeFormats: {
