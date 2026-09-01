@@ -1,0 +1,81 @@
+/**
+ * The seam between the parts that judge and paint posts, and the site they are running on.
+ *
+ * The filter, the appearance and the settings all work in terms of a scope — "which
+ * column, of which account" — and never in terms of X Pro's decks or x.com's URLs.
+ * Everything that does know about those sits behind this type.
+ *
+ * There is one surface per page and it never changes: pro.x.com and x.com are separate
+ * origins, so no navigation turns one into the other.
+ */
+import type { ColumnScope } from '../settings/resolve.ts';
+import type { ColumnInfo } from '../columns/registry.ts';
+import type { DeckState } from '../columns/deck.ts';
+
+export type SurfaceId = 'pro';
+
+export type Surface = {
+  readonly id: SurfaceId;
+
+  // --- Which scope a post belongs to ---
+
+  /** The scope of the post cell. Posts outside any scope get the empty one, and run on the global settings */
+  scopeOf: (cell: Element) => ColumnScope;
+  /**
+   * Whether that cell's scope will no longer move.
+   * Only for while the arrangement is changing; once settled, a scope that could not be
+   * resolved still applies as far as it goes, so this must not be used to skip it.
+   */
+  scopeSettled: (cell: Element) => boolean;
+
+  // --- What is on screen ---
+
+  /** The scopes on screen. Read without asking anything, so it can be called on every settling */
+  scopes: () => ColumnScope[];
+  /** The same, with what the settings screen needs to name them */
+  detect: () => ColumnInfo[];
+  /** Resolves again after the arrangement changed. May have to ask the page, so it is async */
+  refresh: () => Promise<ColumnInfo[]>;
+  /** A string that changes when the arrangement does. The signal to call `refresh` */
+  signature: () => string;
+  /** Where the scopes on screen belong, for the record the settings screen reads */
+  state: () => DeckState;
+
+  // --- Where the appearance applies ---
+
+  /** One element per scope on screen. The appearance walks these to place its markers */
+  scopeElements: () => Element[];
+  /** The scope of one of those elements */
+  scopeOfElement: (element: Element) => ColumnScope;
+  /**
+   * The range the appearance may paint: it holds the scope's header and its posts, but
+   * not the neighbouring scope's.
+   */
+  rangeOf: (element: Element) => Element;
+  /** The bar carrying the scope's name, painted separately. null where the surface has none */
+  bandOf: (range: Element) => Element | null;
+  /** Whether the element already marked as the bar is still the right one */
+  bandStillValid: (marked: Element, range: Element) => boolean;
+};
+
+/**
+ * The surface this page is on. Set once at startup.
+ *
+ * Held in a module variable rather than threaded through every call: the filter, the
+ * appearance and the settings would each have to pass it down through layers that have
+ * nothing to say about it.
+ */
+let current: Surface | null = null;
+
+export const install = (surface: Surface): void => {
+  current = surface;
+};
+
+/**
+ * The installed surface. Throws when nothing was installed, which can only be a mistake
+ * in the startup order rather than a state a page can be in.
+ */
+export const surface = (): Surface => {
+  if (current === null) throw new Error('No surface installed');
+  return current;
+};

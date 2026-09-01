@@ -1,9 +1,12 @@
 /**
- * Applies the appearance settings to pro.x.com: sets the markers the CSS targets
- * and puts the built CSS into a single `<style>`. Only attributes are added, so
- * removing them restores the original.
+ * Applies the appearance settings: sets the markers the CSS targets and puts the built
+ * CSS into a single `<style>`. Only attributes are added, so removing them restores the
+ * original.
+ *
+ * Which elements hold one scope, and where its name is drawn, is the surface's business
+ * (`surface/`). Nothing here names a column or a deck.
  */
-import { COLUMN_SELECTOR, scopeElementOf, scopeOfColumn } from '../columns/registry.ts';
+import { surface } from '../surface/index.ts';
 import {
   ARTICLE,
   authorOf,
@@ -60,42 +63,9 @@ import {
 
 const STYLE_ID = 'xpro-tweaks-appearance-style';
 
-/** The container of the column name, and the container of the timeline. Used to spot the header bar */
-const TITLE_SELECTOR = '[data-testid="column-title-wrapper"]';
-const CONTENT_SELECTOR = '[data-testid="multi-column-layout-column-content"]';
-
-/** Candidates for the bar: containers that hold the column name but not the timeline */
-const BAND_SELECTOR = `div:has(${TITLE_SELECTOR}):not(:has(${CONTENT_SELECTOR}))`;
-
 /**
- * Finds the column-name bar, returning only the outermost of the candidates.
- * The candidates nest, and painting all of them makes a color with opacity
- * darker the further in you go.
- */
-const headerOf = (scope: Element): Element | null => {
-  const bands = [...scope.querySelectorAll(BAND_SELECTOR)];
-  return bands.find((el) => !bands.some((other) => other !== el && other.contains(el))) ?? null;
-};
-
-/**
- * Whether the marker already set still points at the outermost bar.
- *
- * A check that saves calling `headerOf`. `BAND_SELECTOR` carries two `:has()`,
- * so it scans the column's whole subtree and gets heavier as posts pile up.
- * The two checks here each cost a single element's worth of matching.
- */
-const stillHeader = (marked: Element, scope: Element): boolean => {
-  if (!marked.matches(BAND_SELECTOR)) return false;
-  for (let el = marked.parentElement; el && el !== scope; el = el.parentElement) {
-    if (el.matches(BAND_SELECTOR)) return false;
-  }
-  return true;
-};
-
-/**
- * Marks each column and the column-name bar inside it. The marker goes on the
- * range covering one whole column; marking only the column body leaves the header
- * stranded in black.
+ * Marks each scope and the bar carrying its name. The marker goes on the range covering
+ * one whole scope; marking only its body leaves the header stranded in black.
  *
  * The marker's value is the target key, not the position in the order. Using the
  * position would carry the width and the colors straight over to the neighboring
@@ -104,24 +74,25 @@ const stillHeader = (marked: Element, scope: Element): boolean => {
  * searching turns into a delay in judging new posts.
  */
 export const stampColumns = (): void => {
-  /** The ranges enumerated this round. A marker outside them is a leftover from something that is no longer a column, so it comes off */
+  /** The ranges enumerated this round. A marker outside them is a leftover from something that is no longer a scope, so it comes off */
   const live: Element[] = [];
+  const on = surface();
 
-  document.querySelectorAll(COLUMN_SELECTOR).forEach((column) => {
-    const value = columnKey(scopeOfColumn(column));
-    const scope = scopeElementOf(column);
+  on.scopeElements().forEach((element) => {
+    const value = columnKey(on.scopeOfElement(element));
+    const scope = on.rangeOf(element);
     if (scope.getAttribute(COLUMN_ATTR) !== value) scope.setAttribute(COLUMN_ATTR, value);
     live.push(scope);
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
-    if (marked && stillHeader(marked, scope)) return;
+    if (marked && on.bandStillValid(marked, scope)) return;
     // When searching again, clear every marker in this range before setting one.
     // Two of them left in place make a color with opacity darker further in
     scope.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => el.removeAttribute(HEADER_ATTR));
-    headerOf(scope)?.setAttribute(HEADER_ATTR, '');
+    on.bandOf(scope)?.setAttribute(HEADER_ATTR, '');
   });
 
-  // Clear markers in ranges that are no longer columns. The loop above only touches
+  // Clear markers in ranges that are no longer scopes. The loop above only touches
   // the ranges it enumerated, so a stranded marker would keep the bar painted
   document.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => {
     if (!live.some((scope) => scope.contains(el))) el.removeAttribute(HEADER_ATTR);

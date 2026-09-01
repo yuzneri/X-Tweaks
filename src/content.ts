@@ -16,6 +16,8 @@ import {
 // Namespace resolution only, the same as in storage.ts
 declare const chrome: typeof browser | undefined;
 const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
+import { install as installSurface } from './surface/index.ts';
+import { proSurface } from './surface/pro.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
@@ -89,6 +91,13 @@ const warnSaveFailed =
   };
 
 const main = async (): Promise<void> => {
+  /*
+   * Which site this is, decided once and never again. Everything that resolves a scope or
+   * paints goes through it, so it is installed before anything else runs.
+   * Only X Pro exists for now; picking between surfaces comes with x.com.
+   */
+  installSurface(proSurface);
+
   const [{ settings, unreadable }, startPaused] = await Promise.all([load(), loadPaused()]);
   // Even if they were switched off during the previous load, start from a clean slate and try again
   saveAdGuard(false).catch(warnSaveFailed('that ad rules are on again'));

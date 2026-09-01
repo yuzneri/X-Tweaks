@@ -3,16 +3,8 @@
  */
 import { adjustsContrast, highlightBaseOf, type Settings } from '../settings/schema.ts';
 import { resolve, type ColumnScope } from '../settings/resolve.ts';
-import {
-  columnSignature,
-  deckState,
-  detect,
-  refresh,
-  scopeOf,
-  scopes,
-  scopeSettled,
-  type ColumnInfo,
-} from '../columns/registry.ts';
+import { surface } from '../surface/index.ts';
+import type { ColumnInfo } from '../columns/registry.ts';
 import type { DeckState } from '../columns/deck.ts';
 import { adJudgementBroken, compileFilter, decide, type CompiledFilter } from './decide.ts';
 import {
@@ -60,7 +52,7 @@ const adopt = (settings: Settings): void => {
   messages = messagesFor(localeOf(settings.language));
   // The match-reason text comes from the dictionary, so a language change means a rebuild
   effective.clear();
-  applyAppearance(settings, scopes(), messages);
+  applyAppearance(settings, surface().scopes(), messages);
 };
 
 /**
@@ -197,7 +189,7 @@ const judge = (cell: Element): boolean => {
   if (post.values.text.length > 0) tally.texts++;
   // Once the detection counts as broken, treat everything as not an ad
   const seen = adBroken ? { ...post, isAd: false } : post;
-  const { filter, look } = effectiveFor(scopeOf(cell), current);
+  const { filter, look } = effectiveFor(surface().scopeOf(cell), current);
   // The placeholder names a single author (a post `readPost` could read always has one)
   apply(cell, decide(seen, filter), seen.values.screenName[0] ?? null, messages, look);
   return true;
@@ -213,7 +205,7 @@ const judge = (cell: Element): boolean => {
 const judgeNew = (root: ParentNode, onlySettled = false): void => {
   for (const cell of root.querySelectorAll(CELL_SELECTOR)) {
     if (judged.has(cell)) continue;
-    if (onlySettled && !scopeSettled(cell)) continue;
+    if (onlySettled && !surface().scopeSettled(cell)) continue;
     if (judge(cell)) judged.add(cell);
   }
   // A round that looked at only part of them is no material for the watch. The skipped
@@ -259,7 +251,7 @@ let hooks: EngineHooks | null = null;
  */
 const report = (columns: ColumnInfo[]): void => {
   // The recording side needs to know which deck the columns belong to, so the deck state goes along
-  const found = { ...deckState(), columns };
+  const found = { ...surface().state(), columns };
   const key = JSON.stringify(found);
   if (key === reported) return;
   reported = key;
@@ -285,14 +277,14 @@ const refreshColumns = async (): Promise<ColumnInfo[]> => {
   }
   refreshing = true;
   try {
-    let columns = await refresh();
-    knownSignature = columnSignature();
+    let columns = await surface().refresh();
+    knownSignature = surface().signature();
     // Resolve again if the arrangement changed while waiting.
     // The signature is updated every time, so this loop stops once the arrangement settles
     while (pending) {
       pending = false;
-      columns = await refresh();
-      knownSignature = columnSignature();
+      columns = await surface().refresh();
+      knownSignature = surface().signature();
     }
     effective.clear();
     columnsBroken = columnsUnresolved(
@@ -300,7 +292,7 @@ const refreshColumns = async (): Promise<ColumnInfo[]> => {
       columns.filter((column) => column.columnId !== null).length
     );
     // Columns changing places changes what the rules target, so the appearance is set again
-    if (current) applyAppearance(current, scopes(), messages);
+    if (current) applyAppearance(current, surface().scopes(), messages);
     judgeAllAndCheck();
     report(columns);
     return columns;
@@ -349,7 +341,7 @@ const observe = (): void => {
       guard('stampColumns', stampColumns);
       guard('stampMediaFrames', stampMediaFrames);
       // When the arrangement of columns changes, resolve the columnIds and accounts again
-      if (columnSignature() !== knownSignature) {
+      if (surface().signature() !== knownSignature) {
         refreshColumns().catch((error: unknown) => {
           hooks?.logStyled(`xpro-tweaks: column refresh failed: ${String(error)}`, 'color:#f59e0b');
         });
@@ -360,7 +352,7 @@ const observe = (): void => {
         return;
       }
       // Even when the set of columns is the same, the names arrive late
-      guard('detect', () => report(detect()));
+      guard('detect', () => report(surface().detect()));
       guard('judge', () => judgeNew(document));
     }, SETTLE_MS);
   });
@@ -380,7 +372,7 @@ export const updateSettings = (settings: Settings): void => {
    * in a background tab.
    */
   reported = '';
-  report(detect());
+  report(surface().detect());
 };
 
 /** The parts outside the judging (the entry points to the settings screen and so on) use the same dictionary */
