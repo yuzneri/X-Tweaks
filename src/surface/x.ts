@@ -9,6 +9,8 @@
  * Where it applies on a page with no columns is its own question, and it is PR ⑥'s.
  */
 import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
+import { watch as watchEntry } from '../panel/menu-item.ts';
+import { insertInto as insertMenuItem } from '../panel/x-menu.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { Surface } from './index.ts';
 import { viewKeyOf } from './view.ts';
@@ -67,4 +69,9 @@ export const xSurface: Surface = {
   rangeOf: (element) => element,
   bandOf: () => null,
   bandStillValid: () => false,
+
+  // One way in: the "More" menu. x.com has nothing like a column's options, so `openAt`
+  // is never called — there is no per-scope handle on the page to press
+  insertEntryPoints: insertMenuItem,
+  watchEntryPoints: ({ toggle }) => watchEntry(toggle),
 };

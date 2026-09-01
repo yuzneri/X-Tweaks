@@ -11,6 +11,8 @@
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { ColumnInfo } from '../columns/registry.ts';
 import type { DeckState } from '../columns/deck.ts';
+import type { Messages } from '../i18n/index.ts';
+import type { Start } from '../panel/panel.tsx';
 
 export type SurfaceId = 'pro' | 'x';
 
@@ -56,6 +58,21 @@ export type Surface = {
   bandOf: (range: Element) => Element | null;
   /** Whether the element already marked as the bar is still the right one */
   bandStillValid: (marked: Element, range: Element) => boolean;
+
+  // --- The ways into the settings ---
+
+  /**
+   * Puts the ways in where this surface keeps them. Called on every settling of the DOM,
+   * because a menu has to be open before there is anything to insert into.
+   * Inserting twice is the implementation's to prevent.
+   */
+  insertEntryPoints: (messages: Messages) => void;
+  /**
+   * Subscribes to presses on them. Called once at startup.
+   * `toggle` opens the settings, or closes them if they are open. `openAt` opens them
+   * showing one scope, and a surface with no way to point at one never calls it.
+   */
+  watchEntryPoints: (open: { toggle: () => void; openAt: (start: Start) => void }) => void;
 };
 
 /**

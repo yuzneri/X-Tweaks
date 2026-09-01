@@ -23,12 +23,8 @@ import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
 import { open as openPanel, toggle as togglePanel } from './panel/panel.tsx';
 import { OPEN_PANEL } from './panel/message.ts';
-import { insertInto as insertMenuItem, watch as watchMenuItem, watchTrigger } from './panel/menu.ts';
-import {
-  insertInto as insertColumnItem,
-  rememberTrigger,
-  watch as watchColumnItem,
-} from './panel/column-options.ts';
+import { watchTrigger } from './panel/trigger.ts';
+import { rememberTrigger } from './panel/column-options.ts';
 import {
   noticeComposeForm,
   rememberTrigger as rememberComposeTrigger,
@@ -128,8 +124,7 @@ const main = async (): Promise<void> => {
     rememberComposeTrigger(target);
   });
   // Clicks on the inserted items are received on document, so they arrive even if X stops them further in
-  watchMenuItem(togglePanel);
-  watchColumnItem(openPanel);
+  surface.watchEntryPoints({ toggle: togglePanel, openAt: openPanel });
 
   /*
    * The compose form is watched from the start, whether or not anything is switched on.
@@ -223,8 +218,7 @@ const main = async (): Promise<void> => {
     },
     onSettle: () => {
       const messages = currentMessages();
-      insertMenuItem(messages);
-      insertColumnItem(messages);
+      surface.insertEntryPoints(messages);
       // While paused nothing the extension does applies, so the switches are taken out
       // rather than left showing values that would not take effect
       if (paused) {

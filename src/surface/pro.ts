@@ -21,6 +21,12 @@ import {
   scopes,
   scopeSettled,
 } from '../columns/registry.ts';
+import {
+  insertInto as insertColumnItem,
+  watch as watchColumnItem,
+} from '../panel/column-options.ts';
+import { watch as watchEntry } from '../panel/menu-item.ts';
+import { insertInto as insertMenuItem } from '../panel/menu.ts';
 import type { Surface } from './index.ts';
 
 /** The container of the column name, and the container of the timeline */
@@ -72,4 +78,14 @@ export const proSurface: Surface = {
   rangeOf: scopeElementOf,
   bandOf,
   bandStillValid,
+
+  // Two ways in: the bottom-left menu opens the global settings, a column's options open that column's
+  insertEntryPoints: (messages) => {
+    insertMenuItem(messages);
+    insertColumnItem(messages);
+  },
+  watchEntryPoints: ({ toggle, openAt }) => {
+    watchEntry(toggle);
+    watchColumnItem(openAt);
+  },
 };
