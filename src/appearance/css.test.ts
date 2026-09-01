@@ -175,10 +175,10 @@ test('当て先が複数あっても、すべてカラムの印の中に閉じ�
   // Forgetting the marker at the front would make that rule affect every column
   const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'hidden')) }]);
   for (const part of css.split('{')[0]!.split(',')) {
-    // The condition for "no post opened" may follow the marker (see `OPENED_POST_MARK`)
+    // The condition for "no post opened" may follow the marker (see `OPENED_ATTR`)
     assert.match(
       part.trim(),
-      /^\[data-xpro-column="0"\](:not\(:has\([^)]*\)\))? /,
+      /^\[data-xpro-column="0"\](:not\(\[data-xpro-opened\]\))? /,
       `${part.trim()} に印が無い`
     );
   }
@@ -237,7 +237,7 @@ test('本文の行数の上限は、画面上の行で切る', () => {
   const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.maxLines = 3)) }]);
   const clampLine = css.split('\n').find((line) => line.includes('-webkit-line-clamp: 3'))!;
   // Columns with a post opened (the ones with the reply input box) are excluded
-  assert.ok(clampLine.startsWith('[data-xpro-column="0"]:not(:has([data-testid="tweetTextarea_0"])) [data-testid="tweetText"]'));
+  assert.ok(clampLine.startsWith('[data-xpro-column="0"]:not([data-xpro-opened]) [data-testid="tweetText"]'));
   // Both Chrome and Firefox work with the -webkit- prefix. The standard spelling is written alongside
   assert.match(clampLine, /-webkit-line-clamp: 3 !important/);
   assert.match(clampLine, /display: -webkit-box !important/);
@@ -348,7 +348,7 @@ test('詰めると、X 自身の「さらに表示」も消える', () => {
     .find((line) => line.includes('tweet-text-show-more-link') && line.includes('display: none'))!;
   assert.ok(hidden, '詰めても X のボタンが残っている');
   // The column with a post opened keeps it: that post is there to be read
-  assert.ok(hidden.includes(':not(:has([data-testid="tweetTextarea_0"]))'));
+  assert.ok(hidden.includes(':not([data-xpro-opened])'));
 
   // Packing is the only thing that takes it away. A line limit alone must not: the button
   // is then the only way to reach the rest of a post X itself cut
@@ -413,7 +413,7 @@ test('ポストを開いているカラムでは、詰めも改行の解除も�
   // the reply and the like on the very post that was opened
   for (const line of css.split('\n')) {
     assert.ok(
-      line.startsWith('[data-xpro-column="0"]:not(:has([data-testid="tweetTextarea_0"]))'),
+      line.startsWith('[data-xpro-column="0"]:not([data-xpro-opened])'),
       `${line} が開いているカラムでも当たってしまう`
     );
   }
@@ -444,7 +444,7 @@ test('ポストを開いているカラムでは、カードも画像も消え�
     const css = cssOf([{ key: '0', appearance: appearanceOf(patch) }]);
     for (const line of css.split('\n')) {
       assert.ok(
-        line.startsWith('[data-xpro-column="0"]:not(:has([data-testid="tweetTextarea_0"]))'),
+        line.startsWith('[data-xpro-column="0"]:not([data-xpro-opened])'),
         `${line} が開いているカラムでも当たってしまう`
       );
     }

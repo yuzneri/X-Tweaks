@@ -74,6 +74,12 @@ export type Surface = {
 
   // --- Where the appearance applies ---
 
+  /**
+   * Whether a scope here is a column of its own — something standing beside others, with
+   * a width and a name bar the settings can paint. The items that only mean anything
+   * under that are dropped where it is false (see `withoutColumnItems`).
+   */
+  hasColumns: boolean;
   /** One element per scope on screen. The appearance walks these to place its markers */
   scopeElements: () => Element[];
   /** The scope of one of those elements */
@@ -87,6 +93,15 @@ export type Surface = {
   bandOf: (range: Element) => Element | null;
   /** Whether the element already marked as the bar is still the right one */
   bandStillValid: (marked: Element, range: Element) => boolean;
+  /**
+   * Whether that range holds a post opened to be read rather than a timeline to skim.
+   * Everything that only serves skimming stands down there (see `OPENED_ATTR`).
+   *
+   * How to tell differs by surface, which is why it is asked here: X Pro has the reply
+   * box appear in the one column with a post opened, while x.com shows that box at the
+   * top of the home timeline as well and has to go by the address instead.
+   */
+  opened: (range: Element) => boolean;
 
   // --- The ways into the settings ---
 

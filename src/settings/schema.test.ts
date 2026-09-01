@@ -4,6 +4,7 @@ import {
   ACTIONS,
   SCHEMA_VERSION,
   adjustsContrast,
+  COLUMN_COLORS,
   emptyNode,
   emptySettings,
   fillAll,
@@ -24,6 +25,7 @@ import {
   targetsFor,
   type Condition,
   type Rule,
+  withoutColumnItems,
 } from './schema.ts';
 import { messagesFor } from '../i18n/index.ts';
 
@@ -655,4 +657,53 @@ test('前の形（collapse の真偽値）で保存された指定は「表示�
   // The new shape wins where both are there
   assert.equal(style({ collapse: true, style: 'mark' }), 'mark');
   assert.equal(style({ style: 'そんな見せ方は無い' }), null);
+});
+
+test('カラムの無いサイトでは、カラム専用の指定を落とす', () => {
+  const node = emptyNode().appearance;
+  node.columnWidth = 320;
+  node.colors.columnTitle = '#111111';
+  node.colors.columnHeader = '#222222';
+  // 落とすもの以外は残る。投稿単位の指定はサイトを問わず効く
+  node.fontSize = 14;
+  node.colors.background = '#333333';
+
+  const out = withoutColumnItems(node);
+  assert.equal(out.columnWidth, null);
+  for (const key of COLUMN_COLORS) assert.equal(out.colors[key], null, key);
+  assert.equal(out.fontSize, 14);
+  assert.equal(out.colors.background, '#333333');
+  // 元は変えない
+  assert.equal(node.columnWidth, 320);
+});
+
+test('落とすのはカラム専用の 3 つだけ', () => {
+  // 全項目に値を入れて、変わったものを数える。項目が増えたときの落とし過ぎを見張る
+  const node = emptyNode().appearance;
+  node.enabled = true;
+  node.columnWidth = 320;
+  node.compact = true;
+  node.fontSize = 14;
+  node.maxLines = 5;
+  node.collapseNewlines = true;
+  node.autoContrast = false;
+  node.highlightBase = 'theme';
+  node.timeFormat = 'absolute';
+  node.cardStyle = 'mark';
+  node.quoteStyle = 'hidden';
+  node.media = { maxThumbHeight: 120, style: 'mark' };
+  for (const key of Object.keys(node.colors) as (keyof typeof node.colors)[]) {
+    node.colors[key] = '#123456';
+  }
+
+  const out = withoutColumnItems(node);
+  const cleared = Object.keys(out).filter(
+    (key) => out[key as keyof typeof out] !== node[key as keyof typeof node]
+  );
+  // colors は中身を差し替えるので、丸ごと別物になる。中身は下で数える
+  assert.deepEqual(cleared.sort(), ['colors', 'columnWidth']);
+  const clearedColors = Object.keys(out.colors).filter(
+    (key) => out.colors[key as keyof typeof out.colors] === null
+  );
+  assert.deepEqual(clearedColors.sort(), [...COLUMN_COLORS].sort());
 });

@@ -30,6 +30,7 @@ import {
   timeFormatOf,
   type AppearanceNode,
   type AttachmentStyle,
+  withoutColumnItems,
   type MediaStyle,
   type Settings,
 } from '../settings/schema.ts';
@@ -52,8 +53,8 @@ import {
   MEDIA_MARKED_ATTR,
   HEADER_ATTR,
   MORE_CLASS,
+  OPENED_ATTR,
   OPENED_CLASS,
-  OPENED_POST_MARK,
   MEDIA_FRAME_ATTR,
   TIME_ATTR,
   TODAY_ATTR,
@@ -64,8 +65,9 @@ import {
 const STYLE_ID = 'xpro-tweaks-appearance-style';
 
 /**
- * Marks each scope and the bar carrying its name. The marker goes on the range covering
- * one whole scope; marking only its body leaves the header stranded in black.
+ * Marks each scope, the bar carrying its name, and whether it holds a post opened to be
+ * read. The marker goes on the range covering one whole scope; marking only its body
+ * leaves the header stranded in black.
  *
  * The marker's value is the target key, not the position in the order. Using the
  * position would carry the width and the colors straight over to the neighboring
@@ -83,6 +85,17 @@ export const stampColumns = (): void => {
     const scope = on.rangeOf(element);
     if (scope.getAttribute(COLUMN_ATTR) !== value) scope.setAttribute(COLUMN_ATTR, value);
     live.push(scope);
+
+    /*
+     * Asked every round: a post is opened and closed without the scope changing at all.
+     * Not written while it already says so, the same as the marker above. The CSS targets
+     * this attribute, so writing it costs a style recalculation over the whole scope
+     */
+    const opened = on.opened(scope);
+    if (opened !== scope.hasAttribute(OPENED_ATTR)) {
+      if (opened) scope.setAttribute(OPENED_ATTR, '');
+      else scope.removeAttribute(OPENED_ATTR);
+    }
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
     if (marked && on.bandStillValid(marked, scope)) return;
@@ -595,16 +608,12 @@ const restampAttachments = (
   /** The lines and the sources that belong to this round. Anything else is left over */
   const live = new Set<Element>();
   /*
-   * The columns with a post opened stand down, as they do in the CSS (`OPENED_POST_MARK`):
+   * The scopes with a post opened stand down, as they do in the CSS (`OPENED_ATTR`):
    * that post is there to be read, and its card stays on screen. Putting a line in as
    * well would say the same thing twice.
-   * Gathered up front, so the search is not repeated for every post in the column
+   * Gathered up front, so the search is not repeated for every post in the scope
    */
-  const opened = new Set(
-    [...document.querySelectorAll(`[${COLUMN_ATTR}] ${OPENED_POST_MARK}`)].map((el) =>
-      el.closest(`[${COLUMN_ATTR}]`)
-    )
-  );
+  const opened = new Set(document.querySelectorAll(`[${COLUMN_ATTR}][${OPENED_ATTR}]`));
 
   document.querySelectorAll(`[${COLUMN_ATTR}] ${CELL_SELECTOR}`).forEach((cell) => {
     const column = cell.closest(`[${COLUMN_ATTR}]`);
@@ -734,10 +743,10 @@ const lineHeightOf = (text: Element): number => {
  * limit is lifted — arrive long after the button was put in.
  */
 const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
-  // Body text inside a quote, and columns with a post opened, are outside the limit
+  // Body text inside a quote, and scopes with a post opened, are outside the limit
   // (matching the targets in css.ts)
   if (text.closest(QUOTE_SELECTOR)) return false;
-  if (text.closest(`[${COLUMN_ATTR}]`)?.querySelector(OPENED_POST_MARK)) return false;
+  if (text.closest(`[${COLUMN_ATTR}]`)?.hasAttribute(OPENED_ATTR)) return false;
   const cell = text.closest(CELL_SELECTOR);
   if (!cell || cell.classList.contains(OPENED_CLASS)) return false;
   // Nothing is added to a cell that has X's own "Show more". Two side by side would
@@ -923,11 +932,18 @@ export const applyAppearance = (
   // the same rules over and over
   const columns: ColumnAppearance[] = [];
   const seen = new Set<string>();
+  /*
+   * The tiers above are shared by both sites, so they can hold items that only mean
+   * something where a scope is a column. They are dropped here rather than refused when
+   * written: written on X Pro they do apply, and this is the one place that knows which
+   * site the settings are being applied on
+   */
+  const here = surface().hasColumns ? (node: AppearanceNode) => node : withoutColumnItems;
   for (const scope of scopes) {
     const key = columnKey(scope);
     if (seen.has(key)) continue;
     seen.add(key);
-    columns.push({ key, appearance: appearanceFor(settings, scope) });
+    columns.push({ key, appearance: here(appearanceFor(settings, scope)) });
   }
   const css = buildCss(columns, messages.appearance.timeParens);
 

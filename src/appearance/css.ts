@@ -34,12 +34,16 @@ export const columnKey = (scope: ColumnScope): string => {
 };
 
 /**
- * The marker of a column with a post opened (the reply input box). The input box
- * appears in no other column. That column was opened in order to read and to reply,
- * so what makes a timeline quicker to skim is not enforced there: the line limit on
- * the body, the packing, and the dropping of line breaks all stand down.
+ * The marker on a scope holding a post opened to be read (set by `appearance/apply.ts`
+ * from what the surface says). That scope was opened in order to read and to reply, so
+ * what makes a timeline quicker to skim is not enforced there: the line limit on the
+ * body, the packing, and the dropping of line breaks all stand down.
+ *
+ * How a surface tells one is its own business — X Pro has the reply box appear in that
+ * column alone, x.com has one timeline and goes by the address — so it arrives here as a
+ * marker rather than as a selector of X's.
  */
-export const OPENED_POST_MARK = '[data-testid="tweetTextarea_0"]';
+export const OPENED_ATTR = 'data-xpro-opened';
 export type ColumnAppearance = { key: string; appearance: AppearanceNode };
 
 /**
@@ -285,10 +289,10 @@ const columnRules = (
   }
 
   /**
-   * The column with no post opened. What only serves skimming a timeline is confined to
-   * it (see `OPENED_POST_MARK`).
+   * The scope with no post opened. What only serves skimming a timeline is confined to
+   * it (see `OPENED_ATTR`).
    */
-  const skimming = `${scope}:not(:has(${OPENED_POST_MARK}))`;
+  const skimming = `${scope}:not([${OPENED_ATTR}])`;
 
   if (isCompact(appearance.compact)) {
     /*
@@ -563,7 +567,7 @@ const columnRules = (
    * unsetting brings them back. Hiding the box alone leaves the frame taking up space,
    * so the frame is hidden too.
    *
-   * Confined to the column with nothing opened (see `OPENED_POST_MARK`). A post was
+   * Confined to the scope with nothing opened (see `OPENED_ATTR`). A post was
    * opened in order to be read, and what is worth taking off a timeline is worth seeing
    * there.
    *

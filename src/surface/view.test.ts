@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { viewKeyOf, viewNameFrom } from './view.ts';
+import { isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
 
 test('設定を持てるビューは、パスから決まる', () => {
   assert.equal(viewKeyOf('/home'), 'view:home');
@@ -86,4 +86,24 @@ test('名前が入る前のタイトルは受け取らない', () => {
   assert.equal(viewNameFrom('X'), null);
   assert.equal(viewNameFrom(''), null);
   assert.equal(viewNameFrom('  /  X'), null);
+});
+
+test('ポストのページは、読むために開いた場所として扱う', () => {
+  assert.equal(isPostPage('/alice/status/1234567890123456789'), true);
+  // 写真ビューアも、リポストした人の一覧も、そのポストのページ
+  assert.equal(isPostPage('/alice/status/1234567890123456789/photo/1'), true);
+  assert.equal(isPostPage('/alice/status/1234567890123456789/retweets'), true);
+  // X がまだリダイレクトしている古い形
+  assert.equal(isPostPage('/i/web/status/1234567890123456789'), true);
+});
+
+test('タイムラインは、読むために開いた場所ではない', () => {
+  // ホームの投稿ボックスは返信ボックスと同じ要素なので、DOM では区別が付かない。
+  // ここを取り違えると、ホームで詰め方も行数制限も効かなくなる
+  for (const path of ['/home', '/notifications', '/i/lists/1234567890', '/alice', '/search']) {
+    assert.equal(isPostPage(path), false, path);
+  }
+  // 「status」で始まる名前の人のプロフィール
+  assert.equal(isPostPage('/status'), false);
+  assert.equal(isPostPage('/alice/status/notanumber'), false);
 });

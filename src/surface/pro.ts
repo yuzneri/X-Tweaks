@@ -33,6 +33,13 @@ import type { Surface } from './index.ts';
 const TITLE_SELECTOR = '[data-testid="column-title-wrapper"]';
 const CONTENT_SELECTOR = '[data-testid="multi-column-layout-column-content"]';
 
+/**
+ * The reply input box. It appears in the one column with a post opened and in no other,
+ * so it is what tells that column apart. X Pro's own compose form is a drawer outside the
+ * columns altogether, so it is never taken for one.
+ */
+const REPLY_BOX = '[data-testid="tweetTextarea_0"]';
+
 /** Candidates for the bar: containers that hold the column name but not the timeline */
 const BAND_SELECTOR = `div:has(${TITLE_SELECTOR}):not(:has(${CONTENT_SELECTOR}))`;
 
@@ -81,11 +88,13 @@ export const proSurface: Surface = {
   // A column can be deleted, and X Pro keeps the ones out of the window out of the DOM
   pruning: 'on-reopen',
 
+  hasColumns: true,
   scopeElements: () => Array.from(document.querySelectorAll(COLUMN_SELECTOR)),
   scopeOfElement: scopeOfColumn,
   rangeOf: scopeElementOf,
   bandOf,
   bandStillValid,
+  opened: (range) => range.querySelector(REPLY_BOX) !== null,
 
   // Two ways in: the bottom-left menu opens the global settings, a column's options open that column's
   insertEntryPoints: (messages) => {

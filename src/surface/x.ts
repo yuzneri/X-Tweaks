@@ -5,21 +5,29 @@
  * URL, plus the account signed in. There are no columns, so nothing has to be asked of
  * the page's own state: `viewKeyOf` decides it from the path.
  *
- * The appearance is not wired up yet (`scopes` and `scopeElements` answer with nothing).
- * Where it applies on a page with no columns is its own question, and it is PR ⑥'s.
+ * The appearance applies to the timeline down the middle of the page, which X marks. One
+ * view is on screen at a time, so there is one scope where X Pro has as many as the deck
+ * holds.
  */
 import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
 import { watch as watchEntry } from '../panel/menu-item.ts';
 import { insertInto as insertMenuItem } from '../panel/x-menu.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { Surface } from './index.ts';
-import { viewKeyOf, viewNameFrom } from './view.ts';
+import { isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
 
 /** The one group x.com's views go in. The name is the settings screen's to supply */
 const GROUP = 'all';
 
 /** The account signed in. x.com shows one at a time, in the button that switches them */
 const ACCOUNT_SWITCHER = '[data-testid="SideNav_AccountSwitcher_Button"]';
+
+/**
+ * The timeline down the middle of the page: what the view being looked at is drawn in.
+ * X marks it itself, and it holds the posts and the bar above them without taking in the
+ * side rail or the trends beside it, which belong to no view.
+ */
+const PRIMARY_COLUMN = '[data-testid="primaryColumn"]';
 
 /**
  * The screen name signed in, or null while it cannot be read.
@@ -78,13 +86,30 @@ export const xSurface: Surface = {
    */
   pruning: 'at-once',
 
-  // The appearance has nowhere to apply until PR ⑥ decides its range, so it is handed nothing
-  scopes: () => [],
-  scopeElements: () => [],
+  /*
+   * The one view on screen. Reported whether or not it has a key of its own: a page the
+   * settings cannot be held for still takes the account's and the global tier's, and the
+   * key those are applied under is `columnKey`'s to decide.
+   */
+  scopes: () => [currentScope()],
+
+  // One timeline filling the middle of the page, not one column among several
+  hasColumns: false,
+  scopeElements: () => Array.from(document.querySelectorAll(PRIMARY_COLUMN)),
   scopeOfElement: currentScope,
+  // The timeline is the range: there is nothing between it and the view
   rangeOf: (element) => element,
+  /*
+   * No bar of its own to paint. x.com writes the view's name into the same sticky header
+   * that carries the back arrow and the tabs, over the timeline rather than beside it, so
+   * painting it would paint the page's own chrome. The settings screen leaves the two
+   * colors that need one out of x.com's tabs for the same reason.
+   */
   bandOf: () => null,
   bandStillValid: () => false,
+  // Decided by where you are, not by what is on the page: x.com's reply box and its home
+  // composer are the same element (see `isPostPage`)
+  opened: () => isPostPage(location.pathname),
 
   // One way in: the "More" menu. x.com has nothing like a column's options, so `openAt`
   // is never called — there is no per-scope handle on the page to press

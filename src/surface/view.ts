@@ -96,6 +96,22 @@ export const viewKeyOf = (pathname: string, search = ''): string | null => {
     : null;
 };
 
+/**
+ * A post's own page: somebody's screen name, then `status`, then the post's id. `/web`
+ * comes in between on the older form of the address, which X still redirects from.
+ * What follows — the photo viewer, the list of reposts — is still that post's page.
+ */
+const STATUS = /^\/[^/]+(?:\/web)?\/status\/\d+(?:\/|$)/;
+
+/**
+ * Whether that path is a post opened to be read.
+ *
+ * x.com holds one timeline, so unlike X Pro it cannot tell "opened to be read" from
+ * "there to be skimmed" by what is on the page: the box for writing a reply is the same
+ * one it shows at the top of the home timeline. The address says it instead.
+ */
+export const isPostPage = (pathname: string): boolean => STATUS.test(pathname);
+
 /** What the key says the view is about: the screen name, the query, the list's id */
 export const viewSubjectOf = (key: string): string | null => {
   const rest = key.slice(VIEW_PREFIX.length);

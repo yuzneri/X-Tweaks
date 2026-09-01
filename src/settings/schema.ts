@@ -644,6 +644,37 @@ export const fillAll = (v: unknown): Settings => {
 /** The state with nothing set. Built by running an empty input through the normalization, so the defaults are not written twice */
 export const emptyNode = (): SettingsNode => fillNode(undefined);
 
+/**
+ * The colors that only mean something where a scope is a column of its own.
+ *
+ * Named here, beside the shape they belong to, because two sides have to agree on them:
+ * the applying side drops them where the surface has no columns, and the settings screen
+ * leaves them out of that surface's tabs. Split apart, one of the two would be forgotten
+ * the next time an item is added.
+ */
+export const COLUMN_COLORS: readonly (keyof AppearanceNode['colors'])[] = [
+  'columnTitle',
+  'columnHeader',
+];
+
+/**
+ * The same appearance with the column-only items cleared: the width, the name, and the
+ * bar behind it. x.com has one timeline filling the middle of the page — no width of its
+ * own to set, and its name is written into the page's own header rather than a bar of the
+ * view's.
+ *
+ * Cleared rather than left to miss: `columnWidth` is written onto the scope itself, so on
+ * a surface with no columns it would resize the timeline, which is a setting of its own
+ * and not this one.
+ */
+export const withoutColumnItems = (appearance: AppearanceNode): AppearanceNode => ({
+  ...appearance,
+  columnWidth: null,
+  // Written out by name. Built from `COLUMN_COLORS` instead, the keys would go through an
+  // index signature and a misspelt one would be added rather than refused
+  colors: { ...appearance.colors, columnTitle: null, columnHeader: null },
+});
+
 /** The appearance's contents. The switch for whether it applies (`enabled`) is not included */
 const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.columnWidth !== null ||
