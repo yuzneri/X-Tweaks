@@ -45,6 +45,7 @@ The following can be changed per column on X Pro, and per view (home, notificati
 - **Link cards and articles**: as they are, as text in the post (each goes into the end of the post body as one line — “🔗 headline (domain)”, “📄 the article's headline” — and the box itself goes; a card's line keeps its link, in X’s own link color), as a mark (the words are dropped, leaving 🔗 or 📄), or not shown at all
 - **Quoted posts**: the same four ways. As text it reads “💬 what the quote says (name @id)”, cut at 80 characters with the rest on hover. The line does not open anything: X Pro writes no address on a quote frame
 - **Time display**: as it is, the date and time, or both
+- **Accounts X suggests following**: the block X slips into a timeline goes in one piece, from its heading down to its “Show more” (on x.com the one in the rail beside the timeline goes with it)
 - **Colors**: eight places can be colored
   - Behind the column name (X Pro only)
   - Column background — the timeline background on x.com
