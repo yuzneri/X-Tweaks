@@ -12,7 +12,7 @@ import type { ColumnScope } from '../settings/resolve.ts';
 import type { ColumnInfo } from '../columns/registry.ts';
 import type { DeckState } from '../columns/deck.ts';
 
-export type SurfaceId = 'pro';
+export type SurfaceId = 'pro' | 'x';
 
 export type Surface = {
   readonly id: SurfaceId;

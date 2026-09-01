@@ -34,7 +34,8 @@
     },
     {
       "matches": [
-        "https://pro.x.com/*"
+        "https://pro.x.com/*",
+        "https://x.com/*"
       ],
       "js": [
         "dist/content.js"
