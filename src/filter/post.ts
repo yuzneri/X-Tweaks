@@ -3,6 +3,7 @@
  * This is the only place that depends on the shape of X's DOM. When X changes its
  * structure, this is the file to fix.
  */
+import { ATTACHMENT_CLASS } from '../appearance/card.ts';
 import { canEmphasize, type MatchTarget } from '../settings/schema.ts';
 import type { Post } from './decide.ts';
 
@@ -16,8 +17,23 @@ const AUTHOR_AVATAR = '[data-testid="Tweet-User-Avatar"]';
 const USER_NAME = '[data-testid="User-Name"]';
 const AVATAR_NAME_PREFIX = 'UserAvatar-Container-';
 const AVATAR_NAME = `[data-testid^="${AVATAR_NAME_PREFIX}"]`;
-const MEDIA =
-  '[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="videoComponent"]';
+/**
+ * The photos and the videos in a post. Told apart because the appearance marks them
+ * separately: which one hung off the post is worth saying.
+ * Exported because the appearance hides and marks the same things; written twice, the
+ * "has a photo" condition and what the CSS hides would drift apart.
+ */
+/**
+ * X's own "Show more", shown where X itself has cut a long post.
+ * Exported because the appearance both reads it (it puts none of its own beside one)
+ * and hides it (with the posts packed).
+ */
+export const X_SHOW_MORE = '[data-testid="tweet-text-show-more-link"]';
+
+export const PHOTO = '[data-testid="tweetPhoto"]';
+/** X draws a video in one of two shapes, depending on where it came from */
+export const VIDEO = ['[data-testid="videoPlayer"]', '[data-testid="videoComponent"]'];
+const MEDIA = [PHOTO, ...VIDEO].join(', ');
 const PROFILE_LINK = 'a[role="link"][href^="https://x.com/"]';
 /** X calls this Birdwatch internally, and that name is still in the marker */
 const COMMUNITY_NOTE = '[data-testid="birdwatch-pivot"]';
@@ -38,13 +54,32 @@ const NOTE_RATING_ARROW = '[data-testid="icon-arrow-right"]';
  */
 const CARD = '[data-testid="card.wrapper"]';
 const CAROUSEL = '[data-testid="Carousel-NavRight"]';
-/** A card's detail. The first child is the linked domain, the second the headline */
-const CARD_DETAIL = '[data-testid$=".detail"]';
+/**
+ * A card's detail. The first child is the linked domain, the second the headline.
+ * Exported because the appearance reads the same two children when it moves a card's
+ * text into the post.
+ */
+export const CARD_DETAIL = '[data-testid$=".detail"]';
+/**
+ * Where the large layout keeps its text instead: the last block of the link. X Pro's ads
+ * carry a call to action there, x.com the domain and the headline.
+ * Read by the appearance, which moves that text into the post.
+ */
+export const CARD_LARGE_TEXT = '[data-testid="card.layoutLarge.media"] > a > div:last-child';
 /** A Space's container. The first child is the host's name, the second the title */
 const SPACE_BOX = '[data-testid="wrapperView"]';
 const POLL = '[data-testid="cardPoll"]';
 const POLL_OPEN = `${CARD} [role="radio"]`;
 const POLL_CLOSED = `${POLL} [role="list"]`;
+
+/**
+ * A card that is neither a poll nor a carousel: the preview shown when a URL is pasted.
+ *
+ * Exported because the appearance settings restyle the same cards. Written twice, the
+ * "has a link card" condition and what the CSS restyles would drift apart, and the
+ * appearance would swallow the polls that share `card.wrapper`.
+ */
+export const LINK_CARD = `${CARD}:not(:has(${POLL})):not(:has(${CAROUSEL}))`;
 
 const SPACE = 'a[href*="/i/spaces/"]';
 
@@ -54,7 +89,7 @@ const SPACE = 'a[href*="/i/spaces/"]';
  * language and is not used. An article without a cover image is missed, but nothing
  * is ever matched wrongly.
  */
-const ARTICLE = '[data-testid="article-cover-image"]';
+export const ARTICLE = '[data-testid="article-cover-image"]';
 
 /**
  * The mark of an ad. X wraps a promoted post in an element that measures where it sits
@@ -77,7 +112,7 @@ const AD_PLACEMENT = '[data-testid="placementTracking"]';
  * It takes the first avatar found within, so passing the quote frame returns the
  * quoted post's author.
  */
-const authorOf = (root: Element): string | null => {
+export const authorOf = (root: Element): string | null => {
   const avatar = root.querySelector(AUTHOR_AVATAR)?.querySelector(AVATAR_NAME);
   const testId = avatar?.getAttribute('data-testid');
   return testId ? testId.slice(AVATAR_NAME_PREFIX.length) : null;
@@ -85,10 +120,10 @@ const authorOf = (root: Element): string | null => {
 
 /**
  * The profile name (display name). As with `authorOf`, whose name it is depends on
- * where the search starts. The name area lists the display name, the `@`ID and the
+ * where the search starts, and the appearance reads it from a quote frame. The name area lists the display name, the `@`ID and the
  * time, so the first text not starting with `@` is taken.
  */
-const displayNameOf = (root: Element): string | null => {
+export const displayNameOf = (root: Element): string | null => {
   const nameEl = root.querySelector(USER_NAME);
   if (!nameEl) return null;
   for (const span of nameEl.querySelectorAll('span')) {
@@ -107,7 +142,39 @@ const some = (value: string | null): string[] => (value === null ? [] : [value])
  * disagree with the unit emphasis paints (one element at a time).
  */
 const textOf = (root: Element): string[] =>
-  Array.from(root.querySelectorAll(TWEET_TEXT), (el) => el.textContent ?? '');
+  Array.from(root.querySelectorAll(TWEET_TEXT), ownTextOf);
+
+/**
+ * The text nodes X itself wrote in that element, in the order they are read.
+ *
+ * The lines the appearance puts into a post, in place of what hangs off it, are left
+ * out. They are the extension's own addition, and counting them would make a rule
+ * written against the body start matching a card's headline, which the body no longer
+ * shows on its own.
+ * A line holds one text node of its own making (`appearance/apply.ts` writes nothing
+ * else into it), so its parent alone tells whether a node belongs to one.
+ */
+export const ownTextNodesOf = (el: Element): Text[] => {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node as Text;
+    if (!text.parentElement?.classList.contains(ATTACHMENT_CLASS)) nodes.push(text);
+  }
+  return nodes;
+};
+
+/**
+ * The text X itself wrote in that element.
+ *
+ * Built from the nodes above rather than from `textContent`, so that a position within
+ * this string means the same thing to whoever paints it (`filter/emphasis.ts`): the two
+ * count the same characters wherever a line of ours happens to sit.
+ */
+export const ownTextOf = (el: Element): string =>
+  ownTextNodesOf(el)
+    .map((node) => node.data)
+    .join('');
 
 /**
  * When the post was made. A `time`'s `datetime` is ISO 8601 in UTC and does not depend
@@ -128,11 +195,12 @@ const postedAtOf = (tweet: Element, quote: Element | null): number | null => {
 /**
  * The quote frame. The avatar rather than the body text is the clue, so it is found
  * even when the quoted post is images only.
+ * Exported because the appearance moves the same frame into the post.
  * Excluding the post author's avatar is the point: searching merely for "a container
  * holding an avatar" would treat the post body as the frame and read the author's own
  * values the day X changes the shape wrapping the author's avatar.
  */
-const quoteFrameOf = (tweet: Element): Element | null => {
+export const quoteFrameOf = (tweet: Element): Element | null => {
   // The first avatar in document order is the author's (the same one `authorOf` looks at)
   const own = tweet.querySelector(AUTHOR_AVATAR);
   return (
@@ -219,7 +287,10 @@ export type MarkTarget = { element: Element; value: string; offset: number };
 const textTargetsIn = (root: Element): MarkTarget[] =>
   Array.from(root.querySelectorAll(TWEET_TEXT), (element) => ({
     element,
-    value: element.textContent ?? '',
+    // The same text the judging looked at, and the same text `ownTextNodesOf` walks
+    // when the painting turns a position into a Range. A line of ours is left out of
+    // both, so it shifts nothing wherever it sits and is never painted on
+    value: ownTextOf(element),
     offset: 0,
   }));
 
@@ -307,11 +378,7 @@ export const markTargets = (cell: Element, target: MatchTarget): MarkTarget[] =>
   }
 };
 
-/** A card that is neither a poll nor a carousel: the preview shown when a URL is pasted */
-const linkCardsIn = (tweet: Element): Element[] =>
-  Array.from(tweet.querySelectorAll(CARD)).filter(
-    (card) => !card.querySelector(POLL) && !card.querySelector(CAROUSEL)
-  );
+const linkCardsIn = (tweet: Element): Element[] => Array.from(tweet.querySelectorAll(LINK_CARD));
 
 /**
  * A poll's choices. While voting is open a `radio` is the container for one choice and

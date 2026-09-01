@@ -5,6 +5,7 @@ import {
   emptyNode,
   emptySettings,
   fillAll,
+  fillNode,
   type Rule,
   type Settings,
   type SettingsNode,
@@ -150,6 +151,46 @@ test('外観は項目ごとに上書き継承する', () => {
   assert.equal(merged.appearance.fontSize, null);
 });
 
+test('外観の項目は1つ残らず継承する。合成が項目を列挙しているため', () => {
+  // The merging names every item by hand. An item added to the settings but forgotten
+  // there would silently stop being inherited, with only that one item falling back to
+  // X Pro's own. Compared against the shape itself, so a new item is covered without
+  // touching this test
+  const filled = {
+    enabled: false,
+    columnWidth: 300,
+    compact: true,
+    fontSize: 13,
+    maxLines: 5,
+    collapseNewlines: true,
+    colors: {
+      background: '#111111', text: '#222222', name: '#333333', meta: '#444444',
+      link: '#555555', border: '#666666', columnTitle: '#777777', columnHeader: '#888888',
+    },
+    media: { maxThumbHeight: 200, style: 'hidden' },
+    timeFormat: 'absolute',
+    autoContrast: false,
+    highlightBase: 'theme',
+    cardStyle: 'text',
+    quoteStyle: 'mark',
+  };
+  // Through normalization, so a value this test made up cannot slip past the schema
+  const s = settings((s) => { s.global = fillNode({ appearance: filled }); });
+  const missing = Object.entries(fillNode({ appearance: filled }).appearance).flatMap(
+    ([key, value]) => {
+      const merged = resolve(s, scope).appearance[key as keyof typeof filled];
+      if (value !== null && typeof value === 'object') {
+        return Object.entries(value)
+          .filter(([inner]) => ((merged as Record<string, unknown>)[inner] ?? null) === null)
+          .map(([inner]) => `${key}.${inner}`);
+      }
+      // `?? null` so an item the merging forgot outright (undefined) is caught too
+      return (merged ?? null) === null ? [key] : [];
+    }
+  );
+  assert.deepEqual(missing, [], '合成で継承されていない項目がある');
+});
+
 
 
 test('合成しても元の設定を書き換えない', () => {
@@ -250,7 +291,7 @@ test('どの段も指定していない項目は null のまま', () => {
   const above = inheritedFor(threeTiers(), { tier: 'columns', account: 'alice' });
   assert.equal(above.appearance.maxLines, null);
   assert.equal(above.appearance.colors.background, null);
-  assert.equal(above.appearance.media.collapse, null);
+  assert.equal(above.appearance.media.style, null);
 });
 
 test('外観のオン／オフも上書き継承に従う', () => {
@@ -410,7 +451,7 @@ test('由来が指す段の値と、合成した値が一致する（規則を�
     (n) => n.appearance.maxLines,
     (n) => n.appearance.collapseNewlines,
     (n) => n.appearance.colors.background,
-    (n) => n.appearance.media.collapse,
+    (n) => n.appearance.media.style,
     (n) => n.filter.enabled,
   ];
 

@@ -16,7 +16,7 @@ const AGE_NOUN = { minutes: 'minute', hours: 'hour', days: 'day' } as const;
 export const en = {
   language: {
     label: 'Language',
-    auto: 'Auto (follow the browser)',
+    auto: 'Auto',
     ja: '日本語',
     en: 'English',
   },
@@ -30,15 +30,15 @@ export const en = {
     repost: 'Repost',
     quote: 'Quote',
     reply: 'Reply',
-    communityNote: 'With a Community Note',
-    communityNoteRating: 'With a Community Note to rate',
-    pollOpen: 'With a poll still open',
-    pollClosed: 'With a finished poll',
-    linkCard: 'With a link card',
-    space: 'With a Space',
-    article: 'With an Article',
-    ad: 'Ad or promoted post',
-    media: 'With a photo or video',
+    communityNote: 'Community Note',
+    communityNoteRating: 'Community Note to rate',
+    pollOpen: 'Poll (open)',
+    pollClosed: 'Poll (finished)',
+    linkCard: 'Link card',
+    space: 'Space',
+    article: 'Article',
+    ad: 'Ad',
+    media: 'Photo or video',
   },
 
   /**
@@ -117,9 +117,7 @@ export const en = {
     columns: 'Column',
     /** Settings with nothing to match, collected across the tiers */
     unassignedGroup: 'Not assigned',
-    notDetecting:
-      'pro.x.com is not open, so the current state is unknown. ' +
-      'What follows are the columns found earlier.',
+    notDetecting: 'pro.x.com is not open, so this is not up to date.',
     accountsEmpty:
       'No account found yet. Open pro.x.com and the accounts behind your columns will show up here.',
     columnsEmpty:
@@ -157,25 +155,22 @@ export const en = {
       'does: the form closes and the box is emptied.',
     reopen: {
       label: 'Open the compose form again',
-      note: 'X Pro closes the form on posting. This opens it again, ready to type the next post into.',
+      note: 'Opens the compose form again, ready to type the next post into.',
     },
     keepHashtags: {
       label: 'Put the hashtags back',
-      note:
-        'The tags that were written go into the next compose form, with the caret waiting ' +
-        'in front of them: the form that is opened again if that is set, or the next one ' +
-        'opened by hand if it is not.',
+      note: 'Puts the tags that were written into the next compose form.',
     },
   },
 
   effective: {
     hint:
       'What actually applies to this column, after combining the global, account ' +
-      'and column settings. Nothing here can be edited — go to the tier it comes from.',
+      'and column settings.',
     from: { global: 'Global', account: 'Account', column: 'This column' },
     unset: 'Not set',
     rules: 'Rules, in the order they are read',
-    noRules: 'No rule applies here',
+    noRules: 'No rules here',
     /** Disabled rules are listed too. This screen is for tracing "why is this not applying", so seeing that they exist helps */
     disabled: 'off',
     filterStopped: 'Filtering is off, so no rule below applies.',
@@ -199,13 +194,13 @@ export const en = {
     chooseTarget: 'Choose where to move it',
     remove: 'Delete these settings',
     account: {
-      notFound: 'No matching account. The settings are kept.',
+      notFound: 'No matching account',
       moveTo: 'Move these settings to an account that exists now',
       noTargets: 'No account to move them to',
       skipConfigured: 'Accounts that already have settings are left out, to avoid overwriting them.',
     },
     column: {
-      notFound: 'No matching column. The settings are kept.',
+      notFound: 'No matching column',
       moveTo: 'Move these settings to a column that exists now',
       noTargets: 'No column to move them to',
       skipConfigured: 'Columns that already have settings are left out, to avoid overwriting them.',
@@ -277,7 +272,7 @@ export const en = {
     actionHints: {
       collapse: 'Folds the post into a single line; press “Show” to bring it back.',
       hide: 'Removes the post entirely, with no way to open it again.',
-      highlight: 'Keeps the post and tints its background.',
+      highlight: 'Tints the post’s background.',
       emphasize: 'Tints only the matched text.',
       nothing: 'Stops every rule for that post, including the ones above this tier.',
     },
@@ -359,8 +354,7 @@ export const en = {
       duplicate: 'That rule already exists',
       /** When "Emphasize" is chosen for a rule with nothing to paint */
       noEmphasisTarget:
-        'Emphasize needs a condition on something written on screen — ' +
-        'that is where the matched characters get tinted. ' +
+        'Emphasize needs a condition on something written on screen. ' +
         'Who reposted, poll choices, text inside cards or Spaces, ' +
         'and “is the author” cannot be tinted',
     },
@@ -407,17 +401,15 @@ export const en = {
     legend: 'Size and display',
     hint: 'Anything left empty or unset keeps the way X Pro shows it.',
     columnWidth: 'Column width',
-    // What happens to the buttons belongs in the label rather than in the options: the label
-    // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
-    compact: 'How tightly posts sit (repost and like move up beside the name)',
-    compactOn: 'Pack them in',
-    compactOff: 'Leave them as they are',
+    compact: 'Pack the posts',
+    compactOn: 'Packed',
+    compactOff: 'As they are',
     fontSize: 'Post text size',
     maxLines: 'Post text line limit',
     lines: 'lines',
     collapseNewlines: 'Line breaks in the post text',
     collapseNewlinesOn: 'Fold each into a space',
-    collapseNewlinesOff: 'Keep them',
+    collapseNewlinesOff: 'As they are',
     colors: {
       legend: 'Colors',
       columnHeader: 'Behind the column name',
@@ -426,12 +418,12 @@ export const en = {
       name: 'Author name',
       text: 'Post text',
       meta: 'Secondary text (times, counts, reply-to)',
-      link: 'Links and “Show more”',
+      link: 'Links',
       border: 'Line between posts',
     },
     autoContrast: 'When a highlight makes text unreadable',
     autoContrastOn: 'Fix the text color',
-    autoContrastOff: 'Leave it alone',
+    autoContrastOff: 'Nothing',
     /** What a highlight color is laid over */
     highlightBase: 'Blend highlights over',
     highlightBases: {
@@ -441,7 +433,7 @@ export const en = {
     /** How a post's time is shown */
     timeFormat: 'Time display',
     timeFormats: {
-      relative: 'As X shows it',
+      relative: 'As it is',
       absolute: 'Date and time',
       both: 'Both',
     } as { relative: string; absolute: string; both: string },
@@ -472,10 +464,33 @@ export const en = {
     timeParens: { open: ' (', close: ')' } as { open: string; close: string },
     media: {
       maxThumbHeight: 'Largest thumbnail height',
-      collapse: 'Photos and videos',
-      collapseOn: 'Do not show',
-      collapseOff: 'Show',
+      /** How photos and videos are shown. The mark goes into the post, where they were */
+      style: 'Photos and videos',
+      styles: {
+        show: 'As they are',
+        mark: 'A mark',
+        hidden: 'Not shown',
+      } as { show: string; mark: string; hidden: string },
     },
+    /**
+     * How the things that hang off a post are shown: a link card, an article, a quoted
+     * post. The middle one runs what X already writes as text into the post, following
+     * the body
+     */
+    cardStyle: 'Link cards and articles',
+    /** A quoted post. Its own setting, with the same four ways of showing it */
+    quoteStyle: 'Quoted posts',
+    attachmentStyles: {
+      show: 'As they are',
+      text: 'Text',
+      mark: 'A mark',
+      hidden: 'Not shown',
+    } as { show: string; text: string; mark: string; hidden: string },
+    /**
+     * What wraps the domain written after a card's headline. Fullwidth in Japanese,
+     * where they carry their own spacing, so the values differ by language
+     */
+    cardParens: { open: ' (', close: ')' } as { open: string; close: string },
   },
 
   /** Sizes entered in px */
@@ -552,7 +567,7 @@ export const en = {
     openOptions: 'Open the settings page',
     /** States which one it currently is. A toggle alone does not say what the state was before pressing */
     running: 'Running on pro.x.com',
-    paused: 'Paused — nothing is applied',
+    paused: 'Paused for now',
     pause: 'Pause',
     resume: 'Resume',
     saveFailed: 'Could not switch. Reopen the browser and try again',

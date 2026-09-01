@@ -75,6 +75,13 @@ test('リンクの色は、本文の外のリンクと「さらに表示」に�
   assert.ok(line.includes('[data-testid="tweetText"] a'));
   // "Show more" is a button rather than an a, so it is picked up by its marker
   assert.ok(line.includes('[data-testid="tweet-text-show-more-link"]'));
+  // The extension's own "Show more", put under a body the line limit cut off. It stands
+  // in for X's own button, so the same color has to reach it
+  assert.ok(line.includes('.xpro-more'));
+  // The line put into a post in place of a card, which opens the card's address
+  assert.ok(line.includes('a.xpro-attachment'));
+  // A mark with nowhere to go is not a link and is left out
+  assert.ok(!line.includes(' .xpro-attachment'));
   // The @IDs of reply targets and card URLs: a elements where X writes the link color inline
   assert.ok(line.includes('a[style*="color: rgb(29, 155, 240)"]'));
 });
@@ -166,9 +173,14 @@ test('カラム名の帯は、印を付けた1枚だけに敷く', () => {
 
 test('当て先が複数あっても、すべてカラムの印の中に閉じ込める', () => {
   // Forgetting the marker at the front would make that rule affect every column
-  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.collapse = true)) }]);
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'hidden')) }]);
   for (const part of css.split('{')[0]!.split(',')) {
-    assert.match(part.trim(), /^\[data-xpro-column="0"\] /, `${part.trim()} に印が無い`);
+    // The condition for "no post opened" may follow the marker (see `OPENED_POST_MARK`)
+    assert.match(
+      part.trim(),
+      /^\[data-xpro-column="0"\](:not\(:has\([^)]*\)\))? /,
+      `${part.trim()} に印が無い`
+    );
   }
 });
 
@@ -199,13 +211,13 @@ test('画像の高さの上限は、中の img ではなく箱に当てる', () 
 });
 
 test('メディアの折りたたみは隠すだけ。要素は残す', () => {
-  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.collapse = true)) }]);
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'hidden')) }]);
   assert.match(css, /display: none !important/);
   // Hiding the box alone leaves the frame occupying space, so the frame is hidden too
   assert.ok(css.includes('[data-xpro-media]'));
 
   // An explicit false emits nothing (it expresses that an upper tier is not hiding it)
-  const notEmitted = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.collapse = false)) }]);
+  const notEmitted = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'show')) }]);
   assert.equal(notEmitted, '');
 });
 
@@ -329,6 +341,24 @@ test('詰めると、ボタンの行は消えずに名前の横へ浮く', () =>
   assert.ok(room.includes('button[data-testid="caret"]'));
 });
 
+test('詰めると、X 自身の「さらに表示」も消える', () => {
+  const packed = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.compact = true)) }]);
+  const hidden = packed
+    .split('\n')
+    .find((line) => line.includes('tweet-text-show-more-link') && line.includes('display: none'))!;
+  assert.ok(hidden, '詰めても X のボタンが残っている');
+  // The column with a post opened keeps it: that post is there to be read
+  assert.ok(hidden.includes(':not(:has([data-testid="tweetTextarea_0"]))'));
+
+  // Packing is the only thing that takes it away. A line limit alone must not: the button
+  // is then the only way to reach the rest of a post X itself cut
+  const limited = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.maxLines = 3)) }]);
+  assert.equal(
+    limited.split('\n').some((line) => line.includes('tweet-text-show-more-link') && line.includes('display: none')),
+    false
+  );
+});
+
 test('入れ子の :has() を書かない。規則ごと捨てられるため', () => {
   const css = cssOf([
     {
@@ -389,6 +419,38 @@ test('ポストを開いているカラムでは、詰めも改行の解除も�
   }
 });
 
+test('引用は「X の表示のまま」以外で、印を付けたものだけを消す', () => {
+  for (const quoteStyle of ['text', 'mark', 'hidden'] as const) {
+    const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.quoteStyle = quoteStyle)) }]);
+    // Which element is the quote frame is decided in `appearance/apply.ts` and marked
+    // there: the avatar inside it not being the author's cannot be put into a selector
+    assert.match(out, /\[data-xpro-card-moved\] \{ display: none !important; \}/);
+  }
+  const shown = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.quoteStyle = 'show')) }]);
+  assert.equal(shown, '');
+});
+
+test('ポストを開いているカラムでは、カードも画像も消えない', () => {
+  // The post was opened to be read. Taking its card or its photos away there would hide
+  // the very thing that was opened
+  for (const patch of [
+    (a: AppearanceNode) => (a.cardStyle = 'hidden'),
+    (a: AppearanceNode) => (a.cardStyle = 'text'),
+    (a: AppearanceNode) => (a.cardStyle = 'mark'),
+    (a: AppearanceNode) => (a.media.style = 'hidden'),
+    (a: AppearanceNode) => (a.media.style = 'mark'),
+    (a: AppearanceNode) => (a.quoteStyle = 'hidden'),
+  ]) {
+    const css = cssOf([{ key: '0', appearance: appearanceOf(patch) }]);
+    for (const line of css.split('\n')) {
+      assert.ok(
+        line.startsWith('[data-xpro-column="0"]:not(:has([data-testid="tweetTextarea_0"]))'),
+        `${line} が開いているカラムでも当たってしまう`
+      );
+    }
+  }
+});
+
 test('当て先の鍵は、解決できた一番細かい段で決まる', () => {
   // Down to the column, the key is the column's
   assert.equal(columnKey({ account: 'alice', columnId: 'col-1' }), 'c:col-1');
@@ -443,4 +505,52 @@ test('括弧に引用符が入っていても規則が壊れない', () => {
     { open: "it's", close: ')' }
   );
   assert.match(out, /content: attr\(data-xpro-time\) 'it\\'s'/);
+});
+
+/* --- Link cards and articles --- */
+
+test('「X の表示のまま」なら、カードの規則を出さない', () => {
+  const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'show')) }]);
+  assert.equal(out.includes('card.wrapper'), false);
+  assert.equal(out.includes('article-cover-image'), false);
+});
+
+test('「表示しない」は、カードと記事を枠ごと消す', () => {
+  const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'hidden')) }]);
+  assert.match(out, /\[data-testid="card\.wrapper"\][^{]*, [^{]*div:has\(> \[data-testid="article-cover-image"\]\) \{ display: none/);
+});
+
+test('画像と動画の「マークだけ」は、マークを入れた投稿のぶんだけ隠す', () => {
+  const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'mark')) }]);
+  const hidden = out.split('\n').find((line) => line.includes('tweetPhoto'))!;
+  assert.match(hidden, /\{ display: none !important; \}$/);
+  assert.match(hidden, /videoPlayer/);
+  // Confined to the marked posts. Column-wide, a post with no body to mark would lose
+  // its photos with nothing said about them
+  for (const target of hidden.split(', ')) assert.match(target, /\[data-xpro-media-marked\] /);
+});
+
+test('カードの指定は、画像と動画には触れない', () => {
+  for (const cardStyle of ['text', 'mark', 'hidden'] as const) {
+    const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = cardStyle)) }]);
+    assert.equal(out.includes('tweetPhoto'), false, `${cardStyle} が画像に触れている`);
+  }
+});
+
+test('「本文の中に文字で」は、本文へ移したカードだけを消す', () => {
+  const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'text')) }]);
+  // Moving is `appearance/apply.ts`'s job. Hiding every card instead would take the link
+  // with it wherever there was no body to move the text into
+  assert.match(out, /\[data-xpro-card-moved\] \{ display: none !important; \}/);
+});
+
+test('アンケートとカルーセルはカードの指定から外れる。card.wrapper を共有しているため', () => {
+  // The other styles move the cards instead of naming them here, and `appearance/apply.ts`
+  // looks them up through the same `LINK_CARD`, so the exclusion holds there too
+  const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'hidden')) }]);
+  const lines = out.split('\n').filter((line) => line.includes('card.wrapper'));
+  assert.ok(lines.length > 0);
+  for (const line of lines) {
+    assert.match(line, /:not\(:has\(\[data-testid="cardPoll"\]\)\):not\(:has\(\[data-testid="Carousel-NavRight"\]\)\)/);
+  }
 });

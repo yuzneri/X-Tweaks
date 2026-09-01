@@ -102,6 +102,8 @@ export const TierEditor = ({
               label={m.filterToggle.label}
               on={m.filterToggle.on}
               off={m.filterToggle.off}
+              // The switch itself, not a change to how X Pro shows things: "apply" belongs on top
+              onFirst
             />
           </label>
 

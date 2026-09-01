@@ -100,8 +100,25 @@
 }
 
 /*
+ * The line put into a post in place of a card, an article, a photo or a video.
+ *
+ * The ones carrying a link are `a`, which the browser underlines on its own. X writes
+ * its own links without one, and this line stands among the body text, so the underline
+ * is taken off to keep it reading as part of the post.
+ * The color is written on the element by `appearance/apply.ts`, so nothing about it here.
+ */
+.xpro-attachment {
+  text-decoration: none;
+}
+
+/*
  * The "Show more" shown under body text cut off by the line limit.
  * It follows X's button for the same purpose: text only, in the link color.
+ *
+ * The color here is the fallback. X writes the color it was told to use on each of its
+ * own links inline, and `appearance/apply.ts` reads one and copies it onto this button,
+ * so the two match whichever of the six the user picked. This value is what shows where
+ * there is no link of X's to read.
  */
 .xpro-more {
   display: block;

@@ -12,7 +12,10 @@ import {
   appearanceApplies,
   canEmphasizeWith,
   fillNode,
+  cardStyleOf,
   hasContent,
+  quoteStyleOf,
+  mediaStyleOf,
   highlightBaseOf,
   isEmptyNode,
   restoresHashtags,
@@ -318,11 +321,13 @@ test('フィルタでも外観でも、何か指定していれば空ではな�
     (n) => { n.filter.rules = [rule]; },
     (n) => { n.appearance.columnWidth = 400; },
     (n) => { n.appearance.colors.background = '#111111'; },
-    (n) => { n.appearance.media.collapse = true; },
+    (n) => { n.appearance.media.style = 'hidden'; },
     (n) => { n.appearance.compact = true; },
     (n) => { n.appearance.collapseNewlines = true; },
     (n) => { n.appearance.autoContrast = false; },
     (n) => { n.appearance.highlightBase = 'theme'; },
+    (n) => { n.appearance.cardStyle = 'hidden'; },
+    (n) => { n.appearance.quoteStyle = 'mark'; },
   ];
   for (const [i, apply] of samples.entries()) {
     const node = emptyNode();
@@ -402,7 +407,7 @@ test('ルールの呼び名は、表示名があればそれ、無ければ条�
       }),
       m
     ),
-    '広告・プロモではない かつ 返信先のIDが「alice」と一致しない'
+    '広告ではない かつ 返信先のIDが「alice」と一致しない'
   );
 });
 
@@ -460,7 +465,7 @@ test('印が見る「中身」に、適用するかどうかの切り替えは�
   assert.equal(hasContent(fillNode({ filter: { rules: [rule] } })), true);
   assert.equal(hasContent(fillNode({ appearance: { columnWidth: 400 } })), true);
   assert.equal(hasContent(fillNode({ appearance: { colors: { text: '#ffffff' } } })), true);
-  assert.equal(hasContent(fillNode({ appearance: { media: { collapse: true } } })), true);
+  assert.equal(hasContent(fillNode({ appearance: { media: { style: 'hidden' } } })), true);
 
   // Merely toggling "does it apply" is not content
   assert.equal(hasContent(fillNode({ filter: { enabled: true } })), false);
@@ -607,4 +612,47 @@ test('ハイライトの下地は知らない値を未指定に倒す', () => {
   assert.equal(filled('custom'), null);
   assert.equal(filled(true), null);
   assert.equal(filled(undefined), null);
+});
+
+test('カードと引用の既定は「X の表示のまま」', () => {
+  assert.equal(cardStyleOf(null), 'show');
+  assert.equal(cardStyleOf('hidden'), 'hidden');
+  assert.equal(quoteStyleOf(null), 'show');
+  assert.equal(quoteStyleOf('mark'), 'mark');
+  // Even in a tier that sets nothing, they look the same as before these were introduced
+  assert.equal(cardStyleOf(emptyNode().appearance.cardStyle), 'show');
+  assert.equal(quoteStyleOf(emptyNode().appearance.quoteStyle), 'show');
+});
+
+test('カードと引用の見せ方は、知らない値を未指定に倒す', () => {
+  const filled = (v: unknown) => fillNode({ appearance: { cardStyle: v } }).appearance.cardStyle;
+  assert.equal(filled('show'), 'show');
+  assert.equal(filled('text'), 'text');
+  assert.equal(filled('hidden'), 'hidden');
+  // Left in place, an unknown value would emit no rule and read as "as X shows it" anyway.
+  // Dropping it to unset also lets an upper tier's setting come down as it should
+  assert.equal(filled('none'), null);
+  assert.equal(filled(true), null);
+  assert.equal(filled(undefined), null);
+  // The quote is read the same way, off the same list
+  const quote = (v: unknown) => fillNode({ appearance: { quoteStyle: v } }).appearance.quoteStyle;
+  assert.equal(quote('text'), 'text');
+  assert.equal(quote('none'), null);
+});
+
+test('画像と動画の既定は「X の表示のまま」', () => {
+  assert.equal(mediaStyleOf(null), 'show');
+  assert.equal(mediaStyleOf('mark'), 'mark');
+  assert.equal(mediaStyleOf(emptyNode().appearance.media.style), 'show');
+});
+
+test('前の形（collapse の真偽値）で保存された指定は「表示しない」として読む', () => {
+  const style = (media: unknown) => fillNode({ appearance: { media } }).appearance.media.style;
+  // Saved before the mark was added. Read as hiding, so it does not quietly come back on screen
+  assert.equal(style({ collapse: true }), 'hidden');
+  // "Show" was the same as unset then, and stays unset now
+  assert.equal(style({ collapse: false }), null);
+  // The new shape wins where both are there
+  assert.equal(style({ collapse: true, style: 'mark' }), 'mark');
+  assert.equal(style({ style: 'そんな見せ方は無い' }), null);
 });

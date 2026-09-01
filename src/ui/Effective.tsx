@@ -4,10 +4,12 @@
  */
 import {
   appearanceApplies,
+  cardStyleOf,
   collapsesNewlines,
   filterApplies,
   isCompact,
-  mediaCollapses,
+  mediaStyleOf,
+  quoteStyleOf,
   ruleName,
   type AppearanceNode,
   type SettingsNode,
@@ -91,17 +93,25 @@ const appearanceRows = (
       tier: of((n) => n.appearance.collapseNewlines),
     },
     {
+      label: m.appearance.media.style,
+      // Unset has a default side too (shown). Say which one is in effect
+      value: m.appearance.media.styles[mediaStyleOf(effective.media.style)],
+      tier: of((n) => n.appearance.media.style),
+    },
+    {
       label: m.appearance.media.maxThumbHeight,
       value: size(effective.media.maxThumbHeight, m.size.unit),
       tier: of((n) => n.appearance.media.maxThumbHeight),
     },
     {
-      label: m.appearance.media.collapse,
-      // Unset has a default side too (shown). Say which one is in effect
-      value: mediaCollapses(effective.media.collapse)
-        ? m.appearance.media.collapseOn
-        : m.appearance.media.collapseOff,
-      tier: of((n) => n.appearance.media.collapse),
+      label: m.appearance.cardStyle,
+      value: m.appearance.attachmentStyles[cardStyleOf(effective.cardStyle)],
+      tier: of((n) => n.appearance.cardStyle),
+    },
+    {
+      label: m.appearance.quoteStyle,
+      value: m.appearance.attachmentStyles[quoteStyleOf(effective.quoteStyle)],
+      tier: of((n) => n.appearance.quoteStyle),
     },
     // Colors are listed in the same order as on the editing surface, so the two can be compared
     ...COLOR_ORDER.map((key) => ({

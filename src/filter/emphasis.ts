@@ -4,7 +4,7 @@
  * into positions in the DOM and register them.
  */
 import type { Emphasis, MarkRange } from './decide.ts';
-import { markTargets, type MarkTarget } from './post.ts';
+import { markTargets, ownTextNodesOf, type MarkTarget } from './post.ts';
 import { backgroundBehind } from '../appearance/background.ts';
 import { fixIfWorsened, layer, parseColor, parseCssColor } from '../appearance/contrast.ts';
 
@@ -83,14 +83,6 @@ const setFor = (color: string, fg: string | null): RangeSet | null => {
   return ranges;
 };
 
-/** The text nodes inside an element. Strung together they match `textContent` */
-const textNodesOf = (element: Element): Text[] => {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node as Text);
-  return nodes;
-};
-
 type Piece = { range: Range; element: Element };
 
 /**
@@ -128,7 +120,9 @@ const markTarget = (target: MarkTarget, emphasis: Emphasis, taken: MarkRange[]):
   const spots = emphasis.ranges(target.value);
   if (spots.length === 0) return [];
 
-  const nodes = textNodesOf(target.element);
+  // The nodes the matched string was read from. Reading all of them instead would count
+  // the lines the appearance puts into a post, and shift every position by their length
+  const nodes = ownTextNodesOf(target.element);
   const pieces: Piece[] = [];
   for (const spot of spots) {
     if (overlaps(taken, spot)) continue;

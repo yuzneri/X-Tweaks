@@ -5,12 +5,16 @@
 import {
   adjustsContrast,
   appearanceApplies,
+  ATTACHMENT_STYLES,
+  cardStyleOf,
   collapsesNewlines,
   emptyNode,
   HIGHLIGHT_BASES,
   highlightBaseOf,
   isCompact,
-  mediaCollapses,
+  MEDIA_STYLES,
+  mediaStyleOf,
+  quoteStyleOf,
   TIME_FORMATS,
   timeFormatOf,
   type AppearanceNode,
@@ -82,6 +86,8 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
           label={m.appearanceToggle.label}
           on={m.appearanceToggle.on}
           off={m.appearanceToggle.off}
+          // The switch itself, not a change to how X Pro shows things: "apply" belongs on top
+          onFirst
         />
       </label>
 
@@ -167,6 +173,24 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
           />
         </label>
 
+        {/*
+          What hangs off a post, from here down: the photos and videos, the cards, the
+          quotes. They all answer "how much of it is worth showing on a timeline"
+        */}
+        <label class="row">
+          <span>{m.appearance.media.style}</span>
+          <ChoiceSelect
+            value={node.media.style}
+            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            effective={mediaStyleOf(above.media.style)}
+            options={MEDIA_STYLES}
+            labels={m.appearance.media.styles}
+            onChange={(style) => media({ style })}
+            label={m.appearance.media.style}
+          />
+        </label>
+
+        {/* How tall they are once shown, so it follows the setting that decides whether they are */}
         <label class="row">
           <span>{m.appearance.media.maxThumbHeight}</span>
           <SizeField
@@ -178,15 +202,29 @@ export const Appearance = ({ node, onChange, inherited }: Props) => {
         </label>
 
         <label class="row">
-          <span>{m.appearance.media.collapse}</span>
-          <BoolSelect
-            value={node.media.collapse}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
-            effective={mediaCollapses(above.media.collapse)}
-            onChange={(collapse) => media({ collapse })}
-            label={m.appearance.media.collapse}
-            on={m.appearance.media.collapseOn}
-            off={m.appearance.media.collapseOff}
+          <span>{m.appearance.cardStyle}</span>
+          <ChoiceSelect
+            value={node.cardStyle}
+            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            effective={cardStyleOf(above.cardStyle)}
+            options={ATTACHMENT_STYLES}
+            labels={m.appearance.attachmentStyles}
+            onChange={(cardStyle) => patch({ cardStyle })}
+            label={m.appearance.cardStyle}
+          />
+        </label>
+
+        {/* A quoted post. Its own setting: a quote is somebody's words, not a preview of a link */}
+        <label class="row">
+          <span>{m.appearance.quoteStyle}</span>
+          <ChoiceSelect
+            value={node.quoteStyle}
+            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            effective={quoteStyleOf(above.quoteStyle)}
+            options={ATTACHMENT_STYLES}
+            labels={m.appearance.attachmentStyles}
+            onChange={(quoteStyle) => patch({ quoteStyle })}
+            label={m.appearance.quoteStyle}
           />
         </label>
 

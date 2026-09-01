@@ -1,5 +1,5 @@
 /** The decisions behind spotting a media frame. Walking up ancestors to measure lives in `apply.ts` */
-import { mediaCollapses, type AppearanceNode } from '../settings/schema.ts';
+import { mediaHidden, type AppearanceNode } from '../settings/schema.ts';
 
 /**
  * How much larger than the box the frame is allowed to be, covering its padding
@@ -41,4 +41,4 @@ export const setsHeight = (
  * marker: hiding only the box leaves the frame taking up space, so an empty frame remains.
  */
 export const limitFor = (appearance: AppearanceNode): number | null =>
-  mediaCollapses(appearance.media.collapse) ? 0 : appearance.media.maxThumbHeight;
+  mediaHidden(appearance.media.style) ? 0 : appearance.media.maxThumbHeight;

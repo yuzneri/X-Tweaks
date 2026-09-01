@@ -183,6 +183,14 @@ type BoolSelectProps = {
   /** The sentences for "do" and "do not". The phrasing differs per item, so they are passed in */
   on: string;
   off: string;
+  /**
+   * Whether the "do" side is listed first. Off by default: the side that changes nothing
+   * belongs at the top, so a list opens on "as it is" and the ones below it read as
+   * departures from it.
+   * The switches that turn the extension on and off are the exception. There the "do"
+   * side is what the control is for, not a change to X Pro's own display.
+   */
+  onFirst?: boolean;
 };
 
 /**
@@ -190,19 +198,35 @@ type BoolSelectProps = {
  * "not set" option is offered and choosing the same side as above clears this tier's setting.
  * Storing the same value would leave the left list marked "has settings" with nothing behind it.
  */
-export const BoolSelect = ({ value, effective, onChange, label, on, off }: BoolSelectProps) => (
-  <select
-    aria-label={label}
-    value={String(value ?? effective)}
-    onChange={(e) => {
-      const next = e.currentTarget.value === 'true';
-      onChange(next === effective ? null : next);
-    }}
-  >
-    <option value="true">{on}</option>
-    <option value="false">{off}</option>
-  </select>
-);
+export const BoolSelect = ({
+  value,
+  effective,
+  onChange,
+  label,
+  on,
+  off,
+  onFirst,
+}: BoolSelectProps) => {
+  const sides: [string, string][] = onFirst
+    ? [['true', on], ['false', off]]
+    : [['false', off], ['true', on]];
+  return (
+    <select
+      aria-label={label}
+      value={String(value ?? effective)}
+      onChange={(e) => {
+        const next = e.currentTarget.value === 'true';
+        onChange(next === effective ? null : next);
+      }}
+    >
+      {sides.map(([side, text]) => (
+        <option key={side} value={side}>
+          {text}
+        </option>
+      ))}
+    </select>
+  );
+};
 
 type ChoiceSelectProps<T extends string> = {
   value: T | null;

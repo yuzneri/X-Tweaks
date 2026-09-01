@@ -62,12 +62,28 @@ export const defaultColorFor = (action: Action): string =>
 
 export const filterApplies = (enabled: boolean | null): boolean => enabled !== false;
 
-export const mediaCollapses = (collapse: boolean | null): boolean => collapse === true;
+/**
+ * How the photos and videos in a post are shown.
+ *
+ * `show` is X Pro's own, held as a value so a lower tier can undo what an upper one set.
+ * `mark` takes them off the timeline but says so, by putting a mark into the post where
+ * they were (`appearance/apply.ts`); `hidden` takes them off and says nothing.
+ * Between the two: a mark tells a post with a photo from a post without one, at the cost
+ * of a character; hiding outright is quieter and leaves the two looking alike.
+ */
+export const MEDIA_STYLES = ['show', 'mark', 'hidden'] as const;
+export type MediaStyle = (typeof MEDIA_STYLES)[number];
+
+const isMediaStyle = (v: unknown): v is MediaStyle => MEDIA_STYLES.includes(v as MediaStyle);
+
+export const mediaStyleOf = (value: MediaStyle | null): MediaStyle => value ?? 'show';
+
+/** Whether the photos and videos are off the timeline, marked or not */
+export const mediaHidden = (value: MediaStyle | null): boolean => mediaStyleOf(value) !== 'show';
 
 /**
  * Whether the posts are packed tight (the padding around them, the avatar, the row of
- * reply and repost buttons). Opt-in, like `mediaCollapses`: left alone, X Pro's own
- * spacing stays.
+ * reply and repost buttons). Opt-in: left alone, X Pro's own spacing stays.
  */
 export const isCompact = (compact: boolean | null): boolean => compact === true;
 
@@ -83,7 +99,7 @@ export const isCompact = (compact: boolean | null): boolean => compact === true;
 export const collapsesNewlines = (collapse: boolean | null): boolean => collapse === true;
 
 /**
- * The default is the opposite of `mediaCollapses`. Unreadable colors are an accident
+ * The default is the opposite of the other switches. Unreadable colors are an accident
  * nobody asked for, so the default is the side that fixes itself when left alone.
  */
 export const adjustsContrast = (autoContrast: boolean | null): boolean => autoContrast !== false;
@@ -113,6 +129,42 @@ export type TimeFormat = (typeof TIME_FORMATS)[number];
 const isTimeFormat = (v: unknown): v is TimeFormat => TIME_FORMATS.includes(v as TimeFormat);
 
 export const timeFormatOf = (value: TimeFormat | null): TimeFormat => value ?? 'relative';
+
+/**
+ * How the link cards and the articles hanging off a post are shown. `show` is X Pro's
+ * own display, held as a value for the same reason `relative` is: a lower tier needs a
+ * way to undo what an upper one set.
+ *
+ * The two are one setting because they are one thing on screen: a framed box with a
+ * picture and a headline, standing between the body and the buttons. The quoted posts
+ * have a setting of their own (`quoteStyleOf`), and the photos another (`MEDIA_STYLES`).
+ * `text` puts the card into the post as a line of text at the end of the body — the
+ * headline and the domain, still a link — and takes the card away. It reads like the
+ * URL X strips out of the body when it makes a card, and it goes with the packed posts,
+ * where a card takes more room than the post it hangs off.
+ * The domain is as much of the address as there is to show: a card's link is a `t.co`
+ * short URL, and the written URL is gone from the body.
+ * `mark` goes further and leaves the mark alone, without the words. The photos and
+ * videos have a mark of their own, under the setting that is about them (`MEDIA_STYLES`).
+ * A post with no body — an article, a photo posted on its own — takes the line where the
+ * card was instead, so nothing ever goes without leaving a word behind.
+ */
+export const ATTACHMENT_STYLES = ['show', 'text', 'mark', 'hidden'] as const;
+export type AttachmentStyle = (typeof ATTACHMENT_STYLES)[number];
+
+const isAttachmentStyle = (v: unknown): v is AttachmentStyle =>
+  ATTACHMENT_STYLES.includes(v as AttachmentStyle);
+
+export const cardStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
+
+/**
+ * How a quoted post is shown. The same four ways as a card, under a setting of its own:
+ * a quote is somebody's words rather than a preview of a link, and whoever wants the
+ * cards folded away does not necessarily want the quotes folded away too.
+ * Its line says what the quote says and who wrote it. It carries no link, X Pro writing
+ * no address on the frame — the quoted post is reached by opening the post.
+ */
+export const quoteStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
 
 export const appearanceApplies = (enabled: boolean | null): boolean => enabled !== false;
 
@@ -331,13 +383,17 @@ export type AppearanceNode = {
     /** The background of the bar carrying the column name itself */
     columnHeader: string | null;
   };
-  media: { maxThumbHeight: number | null; collapse: boolean | null };
+  media: { maxThumbHeight: number | null; style: MediaStyle | null };
   /** Whether to fix unreadable colors automatically. Unset means "yes", the opposite default from the other items */
   autoContrast: boolean | null;
   /** What a highlight color is laid over. Unset means over the column background */
   highlightBase: HighlightBase | null;
   /** Unset keeps X's own display */
   timeFormat: TimeFormat | null;
+  /** How link cards and articles are shown. Unset keeps X Pro's own */
+  cardStyle: AttachmentStyle | null;
+  /** How a quoted post is shown. Unset keeps X Pro's own */
+  quoteStyle: AttachmentStyle | null;
 };
 
 export type SettingsNode = { filter: FilterNode; appearance: AppearanceNode };
@@ -545,9 +601,16 @@ export const fillNode = (v: unknown): SettingsNode => {
       },
       media: {
         maxThumbHeight: size(media.maxThumbHeight),
-        collapse: bool(media.collapse),
+        /*
+         * `collapse` is what this was before the mark was added: a switch for hiding.
+         * Read here so that settings saved then keep hiding, instead of quietly coming
+         * back on screen. Written back in the new shape, so it is read once
+         */
+        style: isMediaStyle(media.style) ? media.style : media.collapse === true ? 'hidden' : null,
       },
       timeFormat: isTimeFormat(appearance.timeFormat) ? appearance.timeFormat : null,
+      cardStyle: isAttachmentStyle(appearance.cardStyle) ? appearance.cardStyle : null,
+      quoteStyle: isAttachmentStyle(appearance.quoteStyle) ? appearance.quoteStyle : null,
       autoContrast: bool(appearance.autoContrast),
       highlightBase: isHighlightBase(appearance.highlightBase) ? appearance.highlightBase : null,
     },
@@ -589,6 +652,8 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.maxLines !== null ||
   appearance.collapseNewlines !== null ||
   appearance.timeFormat !== null ||
+  appearance.cardStyle !== null ||
+  appearance.quoteStyle !== null ||
   appearance.autoContrast !== null ||
   appearance.highlightBase !== null ||
   Object.values(appearance.colors).some((value) => value !== null) ||

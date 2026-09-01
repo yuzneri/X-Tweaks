@@ -7,7 +7,7 @@ const AGE_UNITS = { minutes: '分', hours: '時間', days: '日' };
 export const ja: Messages = {
   language: {
     label: '表示言語',
-    auto: '自動（ブラウザに合わせる）',
+    auto: '自動',
     ja: '日本語',
     en: 'English',
   },
@@ -16,15 +16,15 @@ export const ja: Messages = {
     repost: 'リポスト',
     quote: '引用',
     reply: 'リプライ',
-    communityNote: 'コミュニティノート付き',
+    communityNote: 'コミュニティノート',
     communityNoteRating: 'コミュニティノートの評価待ち',
-    pollOpen: 'アンケート（回答受付中）',
+    pollOpen: 'アンケート（受付中）',
     pollClosed: 'アンケート（結果）',
-    linkCard: 'リンクカード付き',
-    space: 'スペース付き',
-    article: '記事付き',
-    ad: '広告・プロモ',
-    media: '画像・動画あり',
+    linkCard: 'リンクカード',
+    space: 'スペース',
+    article: '記事',
+    ad: '広告',
+    media: '画像・動画',
   },
 
   conditions: {
@@ -83,8 +83,7 @@ export const ja: Messages = {
     columns: 'カラム',
     unassignedGroup: '未割り当て',
     notDetecting:
-      'pro.x.com を開いていないので、いまの状態は分かりません。' +
-      '並んでいるのは前に見つけたカラムです。',
+      'pro.x.com を開いていないので、最新の情報ではありません。',
     accountsEmpty:
       'まだアカウントが見つかっていません。pro.x.com を開くと、カラムの所属アカウントがここに並びます。',
     columnsEmpty:
@@ -107,7 +106,7 @@ export const ja: Messages = {
   tabs: {
     label: '設定の種類',
     filter: 'フィルタ',
-    appearance: '見た目',
+    appearance: '外観',
     compose: '投稿',
     effective: '適用中の設定',
   },
@@ -118,28 +117,26 @@ export const ja: Messages = {
       '未設定なら X Pro のまま、フォームが閉じて本文が空になります。',
     reopen: {
       label: '投稿フォームを開き直す',
-      note: '投稿すると X Pro はフォームを閉じます。すぐに開き直して、次を書ける状態にします。',
+      note: '投稿フォームを開き直して、次を書ける状態にします。',
     },
     keepHashtags: {
       label: 'ハッシュタグを残す',
       note:
-        '書いたタグを次の投稿フォームに入れ、カーソルはその手前に置きます。' +
-        'フォームを開き直す設定なら開き直したフォームに、そうでなければ次に自分で開いたときに入ります。',
+        '投稿後に書いたタグを次の投稿フォームに入れます。',
     },
   },
 
   effective: {
     hint:
-      'グローバル・アカウント・カラムの設定をまとめた、このカラムに実際に適用される内容です。' +
-      'ここでは変えられません。直すときは、由来として出ている範囲へ移ってください。',
+      'グローバル・アカウント・カラムの設定をまとめた、このカラムに実際に適用される内容です。',
     from: { global: 'グローバル', account: 'アカウント', column: 'このカラム' },
     unset: '指定なし',
     rules: 'ルール（判定する順）',
-    noRules: 'このカラムに効くルールはありません',
+    noRules: 'このカラムにルールはありません',
     disabled: '無効',
     filterStopped: 'フィルタを止めているので、下のルールはどれも効きません。',
     appearanceStopped: '外観を止めているので、下の指定はどれも効きません。',
-    appearance: '見た目',
+    appearance: '外観',
   },
 
   /** Removes one column from the record of detected columns */
@@ -158,13 +155,13 @@ export const ja: Messages = {
     chooseTarget: '移す先を選ぶ',
     remove: 'この設定を削除',
     account: {
-      notFound: '対応するアカウントが見つかりません。設定は残してあります',
+      notFound: '対応するアカウントが見つかりません',
       moveTo: 'この設定を、いまあるアカウントに移す',
       noTargets: '移せるアカウントがありません',
       skipConfigured: 'すでに設定があるアカウントは、上書きを避けるため移す先に出しません。',
     },
     column: {
-      notFound: '対応するカラムが見つかりません。設定は残してあります',
+      notFound: '対応するカラムが見つかりません',
       moveTo: 'この設定を、いまあるカラムに移す',
       noTargets: '移せるカラムがありません',
       skipConfigured: 'すでに設定があるカラムは、上書きを避けるため移す先に出しません。',
@@ -226,7 +223,7 @@ export const ja: Messages = {
     actionHints: {
       collapse: '投稿を1行にまとめます。「表示」を押すと元に戻ります。',
       hide: '投稿ごと消します。開き直す方法はありません。',
-      highlight: '投稿を残したまま背景に色を付けます。',
+      highlight: '投稿の背景に色を付けます。',
       emphasize: '一致した文字だけに色を付けます。',
       nothing: 'その投稿への指定を、上位の範囲のものまで含めて止めます。',
     },
@@ -288,7 +285,6 @@ export const ja: Messages = {
       duplicate: 'すでに同じルールがあります',
       noEmphasisTarget:
         '「強調」には、画面に文字として出ている対象を見る条件が要ります' +
-        '（そこで一致した文字に色を付けます）。' +
         'リポストした人・アンケートの選択肢・カードやスペースの文字と、' +
         '「自分自身」の指定には色を付けられません',
     },
@@ -325,14 +321,14 @@ export const ja: Messages = {
     columnWidth: 'カラムの幅',
     // What happens to the buttons belongs in the label rather than in the options: the label
     // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
-    compact: 'ポストの詰め方（リポストといいねは名前の横へ）',
+    compact: 'ポストを詰める',
     compactOn: '詰める',
-    compactOff: '詰めない',
+    compactOff: 'そのまま',
     fontSize: '本文の字の大きさ',
     maxLines: '本文の行数の上限',
     lines: '行',
     collapseNewlines: '本文の改行',
-    collapseNewlinesOn: '空白にして続ける',
+    collapseNewlinesOn: '改行を削除',
     collapseNewlinesOff: 'そのまま',
     colors: {
       legend: '配色',
@@ -342,11 +338,11 @@ export const ja: Messages = {
       name: '投稿者の名前',
       text: '本文',
       meta: '薄い文字（時刻・件数・返信先）',
-      link: 'リンクと「さらに表示」',
+      link: 'リンク',
       border: '投稿と投稿の境目の線',
     },
     autoContrast: 'ハイライトで文字が読めなくなったとき',
-    autoContrastOn: '文字の色を自動で直す',
+    autoContrastOn: '文字色を自動で直す',
     autoContrastOff: '何もしない',
     highlightBase: 'ハイライトの色を重ねる先',
     highlightBases: {
@@ -355,7 +351,7 @@ export const ja: Messages = {
     },
     timeFormat: '時刻の表示',
     timeFormats: {
-      relative: 'X の表示のまま',
+      relative: 'そのまま',
       absolute: '日付と時刻',
       both: '両方',
     },
@@ -365,10 +361,22 @@ export const ja: Messages = {
     timeParens: { open: ' (', close: ')' },
     media: {
       maxThumbHeight: 'サムネイルの高さの上限',
-      collapse: '画像と動画の表示',
-      collapseOn: '表示しない',
-      collapseOff: '表示する',
+      style: '画像と動画の表示',
+      styles: {
+        show: 'そのまま',
+        mark: 'マーク',
+        hidden: '表示しない',
+      },
     },
+    cardStyle: 'リンクカードと記事の表示',
+    quoteStyle: '引用ポストの表示',
+    attachmentStyles: {
+      show: 'そのまま',
+      text: 'テキスト',
+      mark: 'マーク',
+      hidden: '表示しない',
+    },
+    cardParens: { open: '（', close: '）' },
   },
 
   size: {
@@ -429,7 +437,7 @@ export const ja: Messages = {
     openPanel: 'このページで設定を開く',
     openOptions: '設定のページを開く',
     running: 'pro.x.com で動いています',
-    paused: '止めています（何も適用していません）',
+    paused: '一時的に適用をしていません',
     pause: '一時的に止める',
     resume: '再開する',
     saveFailed: '切り替えられませんでした。ブラウザを開き直してからもう一度お試しください',

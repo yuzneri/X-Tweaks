@@ -70,9 +70,11 @@ const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   },
   media: {
     maxThumbHeight: inherit(tiers, (node) => node.appearance.media.maxThumbHeight),
-    collapse: inherit(tiers, (node) => node.appearance.media.collapse),
+    style: inherit(tiers, (node) => node.appearance.media.style),
   },
   timeFormat: inherit(tiers, (node) => node.appearance.timeFormat),
+  cardStyle: inherit(tiers, (node) => node.appearance.cardStyle),
+  quoteStyle: inherit(tiers, (node) => node.appearance.quoteStyle),
   autoContrast: inherit(tiers, (node) => node.appearance.autoContrast),
   highlightBase: inherit(tiers, (node) => node.appearance.highlightBase),
 });

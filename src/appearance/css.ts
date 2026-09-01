@@ -1,9 +1,13 @@
 /** Builds CSS from the appearance settings. Takes the effective values per column and returns a string */
+import { ARTICLE, LINK_CARD, PHOTO, VIDEO, X_SHOW_MORE } from '../filter/post.ts';
+import { ATTACHMENT_CLASS } from './card.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import {
+  cardStyleOf,
   collapsesNewlines,
   isCompact,
-  mediaCollapses,
+  mediaStyleOf,
+  quoteStyleOf,
   timeFormatOf,
   type AppearanceNode,
 } from '../settings/schema.ts';
@@ -38,12 +42,12 @@ export const columnKey = (scope: ColumnScope): string => {
 export const OPENED_POST_MARK = '[data-testid="tweetTextarea_0"]';
 export type ColumnAppearance = { key: string; appearance: AppearanceNode };
 
-/** The boxes holding images and videos. Also used where the markers are set (`appearance/apply.ts`) */
-export const MEDIA_TARGETS = [
-  '[data-testid="tweetPhoto"]',
-  '[data-testid="videoPlayer"]',
-  '[data-testid="videoComponent"]',
-];
+/**
+ * The boxes holding images and videos. Also used where the markers are set
+ * (`appearance/apply.ts`). What they look like is `filter/post.ts`'s to say, that being
+ * the one place that knows the shape of X's DOM
+ */
+export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
 
 export const MEDIA_FRAME_ATTR = 'data-xpro-media';
 
@@ -67,6 +71,13 @@ export const HEADER_ATTR = 'data-xpro-header';
 
 /** The class put on posts opened via "Show more". Lifts the line limit for that cell only */
 export const OPENED_CLASS = 'xpro-lines-open';
+
+/**
+ * The class on the "Show more" the line limit puts under a body it cut off.
+ * Its look lives in `filter/styles.css`; here it counts as a link, so the link color
+ * covers it as it covers X's own button of the same name.
+ */
+export const MORE_CLASS = 'xpro-more';
 
 /** The colors X shows dim text in. Fixed per theme */
 const MUTED_COLORS = ['rgb(113, 118, 123)', 'rgb(83, 100, 113)', 'rgb(139, 152, 165)'];
@@ -124,6 +135,21 @@ const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
 /** What the 10px above and below a post shrinks to when packed */
 const COMPACT_GAP = 2;
 
+/**
+ * The marker on a card or an article whose text was moved into the post (set by
+ * `appearance/apply.ts`). Only what was actually moved is hidden: hiding every card
+ * would take the link with it wherever there was no body to move the text into.
+ */
+export const CARD_MOVED_ATTR = 'data-xpro-card-moved';
+
+/**
+ * The marker on a post whose photos and videos were marked in its body (set by
+ * `appearance/apply.ts`). The mark-only style hides them here alone: a post with no body
+ * to put a mark in would otherwise be left with its media gone and nothing said about
+ * it, which reads as an empty post.
+ */
+export const MEDIA_MARKED_ATTR = 'data-xpro-media-marked';
+
 const TARGETS = {
   text: ['[data-testid="tweetText"]'],
   /** What is inside the body text. The spans carry their own styling, so they are set alongside the container */
@@ -155,9 +181,18 @@ const TARGETS = {
   /** Links. "Show more" is not an `a`, so it is picked up by its marker */
   link: [
     '[data-testid="tweetText"] a',
-    '[data-testid="tweet-text-show-more-link"]',
+    X_SHOW_MORE,
+    `.${MORE_CLASS}`,
+    // The lines put into a post that do open something. They are `a` and would be
+    // covered by the rule above where they sit in a body, but a post with no body takes
+    // its line outside one.
+    // The ones with nowhere to go are left out: they are not links and are not painted
+    // like them
+    `a.${ATTACHMENT_CLASS}`,
     ...LINK_COLORS.map((color) => `a[style*="color: ${color}"]`),
   ],
+  /** X's own "Show more", on a post X itself has cut */
+  xShowMore: [X_SHOW_MORE],
   /** The avatar, and the boxes nested inside it that each carry a size of their own */
   avatarBox: [AVATAR_BOX],
   insideAvatar: [`${AVATAR_BOX} *`],
@@ -205,6 +240,19 @@ const TARGETS = {
   photo: ['[data-testid="tweetPhoto"] img'],
   media: MEDIA_TARGETS,
   mediaFrame: [`[${MEDIA_FRAME_ATTR}]`],
+  /**
+   * The frames a link card and an article are drawn in. Each carries its own border, so
+   * hiding these takes the frame along with the contents.
+   * An article's frame has no marker of its own, and is found as the element its cover
+   * image hangs directly off.
+   */
+  cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`],
+  /** A card whose text is now in the post. What is left would only say it twice */
+  movedCard: [`[${CARD_MOVED_ATTR}]`],
+  /** The photos and videos of a post that carries their marks */
+  markedMedia: [...MEDIA_TARGETS, `[${MEDIA_FRAME_ATTR}]`].map(
+    (target) => `[${MEDIA_MARKED_ATTR}] ${target}`
+  ),
 };
 
 /** Confines every target inside that column's marker */
@@ -309,6 +357,14 @@ const columnRules = (
     rules.push(
       rule(within(skimming, [TARGETS.postMenu]), `margin-left: ${COMPACT_ACTIONS_ROOM}px !important;`)
     );
+
+    /*
+     * X's own "Show more" goes as well, for the reason the extension's own is not put in
+     * while the posts are packed (`appearance/apply.ts`): packing is for fitting more
+     * posts on screen, and a line of its own under every cut-off post works against that.
+     * What X cut is still read by opening the post, where nothing is packed.
+     */
+    rules.push(rule(within(skimming, [TARGETS.xShowMore]), 'display: none !important;'));
   }
 
   if (appearance.maxLines !== null) {
@@ -499,14 +555,50 @@ const columnRules = (
     }
   }
 
+  const cardStyle = cardStyleOf(appearance.cardStyle);
+  const quoteStyle = quoteStyleOf(appearance.quoteStyle);
+
   /*
-   * Hiding media only hides it. The elements stay, so unsetting brings them back.
-   * Hiding the box alone leaves the frame taking up space, so the frame is hidden too.
+   * Taking the photos and videos off the timeline only hides them. The elements stay, so
+   * unsetting brings them back. Hiding the box alone leaves the frame taking up space,
+   * so the frame is hidden too.
+   *
+   * Confined to the column with nothing opened (see `OPENED_POST_MARK`). A post was
+   * opened in order to be read, and what is worth taking off a timeline is worth seeing
+   * there.
+   *
+   * Under `mark` the hiding is confined to the posts that carry the mark: hiding them
+   * everywhere would leave a post with no body to mark with its photos gone and nothing
+   * said about it, which reads as an empty post (see `MEDIA_MARKED_ATTR`).
    */
-  if (mediaCollapses(media.collapse)) {
+  const mediaStyle = mediaStyleOf(media.style);
+  if (mediaStyle === 'hidden') {
     rules.push(
-      rule(within(scope, [TARGETS.media, TARGETS.mediaFrame]), 'display: none !important;')
+      rule(within(skimming, [TARGETS.media, TARGETS.mediaFrame]), 'display: none !important;')
     );
+  } else if (mediaStyle === 'mark') {
+    rules.push(rule(within(skimming, [TARGETS.markedMedia]), 'display: none !important;'));
+  }
+
+  /*
+   * How link cards and articles are shown. Confined to the column with nothing opened,
+   * for the same reason as the media above: the post that was opened is being read.
+   * `appearance/apply.ts` leaves such a column alone too, so no line is put into a post
+   * whose card is still on screen.
+   */
+  if (cardStyle === 'hidden') {
+    rules.push(rule(within(skimming, [TARGETS.cardFrame]), 'display: none !important;'));
+  }
+
+  /*
+   * What `appearance/apply.ts` has taken off a post: a card or an article whose line is
+   * now in the body, and a quote, which is marked there whichever way it is shown — a
+   * quote frame is told apart by the avatar inside it not being the author's, and no
+   * selector can say that.
+   * Only what was actually marked is hidden, so nothing goes without leaving a word behind.
+   */
+  if (cardStyle === 'text' || cardStyle === 'mark' || quoteStyle !== 'show') {
+    rules.push(rule(within(skimming, [TARGETS.movedCard]), 'display: none !important;'));
   }
 
   return rules;

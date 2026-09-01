@@ -67,11 +67,11 @@ test('余白が読めない値でも、高さを決めているとは言わな�
 });
 
 test('メディアを表示しない指定は、上限 0（すべての外枠が対象）', () => {
-  assert.equal(limitFor(appearance({ collapse: true, maxThumbHeight: 120 })), 0);
+  assert.equal(limitFor(appearance({ style: 'hidden', maxThumbHeight: 120 })), 0);
 });
 
 test('上限だけを指定していれば、その値', () => {
-  assert.equal(limitFor(appearance({ collapse: false, maxThumbHeight: 120 })), 120);
+  assert.equal(limitFor(appearance({ style: 'show', maxThumbHeight: 120 })), 120);
 });
 
 test('どちらも指定していなければ、印は要らない', () => {
