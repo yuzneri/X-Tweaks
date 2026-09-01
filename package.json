@@ -12,7 +12,7 @@
     "test": "node --test 'src/**/*.test.ts'",
     "check": "npm run typecheck && npm test && npm run build",
     "icons": "node render-icons.mjs",
-    "store": "npm run build && node render-store.mjs",
+    "store": "npm run build && node render-store.mjs && node render-applied.mjs",
     "lint:ext": "web-ext lint",
     "package": "npm run check && web-ext build",
     "package:source": "if [ -z \"$(git status --porcelain)\" ]; then mkdir -p web-ext-artifacts && git archive --format=zip -o \"web-ext-artifacts/x_tweaks-$npm_package_version-source.zip\" HEAD; else echo 'Commit first: the source package is built from HEAD'; exit 1; fi"
