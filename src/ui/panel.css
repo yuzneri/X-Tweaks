@@ -124,13 +124,28 @@
   background: none;
   border: none;
   color: var(--muted);
-  padding: 8px 16px 7px;
+  padding: 9px 16px 8px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  /*
+   * Undoes the pill every button gets. Left on, the pill bends the underline below into an
+   * arc, and the tab reads as a rounded chip rather than as a tab (`.tab` does the same)
+   */
+  border-radius: 0;
 }
 
 .xpro-ui .surface:hover {
   color: var(--fg);
+}
+
+/*
+ * The ring is drawn inside the tab and squared off at the bottom, so it does not cross
+ * the line the row sits on. The browser's own ring is a full pill and reads as a button.
+ */
+.xpro-ui .surface:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 4px 4px 0 0;
 }
 
 .xpro-ui .surface.current {
@@ -151,8 +166,13 @@
   flex: 1;
   min-height: 0;
   display: grid;
+  /*
+   * 200px, not the mock's 232px. The mock's rows carry the scope key underneath
+   * (`view:list:1795…`), which needs the room; the real list carries the account and a
+   * count, which does not. The width the mock does not need comes out of the right pane,
+   * where the settings actually are.
+   */
   grid-template-columns: 200px minmax(0, 1fr);
-  gap: 20px;
 }
 
 /*
@@ -163,6 +183,19 @@
   min-height: 0;
   overflow-y: auto;
   padding-bottom: 40px;
+}
+
+/*
+ * A line between the two, rather than a gap. The list on the left is a column of pressable
+ * rows painted to their edges, and with nothing but space between them the two panes read as one.
+ */
+.xpro-ui .pane.scopes {
+  padding-right: 14px;
+  border-right: 1px solid var(--border);
+}
+
+.xpro-ui .pane.detail {
+  padding-left: 18px;
 }
 
 /*
@@ -709,8 +742,9 @@
   margin: 0 0 4px;
   padding: 0 10px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
 }
 
 /*
@@ -765,11 +799,35 @@
   color: inherit;
 }
 
-/* The scope currently shown on the right. Pressable rows are listed, so the selected one is painted differently */
+/*
+ * The scope currently shown on the right. A whole row of pressable entries is listed, so
+ * the selected one is filled rather than merely tinted: a tint is what hovering does, and
+ * the two would be told apart only by shade.
+ */
 .xpro-ui .scope.current {
-  background: var(--surface);
-  color: var(--fg);
+  background: var(--accent);
+  color: #fff;
   font-weight: 600;
+}
+
+/* Hovering the selected row must not put it back to the hover tint */
+.xpro-ui .scope.current:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* On the filled row the note and the mark take the fill's own foreground */
+.xpro-ui .scope.current .scope-detail {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.xpro-ui .scope.current .scope-dot {
+  background: #fff;
+}
+
+.xpro-ui .scope:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .xpro-ui .scope-label {
@@ -932,10 +990,17 @@
     padding-bottom: 0;
   }
 
-  .xpro-ui .scopes {
+  /* Stacked, the line between the panes has to lie across rather than down */
+  .xpro-ui .pane.scopes {
     margin-bottom: 20px;
+    padding-right: 0;
     padding-bottom: 16px;
+    border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+
+  .xpro-ui .pane.detail {
+    padding-left: 0;
   }
 }
 
