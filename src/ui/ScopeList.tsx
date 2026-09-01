@@ -8,7 +8,12 @@ import { useMessages } from './messages.tsx';
 export type Scope =
   | { tier: 'global' }
   | { tier: 'accounts'; key: string }
-  | { tier: 'columns'; key: string };
+  | { tier: 'columns'; key: string }
+  /**
+   * One whole site. Not a tier: nothing inherits from it and nothing inherits it.
+   * It is where the settings live that belong to a site rather than to any scope in it.
+   */
+  | { tier: 'surface'; key: string };
 
 /**
  * The string used for identity and comparison. Global carries no key.

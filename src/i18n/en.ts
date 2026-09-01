@@ -113,6 +113,8 @@ export const en = {
   tiers: {
     label: 'Where settings apply',
     views: 'Views',
+    /** The whole-site entry: where the settings live that belong to a site rather than any scope in it */
+    whole: (name: string) => `All of ${name}`,
     /** The names of x.com's views. Only the key is recorded; the name is decided here, so it follows the language */
     viewNames: {
       home: 'Home',

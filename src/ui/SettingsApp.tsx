@@ -352,6 +352,26 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     };
   }, [detected, settings, detectingOn, m]);
 
+  /**
+   * The entry for one whole site, at the head of that site's tab.
+   *
+   * Only where the site has something to put in it. X Pro has the compose form; x.com has
+   * nothing yet, and an entry leading to an empty page would be worse than no entry.
+   */
+  const wholeSurface = useMemo<Record<SurfaceId, ScopeEntry | null>>(
+    () => ({
+      pro: {
+        scope: { tier: 'surface', key: 'pro' },
+        label: m.tiers.whole(m.surfaces.pro),
+        unassigned: false,
+        // The compose form's two switches are off by default; on, they are worth marking
+        configured: settings.compose.reopen || settings.compose.keepHashtags,
+      },
+      x: null,
+    }),
+    [settings.compose, m]
+  );
+
   /** Global is always there. It heads the list and catches the fall when the chosen scope disappears */
   const globalEntry = useMemo<ScopeEntry>(
     () => ({
@@ -388,7 +408,9 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
 
     const listed = groupsBySurface[surfaceTab];
     const missing = missingBySurface[surfaceTab];
+    const whole = wholeSurface[surfaceTab];
     return [
+      ...(whole ? [{ entries: [whole] }] : []),
       // Even when nothing could be read, one empty group is shown to explain the situation
       // (with no group at all, the tier itself would look absent)
       ...(listed.length > 0
@@ -402,7 +424,7 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
           ]),
       ...(missing.length > 0 ? [{ label: m.tiers.unassignedGroup, entries: missing }] : []),
     ];
-  }, [surfaceTab, globalEntry, accountEntries, groupsBySurface, missingBySurface, m]);
+  }, [surfaceTab, globalEntry, accountEntries, groupsBySurface, missingBySurface, wholeSurface, m]);
 
   /**
    * The scope shown on the right. The selection itself is not rewritten: detection arrives late,
@@ -482,6 +504,8 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     const target = current.scope;
     if (target.tier === 'global') return inheritedFor(settings, { tier: 'global' });
     if (target.tier === 'accounts') return inheritedFor(settings, { tier: 'accounts' });
+    // Nothing is above a whole site, and nothing below it. It inherits nothing
+    if (target.tier === 'surface') return inheritedFor(settings, { tier: 'global' });
     const account = detected.find((scope) => scope.key === target.key)?.account ?? null;
     return inheritedFor(settings, { tier: 'columns', account });
   }, [current.scope, settings, detected]);
@@ -511,13 +535,17 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
       return;
     }
     const first =
-      groupsBySurface[next].flatMap((group) => group.entries)[0] ?? missingBySurface[next][0];
+      wholeSurface[next] ??
+      groupsBySurface[next].flatMap((group) => group.entries)[0] ??
+      missingBySurface[next][0];
     // Nothing found on that screen yet. Global is what applies there in the meantime
     setScope(first?.scope ?? { tier: 'global' });
   };
 
+  /** The tier's stored settings. A whole site is not a tier and never reaches here */
   const nodeOf = (target: Scope): SettingsNode => {
     if (target.tier === 'global') return settings.global;
+    if (target.tier === 'surface') return emptyNode();
     const nodes = target.tier === 'accounts' ? settings.accounts : settings.columns;
     return nodes[target.key] ?? emptyNode();
   };
@@ -526,7 +554,8 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
     const target = current.scope;
     if (target.tier === 'global') updateGlobal(node);
     else if (target.tier === 'accounts') updateAccount(target.key, node);
-    else updateColumn(target.key, node);
+    // A whole site holds no tier, so nothing here is its to write
+    else if (target.tier === 'columns') updateColumn(target.key, node);
   };
 
   return (
@@ -628,8 +657,20 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
                 onRemove={removeCurrent}
                 onForget={current.scope.tier === 'columns' ? forgetCurrent : undefined}
               />
+              {/*
+                One whole site. Not a tier, so it does not go through the merging: what is
+                here belongs to the site and to nothing above or below it.
+              */}
+              {current.scope.tier === 'surface' && (
+                <Compose
+                  compose={settings.compose}
+                  onChange={(compose) => update({ ...settings, compose })}
+                />
+              )}
+
               {/* Rebuilt when the scope changes. Components in the same position are reused, so without
                   `key` a half-typed rule or uncommitted field text would carry over to the next scope */}
+              {current.scope.tier !== 'surface' && (
               <TierEditor
                 key={scopeKey(current.scope)}
                 node={nodeOf(current.scope)}
@@ -637,18 +678,10 @@ export const SettingsApp = ({ onLocale, start, exportable }: Props = {}) => {
                 tab={tab}
                 onTabChange={setTab}
                 inherited={inherited}
-                // Not a tier's setting, so it is handed in only where it belongs: the global settings
-                compose={
-                  current.scope.tier === 'global' && (
-                    <Compose
-                      compose={settings.compose}
-                      onChange={(compose) => update({ ...settings, compose })}
-                    />
-                  )
-                }
                 // The merged result cannot be built without knowing all three tiers, so it is assembled here and passed in
                 effective={columnScope && <Effective settings={settings} scope={columnScope} />}
               />
+              )}
             </div>
           </div>
           </>

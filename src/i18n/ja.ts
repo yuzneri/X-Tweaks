@@ -79,6 +79,8 @@ export const ja: Messages = {
   tiers: {
     label: '設定の範囲',
     views: 'ビュー',
+    /** サーフェス全体のエントリ。そのサイトに属するが、どのスコープにも属さない設定の置き場 */
+    whole: (name: string) => `${name} 全体`,
     /** x.com のビューの名前。記録にはキーだけを持ち、表示名はここで決める（言語を変えれば追従する） */
     viewNames: {
       home: 'ホーム',
