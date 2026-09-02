@@ -66,28 +66,40 @@ export const filterApplies = (enabled: boolean | null): boolean => enabled !== f
  * How the photos and videos in a post are shown.
  *
  * `show` is X Pro's own, held as a value so a lower tier can undo what an upper one set.
- * `text` puts the description written for the picture into the post as a line and takes
- * the picture away; `mark` takes them off the timeline but says so, by putting a mark
- * into the post where they were (`appearance/apply.ts`); `hidden` takes them off and says
- * nothing.
+ * `caption` leaves the picture where it is and writes the description its author gave it
+ * underneath; `text` puts that description into the post as a line and takes the picture
+ * away; `mark` takes them off the timeline but says so, by putting a mark into the post
+ * where they were (`appearance/apply.ts`); `hidden` takes them off and says nothing.
  * Between them: a mark tells a post with a photo from a post without one, at the cost of
  * a character; hiding outright is quieter and leaves the two looking alike. The text says
  * what the picture was of, for the posts whose author wrote it down — where nobody did,
- * there is nothing to say and the mark alone is what goes in.
+ * there is nothing to say and the mark alone is what goes in. The caption says as much
+ * without giving the picture up, and it is the one way of reading a description that asks
+ * for no pointer: a tooltip is out of reach on a screen there is only a finger for.
  *
- * The same four ways as the cards (`ATTACHMENT_STYLES`), listed apart from them: the two
- * are separate settings, described in their own words, and either may come to hold a way
- * the other has no use for.
+ * In the order of how much they show, which is the order they are offered in.
+ * The cards have four ways of their own (`ATTACHMENT_STYLES`), listed apart from these:
+ * the two are separate settings, described in their own words, and either may come to
+ * hold a way the other has no use for — as this one now does.
  */
-export const MEDIA_STYLES = ['show', 'text', 'mark', 'hidden'] as const;
+export const MEDIA_STYLES = ['show', 'caption', 'text', 'mark', 'hidden'] as const;
 export type MediaStyle = (typeof MEDIA_STYLES)[number];
 
 const isMediaStyle = (v: unknown): v is MediaStyle => MEDIA_STYLES.includes(v as MediaStyle);
 
 export const mediaStyleOf = (value: MediaStyle | null): MediaStyle => value ?? 'show';
 
-/** Whether the photos and videos are off the timeline, marked or not */
-export const mediaHidden = (value: MediaStyle | null): boolean => mediaStyleOf(value) !== 'show';
+/**
+ * Whether the photos and videos are off the timeline, marked or not.
+ *
+ * `caption` is not one of them, however much it looks like `text` in the list: it leaves
+ * the picture where it was and only writes under it. Reading it as hidden would take the
+ * height limit off the pictures it still shows (`appearance/frame.ts`).
+ */
+export const mediaHidden = (value: MediaStyle | null): boolean => {
+  const style = mediaStyleOf(value);
+  return style !== 'show' && style !== 'caption';
+};
 
 /**
  * Whether the posts are packed tight (the padding around them, the avatar, the row of

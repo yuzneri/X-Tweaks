@@ -9,7 +9,7 @@ import {
   WHO_TO_FOLLOW_MORE,
   X_SHOW_MORE,
 } from '../filter/post.ts';
-import { ATTACHMENT_CLASS } from './card.ts';
+import { ATTACHMENT_CLASS, ATTACHMENT_WORDS_CLASS } from './card.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
@@ -66,6 +66,30 @@ export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
 export const MEDIA_FRAME_ATTR = 'data-xpro-media';
 
 /**
+ * The media in the columns asking for a caption under their pictures.
+ *
+ * Named column by column rather than gathered everywhere and sorted out afterwards: a deck
+ * is mostly columns that asked for no such thing, and each of their pictures would cost a
+ * walk up to its column and a lookup only to be turned away.
+ *
+ * Scopes with a post opened are *not* left out, unlike in the rules that take things off a
+ * timeline. X puts its own ALT button on the opened post's pictures, but on those alone —
+ * the replies under it carry none — so which pictures to leave to X is asked of each
+ * picture rather than of the scope (`showsOwnAltButton`).
+ *
+ * Empty where no column asked, which reads as "there is nothing to walk" — an empty
+ * selector matches nothing, but `querySelectorAll` refuses it outright, so the caller has
+ * to answer for it.
+ */
+export const captionTargets = (columns: ColumnAppearance[]): string =>
+  columns
+    .filter((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
+    .flatMap((column) =>
+      MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}="${column.key}"] ${target}`)
+    )
+    .join(', ');
+
+/**
  * The marker holding a post's time in absolute form. It goes on the parent of the
  * `time`, not the `time` itself: on the parent, `::after` inherits the parent's
  * font size and color as they are, so nothing has to be measured.
@@ -92,6 +116,27 @@ export const OPENED_CLASS = 'xpro-lines-open';
  * covers it as it covers X's own button of the same name.
  */
 export const MORE_CLASS = 'xpro-more';
+
+/** The class on the description written under a picture (`appearance/apply.ts`) */
+export const CAPTION_CLASS = 'xpro-caption';
+
+/**
+ * The class on the words inside a caption.
+ *
+ * They get an element of their own because the folding is done by `-webkit-line-clamp`,
+ * which would fold the button that opens them away along with the text it is hiding.
+ */
+export const CAPTION_TEXT_CLASS = 'xpro-caption-text';
+
+/**
+ * The class on the "Show more" under a folded caption. Apart from `MORE_CLASS`, whose
+ * look it shares: that one is swept away wherever no column sets a line limit, and a
+ * caption's button has nothing to do with that limit.
+ */
+export const CAPTION_MORE_CLASS = 'xpro-caption-more';
+
+/** The class on a caption that has been opened. Lifts the fold for that caption alone */
+export const CAPTION_OPEN_CLASS = 'xpro-caption-open';
 
 /** The colors X shows dim text in. Fixed per theme */
 const MUTED_COLORS = ['rgb(113, 118, 123)', 'rgb(83, 100, 113)', 'rgb(139, 152, 165)'];
@@ -174,9 +219,22 @@ const TARGETS = {
    * and makes it hard to read.
    */
   textOutsideQuote: ['[data-testid="tweetText"]:not([role="link"] [data-testid="tweetText"])'],
+  /**
+   * The lines the extension puts at the end of a post. Under a line limit they stand
+   * outside the body, where the rules aimed at the body no longer reach them, so the size
+   * and the color of the text follow them here instead.
+   */
+  attachmentLine: [`.${ATTACHMENT_CLASS}`],
   name: ['[data-testid="User-Name"] span'],
-  /** Timestamps, counts, reply targets, and the like */
-  muted: MUTED_COLORS.map((color) => `[style*="color: ${color}"]`),
+  /**
+   * Timestamps, counts, reply targets, and the like. The words a line carries for a
+   * picture or a quoted post join them: they are dim for the same reason, being about the
+   * post rather than of it, and a column that recolors its secondary text means these too.
+   */
+  muted: [
+    ...MUTED_COLORS.map((color) => `[style*="color: ${color}"]`),
+    `.${ATTACHMENT_WORDS_CLASS}`,
+  ],
   /** The column name in the column header. The `h2` in that same header (the account name) is the dim text instead */
   columnTitle: ['[data-testid="column-title-wrapper"] h1'],
   /** What sits inside a media frame. Used to fit it within the frame */
@@ -197,6 +255,8 @@ const TARGETS = {
     '[data-testid="tweetText"] a',
     X_SHOW_MORE,
     `.${MORE_CLASS}`,
+    // The button that opens a folded caption. It reads as a link for the same reason
+    `.${CAPTION_MORE_CLASS}`,
     // The lines put into a post that do open something. They are `a` and would be
     // covered by the rule above where they sit in a body, but a post with no body takes
     // its line outside one.
@@ -483,11 +543,18 @@ const columnRules = (
   }
 
   if (appearance.fontSize !== null) {
-    rules.push(rule(within(scope, [TARGETS.text]), `font-size: ${appearance.fontSize}px !important;`));
+    rules.push(
+      rule(
+        within(scope, [TARGETS.text, TARGETS.attachmentLine]),
+        `font-size: ${appearance.fontSize}px !important;`
+      )
+    );
   }
 
   if (colors.text) {
-    rules.push(rule(within(scope, [TARGETS.text]), `color: ${colors.text} !important;`));
+    rules.push(
+      rule(within(scope, [TARGETS.text, TARGETS.attachmentLine]), `color: ${colors.text} !important;`)
+    );
   }
 
   if (colors.name) {

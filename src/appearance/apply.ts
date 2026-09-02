@@ -15,10 +15,12 @@ import {
   cardTextOf,
   CELL_SELECTOR,
   displayNameOf,
+  isOutermostMedia,
   LINK_CARD,
   ownTextOf,
   PHOTO,
   quoteFrameOf,
+  showsOwnAltButton,
   VIDEO,
   X_SHOW_MORE,
 } from '../filter/post.ts';
@@ -26,7 +28,6 @@ import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
-  collapsesNewlines,
   isCompact,
   mediaStyleOf,
   quoteStyleOf,
@@ -39,11 +40,18 @@ import {
 } from '../settings/schema.ts';
 import {
   colorInStyle,
+  lineFrom,
   lineTextFrom,
-  markedLine,
+  moreThanShown,
+  partFor,
   shortLineFrom,
+  wordsShown,
   ATTACHMENT_CLASS,
+  ATTACHMENT_CUT_CLASS,
+  ATTACHMENT_MARK_CLASS,
+  ATTACHMENT_WORDS_CLASS,
   MARK_CLASS,
+  type LinePart,
   type LineParts,
 } from './card.ts';
 import { timeTextFrom } from './time.ts';
@@ -51,7 +59,12 @@ import { limitFor, needsFrame, setsHeight, wrapsBox } from './frame.ts';
 import type { Messages } from '../i18n/index.ts';
 import {
   buildCss,
+  captionTargets,
   columnKey,
+  CAPTION_CLASS,
+  CAPTION_MORE_CLASS,
+  CAPTION_OPEN_CLASS,
+  CAPTION_TEXT_CLASS,
   CARD_MOVED_ATTR,
   COLUMN_ATTR,
   MEDIA_MARKED_ATTR,
@@ -446,20 +459,24 @@ const linkTargetOf = (card: Element): string | null => {
 type Line = {
   anchor: Element;
   source: Element | null;
-  /** What it says where it goes at the end of the body: the mark, and the words under the text style */
-  text: string;
   /**
-   * What it says where it has to run in front of the body instead (see `goesInFront`):
-   * the mark alone. The little that is shown of a cut-off post belongs to the post's own
-   * first words, not to a headline
+   * What the line stands for, in the order it hangs off the post. A card, an article or a
+   * quote is one of these; a post's photos are one apiece, so that what was written for a
+   * picture follows that picture's own mark.
    */
-  mark: string;
+  parts: LinePart[];
   /**
-   * What the line says in full, shown on hover. It is the whole of the information under
-   * the mark-only style, where the line itself is one character, and it stands in for the
-   * words the body's line limit may have cut off. null where there is nothing to add
+   * Whether the words are drawn dim: they are about the post rather than of it — the
+   * description given to a picture, a quoted post's text. A card's headline is not, being
+   * a link and drawn as one.
    */
-  title: string | null;
+  dim: boolean;
+  /**
+   * Whether the style asked for the mark alone. Then the words missing from the line are
+   * not being held back but declined, and no "Show more" is wanted to undo that
+   * (`ATTACHMENT_CUT_CLASS`).
+   */
+  terse: boolean;
   href: string | null;
   /** Whether it stands for the post's photos or videos, which are hidden per post */
   media?: true;
@@ -488,8 +505,11 @@ const linesIn = (
   const quoteStyle = quoteStyleOf(appearance.quoteStyle);
   const mediaStyle = mediaStyleOf(appearance.media.style);
   const lines: Line[] = [];
-  /** The mark-only style shows the mark and keeps the words for the tooltip */
-  const shown = (style: AttachmentStyle, words: string | null): string | null =>
+  /**
+   * The mark-only style shows the mark and keeps the words for the tooltip.
+   * Asked of both settings: they are named apart, but `mark` means the same in each.
+   */
+  const shown = (style: AttachmentStyle | MediaStyle, words: string | null): string | null =>
     style === 'mark' ? null : words;
 
   if (movesCards(cardStyle)) {
@@ -498,9 +518,12 @@ const linesIn = (
       lines.push({
         anchor: card,
         source: card,
-        text: markedLine('link', shown(cardStyle, shortLineFrom(parts, messages))),
-        mark: markedLine('link', null),
-        title: lineTextFrom(parts, messages),
+        parts: [
+          partFor('link', shown(cardStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+        ],
+        // A headline is a link, and is drawn like one
+        dim: false,
+        terse: cardStyle === 'mark',
         href: linkTargetOf(card),
       });
     }
@@ -517,9 +540,11 @@ const linesIn = (
         anchor: article,
         // The frame carries the border and is what has to go, not the cover image alone
         source: article.parentElement,
-        text: markedLine('article', shown(cardStyle, shortLineFrom(parts, messages))),
-        mark: markedLine('article', null),
-        title: lineTextFrom(parts, messages),
+        parts: [
+          partFor('article', shown(cardStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+        ],
+        dim: false,
+        terse: cardStyle === 'mark',
         href: null,
       });
     }
@@ -535,9 +560,12 @@ const linesIn = (
     lines.push({
       anchor: quote,
       source: quote,
-      text: markedLine('quote', shown(quoteStyle, shortLineFrom(parts, messages))),
-      mark: markedLine('quote', null),
-      title: lineTextFrom(parts, messages),
+      parts: [
+        partFor('quote', shown(quoteStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+      ],
+      // Somebody else's post, said in their words rather than this post's
+      dim: true,
+      terse: quoteStyle === 'mark',
       href: null,
     });
   }
@@ -548,28 +576,43 @@ const linesIn = (
       ['photo', PHOTO],
       ['video', VIDEO.join(', ')],
     ] as const) {
-      const pictures = [...cell.querySelectorAll(selector)];
-      // One line per kind, however many there are: a post with four photos is still "a
-      // post with photos", and four marks in a row would say nothing more
+      /*
+       * One video answers to both of X's markers, so only the outer one is counted:
+       * otherwise its description goes into the line twice (`isOutermostMedia`).
+       *
+       * A quoted post's pictures are not this post's, and are left out of both the count
+       * and the words. Counted, they made the post look as though it carried more; and
+       * their descriptions, set down in the quoting post, read as the quoting author's.
+       * The quoted post stands for itself, under its own setting.
+       */
+      const pictures = [...cell.querySelectorAll(selector)]
+        .filter(isOutermostMedia)
+        .filter((picture) => quote === null || !quote.contains(picture));
+      // One line per kind, however many there are: each picture gets a mark of its own
+      // inside it, so a post with four photos carries four marks on the one line
       const first = pictures[0];
       if (!first) continue;
       /*
-       * What their authors wrote for them, in the order they hang off the post. Several
-       * described pictures share the one line, their words following the single mark with
-       * a break between them — which the body's single line folds into a space and the
-       * tooltip keeps as it was written.
-       * A picture nobody described has nothing to say, and the mark stands alone as before.
+       * A mark apiece, each carrying what that picture's author wrote for it: the words
+       * shown beside it, cut to the length a line has room for, and the whole of them in
+       * the tooltip. A picture nobody described has neither, and its mark stands alone —
+       * which is what says "there was a fourth photo, and nothing was written for it".
        */
-      const written = pictures
-        .map((picture) => descriptionOf(altTextOf(picture), generic))
-        .filter((description) => description !== null);
-      const parts: LineParts = { words: written.join('\n') || null, source: null };
+      const parts = pictures.map((picture) => {
+        const said: LineParts = { words: descriptionOf(altTextOf(picture), generic), source: null };
+        return partFor(
+          kind,
+          shown(mediaStyle, shortLineFrom(said, messages)),
+          lineTextFrom(said, messages)
+        );
+      });
       lines.push({
         anchor: first,
         source: null,
-        text: markedLine(kind, shown(mediaStyle, shortLineFrom(parts, messages))),
-        mark: markedLine(kind, null),
-        title: lineTextFrom(parts, messages),
+        parts,
+        // What the author wrote about the picture, not what the post says
+        dim: true,
+        terse: mediaStyle === 'mark',
         href: null,
         media: true,
       });
@@ -580,101 +623,194 @@ const linesIn = (
 };
 
 /**
- * What comes before a line put at the end of a body.
+ * How the lines go into one body: what parts them from the post's own words, whether the
+ * words they carry are dropped in favour of the mark alone, and whether they stand outside
+ * the body rather than at the end of it.
  *
- * It needs something in front, or it butts against the last word. Which one follows the
- * post's own line breaks: kept, the body already reads as several lines and the line is
- * easier to pick out on one of its own; folded into spaces, the post is one paragraph
- * and a line break would undo what that setting is for.
+ * They always go after the post's own words. Putting them in front was tried, to keep them
+ * out of reach of the line limit's cut, but a mark standing before the post's first words
+ * reads as part of them; and where the limit did not reach, the same line sat at the other
+ * end instead, so which end it was on told the reader nothing.
+ *
+ * `outside` is what keeps them from being cut instead. A line inside the body is counted
+ * by `-webkit-line-clamp` along with the post's words, and a body limited to a line or two
+ * is filled by those words alone — the mark then goes with everything past the cut, and a
+ * post whose photos are hidden shows no sign of ever having had one. Outside the body the
+ * cut cannot reach it, and the order reads as it should: the words, the mark, then the
+ * "Show more" that opens the rest.
  */
-const leadFor = (appearance: AppearanceNode): string =>
-  collapsesNewlines(appearance.collapseNewlines) ? ' ' : '\n';
+type Placement = { lead: string; marksOnly: boolean; full: boolean; outside: boolean };
 
 /**
- * How the lines go into one body: what they say, and where they sit in it.
- * `atFront` puts them before the post's own words; `lead` is what parts them from it;
- * `marksOnly` drops the words and leaves the mark.
+ * What comes before a line at the end of a body: a break, always.
+ *
+ * It needs something in front, or it butts against the last word, and a line of its own is
+ * where it reads best. Where the post's own line breaks are being folded into spaces, this
+ * one is folded along with them by the same rule (`white-space: normal`), so the setting
+ * still gets the single paragraph it asks for.
  */
-type Placement = { atFront: boolean; lead: string; marksOnly: boolean };
+const LEAD = '\n';
 
 /** Where the post has no body, the line stands on its own with nothing around it to answer to */
-const ON_ITS_OWN: Placement = { atFront: false, lead: '', marksOnly: false };
+const ON_ITS_OWN: Placement = { lead: '', marksOnly: false, full: false, outside: false };
 
 /**
- * Whether the limit would cut these lines away from the end of that body.
+ * What the lines say in one body, and whether they stand outside it.
  *
- * The count is taken from the body's own text: what is already in it adds a line apiece
- * where it sits at the end, and nothing where it sits on the first line. Measuring our
- * lines along with the text would make the answer depend on where they were put last
- * time, and they would swap ends on every settling.
+ * Both follow from one thing: whether the post is being shown cut short.
+ *
+ * A post that is cut gets marks alone, standing outside the body. Alone, because a post
+ * showing a line or two of its own words has no room for a headline that can take three
+ * more; outside, because `-webkit-line-clamp` counts whatever is inside the body and a
+ * body already filled by the post's own words would take the mark away with the rest.
+ *
+ * Cut covers X's own doing as well as ours. X shortens a long post whether or not a limit
+ * of ours is set, and a post cut by X while our line spelled out a whole description
+ * underneath read as though the two belonged to different posts.
+ *
+ * Opened, everything is shown as it was written — the words come back and the line goes
+ * back inside the body, where it reads as part of the post. Both buttons lead here: ours,
+ * and X's own, which `listenToXShowMore` watches for.
  */
-const wouldBeCut = (body: Element, lines: Line[], maxLines: number): boolean => {
-  const lineHeight = lineHeightOf(body);
-  if (!(lineHeight > 0)) return false;
-  const ours = body.querySelectorAll(`.${ATTACHMENT_CLASS}`);
-  const added = ours.length > 0 && ours[0] !== body.firstElementChild ? ours.length : 0;
-  const bodyLines = Math.round(body.scrollHeight / lineHeight) - added;
-  return bodyLines + lines.length > maxLines;
-};
-
-/**
- * Where the lines go in one body, and what they say there.
- *
- * With no limit on the body they go at the end, on a line of their own, saying what they
- * have to say. That is where they read best.
- *
- * Under a limit they are marks alone, whichever end they go to. A headline runs to
- * however many lines the column is wide enough for, and then "does it still fit" has no
- * answer until it has been put in — the line would move from one end to the other and
- * back on every settling. A mark is one line, always.
- * Which end is then decided by whether the limit reaches them: a body they fit under
- * keeps them at the end, on their own line. A body they do not fit under takes them in
- * front instead, where the cut cannot reach — otherwise the mark goes with everything
- * past the cut, and putting it outside the body would give every cut-off post a line of
- * its own, which is what the limit was set to avoid.
- */
-const placementFor = (
-  body: Element,
-  lines: Line[],
-  appearance: AppearanceNode
-): Placement => {
-  const lead = leadFor(appearance);
-  // The limit spares the body inside a quote (matching `textOutsideQuote` in css.ts)
-  if (appearance.maxLines === null || body.closest(QUOTE_SELECTOR)) {
-    return { atFront: false, lead, marksOnly: false };
+const placementFor = (body: Element, cell: Element, appearance: AppearanceNode): Placement => {
+  /*
+   * Opened by "Show more": the words go in whole. Nothing is being saved room for any
+   * more, so cutting them to the length a line has room for would only hold back what the
+   * press asked to see.
+   */
+  if (cell.classList.contains(OPENED_CLASS)) {
+    return { lead: LEAD, marksOnly: false, full: true, outside: false };
   }
-  const atFront = wouldBeCut(body, lines, appearance.maxLines);
-  return { atFront, lead: atFront ? '' : lead, marksOnly: true };
+  // Our limit spares the body inside a quote (matching `textOutsideQuote` in css.ts)
+  const ourLimit = appearance.maxLines !== null && !body.closest(QUOTE_SELECTOR);
+  // X's own cut is asked of the whole cell, the way `wantsShowMore` asks it
+  const cut = ourLimit || cell.querySelector(X_SHOW_MORE) !== null;
+  return cut
+    ? { lead: '', marksOnly: true, full: false, outside: true }
+    : { lead: LEAD, marksOnly: false, full: false, outside: false };
 };
 
-/** The line's text. In front it is the mark, with the space that parts it from the first word */
+/** The line's text: the break that parts it from the body, then what it has to say */
 const textFor = (line: Line, where: Placement): string =>
-  where.atFront
-    ? `${line.mark} `
-    : `${where.lead}${where.marksOnly ? line.mark : line.text}`;
+  `${where.lead}${lineFrom(line.parts, where)}`;
 
-/** Whether that element already says what the line says */
+/** The tooltips a line's marks carry, in order, as one string to compare against */
+const titlesIn = (titles: readonly (string | null)[]): string => titles.map((t) => t ?? '').join('\u0000');
+
+/**
+ * Whether that element already says what the line says.
+ * The tooltips are looked for on the marks inside, which is where they are put.
+ */
 const matches = (el: Element, line: Line, where: Placement): boolean =>
   el.textContent === textFor(line, where) &&
   (el.getAttribute('href') ?? null) === line.href &&
-  (el.getAttribute('title') ?? null) === line.title;
+  titlesIn([...el.querySelectorAll(`.${ATTACHMENT_MARK_CLASS}`)].map((m) => m.getAttribute('title'))) ===
+    // Compared against the tooltips this shape would put on, not against every one the
+    // parts could carry: a mark opened out has said its whole piece and keeps none
+    titlesIn(line.parts.map((part) => (moreThanShown(part, where) ? part.title : null)));
 
-/** Builds the element for one line: an `a` where there is something to open, a `span` where there is not */
+/**
+ * Builds the element for one line: an `a` where there is something to open, a `span` where
+ * there is not, holding the mark and — where they are shown — the words after it.
+ *
+ * The two are separate elements so that each can be treated on its own: the tooltip goes
+ * on the mark, where it is the only way to the whole of what the line stands for, and not
+ * on the words, where it would repeat under the pointer what is already being read. The
+ * words of a picture or a quote are drawn dim, being about the post rather than of it.
+ */
 const lineElement = (line: Line, where: Placement): HTMLElement => {
   const el = document.createElement(line.href === null ? 'span' : 'a');
-  const text = textFor(line, where);
-  // Told apart however it came to be the mark alone — the style asking for it, the line
-  // limit leaving room for nothing else, or there being no words to show in the first place
-  el.className = text.trim() === line.mark ? `${ATTACHMENT_CLASS} ${MARK_CLASS}` : ATTACHMENT_CLASS;
-  el.textContent = text;
-  // Shown on hover, the way X puts its own explanations on things too small to read
-  if (line.title !== null) el.title = line.title;
   if (el instanceof HTMLAnchorElement && line.href !== null) {
     el.href = line.href;
     el.target = '_blank';
     el.rel = 'noopener noreferrer';
   }
+  fillLine(el, line, where);
   return el;
+};
+
+/** Puts the marks and the words into a line, replacing whatever it held */
+const fillLine = (el: HTMLElement, line: Line, where: Placement): void => {
+  const shows = line.parts.some((part) => wordsShown(part, where) !== null);
+  // Told apart however it came to be the marks alone — the style asking for it, the post
+  // being shown cut short, or there being no words to show in the first place
+  el.className = shows ? ATTACHMENT_CLASS : `${ATTACHMENT_CLASS} ${MARK_CLASS}`;
+  /*
+   * Whether anything is being kept from the reader, which is what a "Show more" is put in
+   * for (`wantsShowMore`). Not the same as "the line is not saying everything": under the
+   * mark-only style the words were declined rather than held back, and a button offering
+   * to undo the setting would be answering a question nobody asked.
+   */
+  if (!line.terse && line.parts.some((part) => moreThanShown(part, where))) {
+    el.classList.add(ATTACHMENT_CUT_CLASS);
+  }
+  el.replaceChildren();
+  if (where.lead !== '') el.append(where.lead);
+
+  line.parts.forEach((part, i) => {
+    // Parted from the one before it, unless the marks are run together with nothing between
+    if (i > 0 && shows) el.append(' ');
+    const mark = document.createElement('span');
+    mark.className = ATTACHMENT_MARK_CLASS;
+    mark.textContent = part.mark;
+    /*
+     * A mark says more than it is showing where it stands alone, and where the words
+     * beside it were cut to the length a line has room for. Only then is there anything to
+     * put on it: a tooltip repeating what is already on screen says nothing.
+     */
+    /*
+     * A tooltip goes on exactly where the mark has more to say than it is showing: on the
+     * mark alone, and only while something is still held back. What opens it out is the
+     * "Show more" under the post (`addShowMore`), which is put there for our lines as well
+     * as for a body the limit cut.
+     */
+    if (moreThanShown(part, where)) mark.title = part.title!;
+    el.append(mark);
+
+    const words = wordsShown(part, where);
+    if (words !== null) {
+      const said = document.createElement('span');
+      if (line.dim) said.className = ATTACHMENT_WORDS_CLASS;
+      said.textContent = words;
+      el.append(' ', said);
+    }
+  });
+};
+
+
+
+/**
+ * The lines the extension put for one body, wherever they were put: inside it, or standing
+ * after it. Both places are searched because the line limit decides which one is used, and
+ * a limit set or lifted has to find the ones left at the other.
+ */
+const linesOf = (body: Element): Element[] => {
+  const inside = [...body.querySelectorAll(`.${ATTACHMENT_CLASS}`)];
+  const after: Element[] = [];
+  for (
+    let el = body.nextElementSibling;
+    el !== null && el.classList.contains(ATTACHMENT_CLASS);
+    el = el.nextElementSibling
+  ) {
+    after.push(el);
+  }
+  return [...inside, ...after];
+};
+
+/**
+ * The last thing the extension put after that body, or the body itself where it put
+ * nothing. What the "Show more" goes under, so that the order reads words, mark, button.
+ */
+const lastLineAfter = (body: Element): Element => {
+  let last: Element = body;
+  for (
+    let el = body.nextElementSibling;
+    el !== null && el.classList.contains(ATTACHMENT_CLASS);
+    el = el.nextElementSibling
+  ) {
+    last = el;
+  }
+  return last;
 };
 
 /**
@@ -764,10 +900,11 @@ const restampAttachments = (
     }
 
     for (const [body, wanted] of inBodies) {
-      // Decided per body: how much room the limit leaves is the body's own business, and
-      // the body inside a quote is outside the limit altogether
-      const where = placementFor(body, wanted, appearance);
-      const existing = [...body.querySelectorAll(`.${ATTACHMENT_CLASS}`)];
+      // Decided per body: the body inside a quote is outside our limit altogether
+      const where = placementFor(body, cell, appearance);
+      // Wherever they were put last time. The limit coming or going moves them, and the
+      // ones left at the other place have to be found to be taken away
+      const existing = linesOf(body);
       /*
        * Left as they are while they still say the same thing. Rebuilding them on every
        * settling would take the text away from under a selection or a click.
@@ -784,9 +921,10 @@ const restampAttachments = (
         live.add(el);
         return el;
       });
-      // In front they go in together, so they keep the order they were built in
+      // Outside they go straight after the body, in the order they were built; inside they
+      // go at its end. Either way the "Show more" is put under them (`addShowMore`)
       if (!same) {
-        if (where.atFront) body.prepend(...put);
+        if (where.outside) body.after(...put);
         else put.forEach((el) => body.append(el));
       }
     }
@@ -839,6 +977,229 @@ const clearAttachments = (live: Set<Element> = new Set()): void => {
   });
 };
 
+/**
+ * Writes under a picture the description its author gave it.
+ *
+ * The tooltip `stampAltTitles` puts on the picture says the same thing and takes up no
+ * room saying it, but it says it only to a pointer: a `title` cannot be reached at all on
+ * a screen there is nothing but a finger for. This is that same text put where it is
+ * simply read, in the columns whose setting asks for it.
+ *
+ * One caption to a block of media rather than one to a picture. X lays four photos out as
+ * boxes it positions itself, and a line of text dropped between them would land inside
+ * that layout; so a post's descriptions share the one caption, a line apiece, in the order
+ * the pictures hang off the post.
+ *
+ * Not held back where a post is opened, unlike the rules that take things off a timeline
+ * (`OPENED_ATTR`): those stand down because the post was opened to be read, which is a
+ * reason to leave this one running — it adds words rather than removing anything.
+ *
+ * Folded to a couple of lines, with a button under it where there is more. Of the
+ * descriptions people were seen to write, most ran to several lines and the longest to
+ * some 900 characters, so a caption laid out in full would bury the timeline it is meant
+ * to be read alongside.
+ */
+const restampCaptions = (
+  columns: ColumnAppearance[],
+  messages: Messages,
+  readLinkColor: () => string | null
+): void => {
+  /*
+   * Only the columns that asked are walked (`captionTargets`).
+   * The caller asks the same question before calling at all, so this is never the empty
+   * answer in practice; it is answered anyway, because an empty selector is not something
+   * `querySelectorAll` will take.
+   */
+  const wanted = captionTargets(columns);
+  if (wanted === '') return clearCaptions();
+
+  /**
+   * The quote frame of a cell, asked at most once for each.
+   *
+   * Finding one means searching the post (`quoteFrameOf`), so only the cells that got as
+   * far as holding a described picture are ever asked.
+   */
+  const quoteFrames = new Map<Element, Element | null>();
+  const quotedIn = (cell: Element): Element | null => {
+    if (!quoteFrames.has(cell)) {
+      const tweet = cell.querySelector(TWEET_SELECTOR);
+      quoteFrames.set(cell, tweet ? quoteFrameOf(tweet) : null);
+    }
+    return quoteFrames.get(cell) ?? null;
+  };
+
+  /**
+   * What goes under each block: which picture of that block each description belongs to,
+   * how much of it a caption shows, and the whole of it for once it is opened out.
+   *
+   * Cut to the same length the line put into a post is cut to (`shortLineFrom`), so that
+   * the two ways of showing a description show the same amount of it.
+   */
+  const blocks = new Map<Element, { nth: number; short: string; full: string }[]>();
+  /** How many pictures each block holds, described or not. What the numbering counts against */
+  const counts = new Map<Element, number>();
+  document.querySelectorAll(wanted).forEach((picture) => {
+    // A video answers to both of X's markers; counted twice it would write its description
+    // out twice under the one picture
+    if (!isOutermostMedia(picture)) return;
+    const cell = picture.closest(CELL_SELECTOR);
+    if (!cell) return;
+    /*
+     * A quoted post's picture is left alone. The words written for it are the quoted
+     * author's, and set down in the quoting post they read as the quoting author's — the
+     * one place a description can say the wrong thing about who said it.
+     */
+    if (quotedIn(cell)?.contains(picture)) return;
+    const block = mediaBlockOf(picture, cell);
+    /*
+     * Counted before the description is looked at, so the number says which picture this
+     * is among all of them. Counting only the described ones would call the third picture
+     * of four "the first" whenever the two before it carried nothing.
+     */
+    const nth = (counts.get(block) ?? 0) + 1;
+    counts.set(block, nth);
+    // A picture nobody described has nothing to say, and takes no caption. X's own word
+    // for one is not a description (`appearance/alt.ts`)
+    const description = descriptionOf(altTextOf(picture), genericAlts);
+    if (description === null) return;
+    const said: LineParts = { words: description, source: null };
+    const short = shortLineFrom(said, messages);
+    const full = lineTextFrom(said, messages);
+    if (short === null || full === null) return;
+    blocks.set(block, [...(blocks.get(block) ?? []), { nth, short, full }]);
+  });
+
+  /** The captions this round put in or kept. The rest stand under a picture that no longer says anything */
+  const live = new Set<Element>();
+  for (const [block, written] of blocks) {
+    // Where X offers the description itself, it is left to X. Asked once the block is
+    // known, and only of the blocks that had something to say (`showsOwnAltButton`)
+    if (showsOwnAltButton(block)) continue;
+    /*
+     * Which picture each description belongs to, but only where the post carries more than
+     * one. With a single picture the caption sits under the thing it describes and saying
+     * "the first" adds nothing; with four in a grid, an unlabelled run of lines leaves the
+     * reader to guess which is which — and the pictures nobody described leave gaps in it.
+     */
+    const many = (counts.get(block) ?? 0) > 1;
+    const said = (nth: number, description: string): string =>
+      many ? messages.appearance.media.captionNth(nth, description) : description;
+    const short = written.map((one) => said(one.nth, one.short)).join('\n');
+    const full = written.map((one) => said(one.nth, one.full)).join('\n');
+    const next = block.nextElementSibling;
+    const standing =
+      next instanceof HTMLElement && next.classList.contains(CAPTION_CLASS) ? next : null;
+    const caption = standing ?? captionElement();
+    if (!standing) block.after(caption);
+    const words = caption.querySelector(`.${CAPTION_TEXT_CLASS}`);
+    if (!words) continue;
+    /*
+     * A caption showing neither of these stands under a picture X has since put another
+     * post's in, so whatever was opened was opened on words that are no longer there.
+     */
+    const stale = words.textContent !== short && words.textContent !== full;
+    if (stale) caption.classList.remove(CAPTION_OPEN_CLASS);
+    const opened = caption.classList.contains(CAPTION_OPEN_CLASS);
+    const text = opened ? full : short;
+    // Rewritten only where the words changed, so that a selection is not taken out from
+    // under the reader on every settling
+    if (words.textContent !== text) words.textContent = text;
+    live.add(caption);
+    /*
+     * The button, only while something is being held back. Nothing is measured to know
+     * that: the two texts differ exactly when the cut took something off, which is the
+     * same test the line put into a post is judged by.
+     */
+    showMore(caption, !opened && short !== full, messages, readLinkColor, () => {
+      caption.classList.add(CAPTION_OPEN_CLASS);
+      words.textContent = full;
+    });
+  }
+  clearCaptions(live);
+};
+
+/** A caption, empty. The words go in a box of their own so the fold cannot reach the button */
+const captionElement = (): HTMLElement => {
+  const caption = document.createElement('div');
+  caption.className = CAPTION_CLASS;
+  const words = document.createElement('div');
+  words.className = CAPTION_TEXT_CLASS;
+  /*
+   * The words are kept out of the accessibility tree.
+   *
+   * The picture's own `alt` already carries them, and carries them unfolded. This copy is
+   * for someone looking at a screen with no pointer to hover with; read out as well, it
+   * would only say the same description twice over.
+   *
+   * The marker goes on the words alone and not on the caption around them. The button is
+   * focusable, and a focusable thing inside an `aria-hidden` range can be reached by the
+   * keyboard while being announced as nothing at all — worse than the repetition this is
+   * here to stop.
+   */
+  words.setAttribute('aria-hidden', 'true');
+  caption.append(words);
+  return caption;
+};
+
+/**
+ * Puts the button under a caption holding something back, and takes it away again where
+ * there is nothing left to open — the caption was opened, or the words were replaced by
+ * shorter ones that go in whole.
+ */
+/**
+ * What each caption's button does, refreshed every round.
+ *
+ * A button kept from an earlier round would otherwise open the words it was built with,
+ * and X puts another post's picture in a box it has finished with — the caption is
+ * rewritten for the new one while the button still holds what the old one said.
+ */
+const opens = new WeakMap<Element, () => void>();
+
+const showMore = (
+  caption: HTMLElement,
+  folded: boolean,
+  messages: Messages,
+  readLinkColor: () => string | null,
+  open: () => void
+): void => {
+  const existing = caption.querySelector(`.${CAPTION_MORE_CLASS}`);
+  if (!folded) {
+    existing?.remove();
+    return;
+  }
+  // Already there: the words it opens are set again — they belong to whatever picture
+  // stands above it now — and the color is looked at, in case X's was changed
+  if (existing instanceof HTMLElement) {
+    opens.set(existing, open);
+    paintLikeLink(existing, readLinkColor);
+    return;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = CAPTION_MORE_CLASS;
+  button.textContent = messages.showMore;
+  paintLikeLink(button, readLinkColor);
+  opens.set(button, open);
+  button.addEventListener('click', (event) => {
+    // Both sites open the post when anything inside it is clicked, and this button is
+    // inside one. Without this the description opens and the post opens over the top of it
+    event.stopPropagation();
+    // Looked up rather than closed over, so that it is this round's words that open
+    opens.get(button)?.();
+    button.remove();
+  });
+  caption.append(button);
+};
+
+/**
+ * Takes away the captions that no longer belong under a picture. Left in place, one would
+ * describe whatever X reused that box for.
+ */
+const clearCaptions = (live: Set<Element> = new Set()): void =>
+  document.querySelectorAll(`.${CAPTION_CLASS}`).forEach((caption) => {
+    if (!live.has(caption)) caption.remove();
+  });
+
 /** The height of one line. Estimated from the font size when `line-height` is `normal` */
 const lineHeightOf = (text: Element): number => {
   const style = getComputedStyle(text);
@@ -869,7 +1230,7 @@ const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
 
   const column = cell.closest(`[${COLUMN_ATTR}]`);
   const appearance = column && appearanceOf(column, columns);
-  if (!appearance || appearance.maxLines === null) return false;
+  if (!appearance) return false;
   /*
    * With the posts packed there is no button. Packing is for fitting more posts on
    * screen, and a line of its own under every cut-off post works against that; what is
@@ -877,6 +1238,19 @@ const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
    */
   if (isCompact(appearance.compact)) return false;
 
+  /*
+   * A line of ours holding something back wants the button too, and wants it whether or
+   * not a limit was ever set on the body. A description of a couple of hundred characters
+   * shows its first eighty, and on a post nothing else cut short there would otherwise be
+   * nothing to press: the rest would be in the tooltip alone, out of reach of a finger.
+   *
+   * Told from the marker the line is given when it holds something back
+   * (`ATTACHMENT_CUT_CLASS`), which is narrower than "carries a tooltip": the mark-only
+   * style keeps its tooltip while wanting no button.
+   */
+  if (linesOf(text).some((line) => line.classList.contains(ATTACHMENT_CUT_CLASS))) return true;
+
+  if (appearance.maxLines === null) return false;
   /*
    * Being cut off is not enough; the text must also have reached the limit.
    * Where X itself truncates the body, the text is "overflowing" as well, and a
@@ -902,12 +1276,20 @@ const addShowMore = (
   readLinkColor: () => string | null
 ): void => {
   document.querySelectorAll(`[${COLUMN_ATTR}] ${TWEET_TEXT_SELECTOR}`).forEach((text) => {
-    const next = text.nextElementSibling;
+    /*
+     * The button belongs under everything the extension put after the body, not directly
+     * under the body: with the marks standing out there too, the order to read is the
+     * post's words, then the mark, then the way to open the rest.
+     */
+    const under = lastLineAfter(text);
+    const next = under.nextElementSibling;
     const existing =
       next instanceof HTMLElement && next.classList.contains(MORE_CLASS) ? next : null;
 
     if (!wantsShowMore(text, columns)) {
-      existing?.remove();
+      // A button put in before the marks were is not where it belongs any more, so it is
+      // looked for past them as well as under them
+      (existing ?? strayShowMore(text))?.remove();
       return;
     }
     // Already there: only the color is looked at again, in case X's was changed
@@ -915,6 +1297,8 @@ const addShowMore = (
       paintLikeLink(existing, readLinkColor);
       return;
     }
+    // One left above the marks from an earlier round is moved down rather than doubled
+    strayShowMore(text)?.remove();
 
     const cell = text.closest(CELL_SELECTOR);
     if (!cell) return;
@@ -928,8 +1312,17 @@ const addShowMore = (
       cell.classList.add(OPENED_CLASS);
       button.remove();
     });
-    text.after(button);
+    under.after(button);
   });
+};
+
+/**
+ * A "Show more" sitting directly under the body while the marks stand below it — left
+ * there by a round before those marks went in. It is taken away and put back in order.
+ */
+const strayShowMore = (text: Element): Element | null => {
+  const next = text.nextElementSibling;
+  return next !== null && next.classList.contains(MORE_CLASS) ? next : null;
 };
 
 /**
@@ -995,22 +1388,51 @@ export const stampMediaFrames = (): void => {
   const readLinkColor = linkColorReader();
   // The lines put into posts are redone on the same occasion: X redraws a post and takes
   // ours with it. Once no column asks for them, the ones already put in are taken away
-  if (
-    lastMessages &&
-    lastColumns.some(
-      (column) =>
-        movesCards(cardStyleOf(column.appearance.cardStyle)) ||
-        // Every quote style but X's own needs the pass: the frame is marked there, both
-        // to put its line in and to take it away
-        quoteStyleOf(column.appearance.quoteStyle) !== 'show' ||
-        movesMedia(mediaStyleOf(column.appearance.media.style))
-    )
-  ) {
+  /** Whether any column is having lines put into its posts. Both passes below turn on it */
+  const stampsLines = lastColumns.some(
+    (column) =>
+      movesCards(cardStyleOf(column.appearance.cardStyle)) ||
+      // Every quote style but X's own needs the pass: the frame is marked there, both
+      // to put its line in and to take it away
+      quoteStyleOf(column.appearance.quoteStyle) !== 'show' ||
+      movesMedia(mediaStyleOf(column.appearance.media.style))
+  );
+  if (lastMessages && stampsLines) {
+    /*
+     * Watched from here as well as from the line limit below. A post X cut short takes the
+     * mark alone even where no limit of ours is set (`placementFor`), and pressing X's own
+     * "Show more" is then the only way back to the words — the listener is what turns that
+     * press into the mark being opened out.
+     */
+    listenToXShowMore();
     restampAttachments(lastColumns, lastMessages, readLinkColor, genericAlts);
   } else {
     clearAttachments();
   }
-  if (lastMessages && lastColumns.some((column) => column.appearance.maxLines !== null)) {
+  /*
+   * The captions written under pictures, redone on the same occasion and for the same
+   * reason as the lines: X redraws a post and takes ours away with it.
+   * After the frames above, which measure with our own stylesheet switched off — a
+   * caption is folded to a couple of lines by that stylesheet, and measuring around an
+   * unfolded one would read the wrong height.
+   */
+  if (
+    lastMessages &&
+    lastColumns.some((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
+  ) {
+    restampCaptions(lastColumns, lastMessages, readLinkColor);
+  } else {
+    clearCaptions();
+  }
+  /*
+   * The "Show more" is wanted for two reasons, and either is enough: a body the line limit
+   * cut, and a line of ours showing less than it has (`wantsShowMore`). The second happens
+   * with no limit set at all, so the pass cannot be held behind one.
+   */
+  if (
+    lastMessages &&
+    (stampsLines || lastColumns.some((column) => column.appearance.maxLines !== null))
+  ) {
     listenToXShowMore();
     addShowMore(lastColumns, lastMessages, readLinkColor);
   } else {

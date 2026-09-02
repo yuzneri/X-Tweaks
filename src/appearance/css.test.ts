@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyNode, type AppearanceNode } from '../settings/schema.ts';
-import { buildCss, columnKey, COLUMN_ATTR } from './css.ts';
+import { buildCss, captionTargets, columnKey, COLUMN_ATTR } from './css.ts';
 
 const appearanceOf = (patch: (a: AppearanceNode) => void): AppearanceNode => {
   const appearance = emptyNode().appearance;
@@ -78,6 +78,8 @@ test('リンクの色は、本文の外のリンクと「さらに表示」に�
   // The extension's own "Show more", put under a body the line limit cut off. It stands
   // in for X's own button, so the same color has to reach it
   assert.ok(line.includes('.xpro-more'));
+  // The button that opens a folded caption, which reads as a link for the same reason
+  assert.ok(line.includes('.xpro-caption-more'));
   // The line put into a post in place of a card, which opens the card's address
   assert.ok(line.includes('a.xpro-attachment'));
   // A mark with nowhere to go is not a link and is left out
@@ -225,7 +227,10 @@ test('メディアの折りたたみは隠すだけ。要素は残す', () => {
 
 test('本文と名前は別々の当て先に当てる', () => {
   const textOnly = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.colors.text = '#ffcc00')) }]);
-  assert.match(textOnly, /\[data-xpro-column="0"\] \[data-testid="tweetText"\] \{ color: #ffcc00/);
+  assert.match(textOnly, /\[data-xpro-column="0"\] \[data-testid="tweetText"\], /);
+  // The lines the extension adds follow the body's color. Under a line limit they stand
+  // outside the body, where a rule aimed at the body alone would no longer reach them
+  assert.match(textOnly, /\[data-xpro-column="0"\] \.xpro-attachment \{ color: #ffcc00/);
   assert.ok(!textOnly.includes('User-Name'));
 
   const nameOnly = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.colors.name = '#00ccff')) }]);
@@ -608,4 +613,37 @@ test('横の欄の規則は、カラムがいくつあっても1行しか出な�
   // It belongs to no column, so `columnRules` is not where it comes from
   const lines = css.split('\n').filter((line) => line.includes('sidebarColumn'));
   assert.equal(lines.length, 1);
+});
+
+test('キャプションを出す列だけが、説明を探す対象になる', () => {
+  const targets = captionTargets([
+    { key: 'a', appearance: appearanceOf((a) => (a.media.style = 'caption')) },
+    { key: 'b', appearance: appearanceOf((a) => (a.media.style = 'show')) },
+    { key: 'c', appearance: appearanceOf((a) => (a.media.style = 'text')) },
+  ]);
+  for (const target of targets.split(', ')) {
+    assert.ok(target.startsWith(`[${COLUMN_ATTR}="a"] `), `${target} が a の中に閉じている`);
+  }
+  // A deck is mostly columns that did not ask. Walking them and turning each picture away
+  // one at a time is what this avoids
+  assert.equal(targets.includes('"b"'), false);
+  assert.equal(targets.includes('"c"'), false);
+});
+
+test('写真と動画の両方が対象になる', () => {
+  const targets = captionTargets([
+    { key: 'a', appearance: appearanceOf((a) => (a.media.style = 'caption')) },
+  ]);
+  assert.ok(targets.includes('[data-testid="tweetPhoto"]'));
+  assert.ok(targets.includes('[data-testid="videoPlayer"]'));
+});
+
+test('どの列も出さないなら空。呼ぶ側が空を見て walk そのものをやめる', () => {
+  // An empty string is not a selector querySelectorAll will take, so it must not be
+  // handed to one
+  assert.equal(
+    captionTargets([{ key: 'a', appearance: appearanceOf((a) => (a.media.style = 'mark')) }]),
+    ''
+  );
+  assert.equal(captionTargets([]), '');
 });

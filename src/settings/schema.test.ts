@@ -675,6 +675,7 @@ test('前の形（collapse の真偽値）で保存された指定は「表示�
   assert.equal(style({ collapse: false }), null);
   // The new shape wins where both are there
   assert.equal(style({ collapse: true, style: 'mark' }), 'mark');
+  assert.equal(style({ style: 'caption' }), 'caption');
   assert.equal(style({ style: 'そんな見せ方は無い' }), null);
 });
 

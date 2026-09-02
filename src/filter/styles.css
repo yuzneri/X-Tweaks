@@ -106,9 +106,36 @@
  * its own links without one, and this line stands among the body text, so the underline
  * is taken off to keep it reading as part of the post.
  * The color is written on the element by `appearance/apply.ts`, so nothing about it here.
+ *
+ * Standing outside the post's body — because the cut would otherwise reach it, or because
+ * the post has no body at all — it is a block of its own. Left inline, two of them (a
+ * card's line and a photo's mark, say) would run together on one line, and the "Show more"
+ * that follows would sit beside them rather than under.
+ * Inside the body it stays inline: there it is part of the text, parted from the last word
+ * by the line break written into it.
  */
 .xpro-attachment {
+  display: block;
   text-decoration: none;
+}
+
+[data-testid='tweetText'] .xpro-attachment {
+  display: inline;
+}
+
+/*
+ * The words a line carries for a picture's description or a quoted post.
+ *
+ * Dim, the way X draws what is about a post rather than part of it: they are somebody
+ * else's words standing inside this post's body, and at the body's own color they read as
+ * though the author had written them. A card's headline is left out — it is a link, and is
+ * painted as one.
+ *
+ * The rule sits on the words themselves rather than on the line around them, so the mark
+ * keeps the body's color and the tooltip stays where it is.
+ */
+.xpro-attachment-words {
+  color: rgb(113, 118, 123);
 }
 
 /*
@@ -128,6 +155,38 @@
 }
 
 /*
+ * The description its author wrote for a picture, put under the picture itself.
+ *
+ * The same words the tooltip carries, in the one place a touch screen can read them.
+ * Dim and a size below the body, the way a caption reads: it is about the picture rather
+ * than part of what the post says.
+ *
+ */
+.xpro-caption {
+  margin-top: 4px;
+  color: rgb(113, 118, 123);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/*
+ * The words themselves.
+ *
+ * How much of a description goes in is decided when it is written, by the same cut the
+ * line put into a post is given (`appearance/card.ts`), so the two ways of showing one
+ * show the same amount. Nothing is folded here, and so nothing has to be measured to know
+ * whether the button is wanted.
+ *
+ * The line breaks are kept, because they part one picture's description from the next.
+ * A description is somebody's free text and may hold an address with no space in it, so it
+ * is allowed to break anywhere rather than run out past the column.
+ */
+.xpro-caption-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
  * The "Show more" shown under body text cut off by the line limit.
  * It follows X's button for the same purpose: text only, in the link color.
  *
@@ -136,7 +195,8 @@
  * so the two match whichever of the six the user picked. This value is what shows where
  * there is no link of X's to read.
  */
-.xpro-more {
+.xpro-more,
+.xpro-caption-more {
   display: block;
   margin-top: 2px;
   padding: 0;
@@ -147,6 +207,7 @@
   cursor: pointer;
 }
 
-.xpro-more:hover {
+.xpro-more:hover,
+.xpro-caption-more:hover {
   text-decoration: underline;
 }

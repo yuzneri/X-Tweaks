@@ -547,13 +547,23 @@ export const en = {
       maxThumbHeight: 'Largest thumbnail height',
       /** How photos and videos are shown. The line goes into the post, where they were */
       style: 'Photos and videos',
-      /** "Text" is the description written for the picture. A picture with none takes the mark alone */
+      /**
+       * "Text" is the description written for the picture. A picture with none takes the
+       * mark alone. The caption is the same words with the picture kept, written under
+       * it where a finger can reach them — a tooltip cannot be
+       */
       styles: {
         show: 'As they are',
+        caption: 'As they are, with a description',
         text: 'Their description',
         mark: 'A mark',
         hidden: 'Not shown',
-      } as { show: string; text: string; mark: string; hidden: string },
+      } as { show: string; caption: string; text: string; mark: string; hidden: string },
+      /**
+       * Which picture a description belongs to, written only where a post carries more
+       * than one. X allows a post one video and no more, so anything numbered is a photo.
+       */
+      captionNth: (nth: number, description: string): string => `Picture ${nth}: ${description}`,
     },
     /**
      * How the things that hang off a post are shown: a link card, an article, a quoted

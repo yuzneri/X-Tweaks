@@ -1,7 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { messagesFor } from '../i18n/index.ts';
-import { colorInStyle, lineTextFrom, markedLine, shortLineFrom } from './card.ts';
+import {
+  colorInStyle,
+  lineFrom,
+  lineTextFrom,
+  moreThanShown,
+  partFor,
+  shortLineFrom,
+} from './card.ts';
+
+/** What a line shows on a post being read as it stands, and on one shown cut short */
+const SHOWN = { marksOnly: false, full: false };
+const MARKS = { marksOnly: true, full: false };
+const FULL = { marksOnly: false, full: true };
 
 const ja = messagesFor('ja');
 const en = messagesFor('en');
@@ -56,12 +68,12 @@ test('背景色も同じ読み方で取れる。投稿ボタンは色を背景�
 });
 
 test('マークの後ろに文字を続ける。マークだけでも1行になる', () => {
-  assert.equal(markedLine('link', '見出し（note.com）'), '🔗 見出し（note.com）');
+  assert.equal(lineFrom([partFor('link', '見出し（note.com）', null)], SHOWN), '🔗 見出し（note.com）');
   // The mark-only style, and a photo, which has no words of its own
-  assert.equal(markedLine('link', null), '🔗');
-  assert.equal(markedLine('photo', null), '📷');
+  assert.equal(lineFrom([partFor('link', null, null)], SHOWN), '🔗');
+  assert.equal(lineFrom([partFor('photo', null, null)], SHOWN), '📷');
   // Nothing but spaces is the same as nothing
-  assert.equal(markedLine('article', '  '), '📄');
+  assert.equal(lineFrom([partFor('article', '  ', null)], SHOWN), '📄');
 });
 
 test('画面に出すぶんは1行に畳む。引用の改行がそのまま入ると行が割れるため', () => {
@@ -80,4 +92,63 @@ test('画面に出すぶんは長さで切る。引用は数百字になりう�
   assert.equal(lineTextFrom({ words: long, source: '@id' }, ja), `${long}（@id）`);
   // Short enough, and nothing is added
   assert.equal(shortLineFrom({ words: '短い', source: null }, ja), '短い');
+});
+
+test('画像ごとにマークを置き、その右にその画像の説明を入れる', () => {
+  // Four photos where the second and the fourth were described. Which words belong to
+  // which picture is read from where they sit, so nothing has to be numbered
+  const parts = [
+    partFor('photo', null, null),
+    partFor('photo', '桜の木の下で', '桜の木の下で撮った集合写真'),
+    partFor('photo', null, null),
+    partFor('photo', '校舎の前で', '校舎の前で撮った集合写真'),
+  ];
+  assert.equal(lineFrom(parts, SHOWN), '📷 📷 桜の木の下で 📷 📷 校舎の前で');
+});
+
+test('省略されているときは、マークだけを続けて並べる', () => {
+  // Room for nothing else, so the marks run together and the tooltips carry the rest.
+  // Four photos still read as four
+  const parts = Array.from({ length: 4 }, () => partFor('photo', '説明', '説明'));
+  assert.equal(lineFrom(parts, MARKS), '📷📷📷📷');
+  assert.equal(lineFrom([partFor('video', null, null)], MARKS), '🎬');
+});
+
+test('何も無ければ空になる', () => {
+  assert.equal(lineFrom([], SHOWN), '');
+  assert.equal(lineFrom([], MARKS), '');
+});
+
+test('「さらに表示」で開いたら、切らずに書かれたとおり出す', () => {
+  // 80 characters is what a line has room for while the post is being skimmed. Once the
+  // post is opened there is nothing left to save room for, so the whole of it goes in
+  const long = 'あ'.repeat(200);
+  const part = partFor('photo', shortLineFrom({ words: long, source: null }, ja), long);
+  assert.equal(lineFrom([part], SHOWN), `📷 ${'あ'.repeat(80)}…`);
+  assert.equal(lineFrom([part], FULL), `📷 ${long}`);
+  // Nothing was written for it, so there is nothing to open out either
+  const bare = partFor('photo', null, null);
+  assert.equal(lineFrom([bare], FULL), '📷');
+});
+
+test('出し切っていないときだけ、まだ言うことがあるとみなす', () => {
+  // Cut to the length a line has room for: the rest is still to come, and on a post
+  // nothing else cut short there is no "Show more" to reach for
+  const long = 'あ'.repeat(200);
+  const cut = partFor('photo', shortLineFrom({ words: long, source: null }, ja), long);
+  assert.equal(moreThanShown(cut, SHOWN), true);
+  assert.equal(moreThanShown(cut, MARKS), true);
+  // Once it is all out there is nothing left to open, and a tooltip would only repeat
+  assert.equal(moreThanShown(cut, FULL), false);
+
+  // Short enough to go in whole the first time
+  const whole = partFor('photo', shortLineFrom({ words: '桜の写真', source: null }, ja), '桜の写真');
+  assert.equal(moreThanShown(whole, SHOWN), false);
+  // The mark alone still hides it, so there it does have more to say
+  assert.equal(moreThanShown(whole, MARKS), true);
+
+  // Nobody wrote anything, so there is nothing to open however it is shown
+  const bare = partFor('photo', null, null);
+  assert.equal(moreThanShown(bare, SHOWN), false);
+  assert.equal(moreThanShown(bare, MARKS), false);
 });

@@ -74,6 +74,12 @@ test('上限だけを指定していれば、その値', () => {
   assert.equal(limitFor(appearance({ style: 'show', maxThumbHeight: 120 })), 120);
 });
 
+test('説明つきの指定でも、画像は出ているので上限はそのまま効く', () => {
+  // It reads like `text` in the list, but the picture stays. Taken for hidden, the
+  // height limit would come off the very pictures it is still showing
+  assert.equal(limitFor(appearance({ style: 'caption', maxThumbHeight: 120 })), 120);
+});
+
 test('どちらも指定していなければ、印は要らない', () => {
   assert.equal(limitFor(appearance({})), null);
 });

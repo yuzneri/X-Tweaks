@@ -455,11 +455,16 @@ export const ja: Messages = {
       style: '画像と動画の表示',
       styles: {
         show: 'そのまま',
+        // 画像はそのままに、書かれた説明（alt）を下に添える。ツールチップと違い指だけで読める
+        caption: 'そのまま（説明つき）',
         // 画像に書かれた説明（alt）。説明の無い画像はマークだけになる
         text: '説明のテキスト',
         mark: 'マーク',
         hidden: '表示しない',
       },
+      // 画像が複数あるときだけ、どの画像の説明かを示す。X は1つの投稿に動画を1本しか
+      // 載せられないので、複数あるものは必ず画像になる
+      captionNth: (nth: number, description: string): string => `${nth}枚目：${description}`,
     },
     cardStyle: 'リンクカードと記事の表示',
     quoteStyle: '引用ポストの表示',
