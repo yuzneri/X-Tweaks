@@ -45,6 +45,9 @@ export const X_SHOW_MORE = '[data-testid="tweet-text-show-more-link"]';
 export const PHOTO = '[data-testid="tweetPhoto"]';
 /** X draws a video in one of two shapes, depending on where it came from */
 export const VIDEO = ['[data-testid="videoPlayer"]', '[data-testid="videoComponent"]'];
+
+/** A link into a post. Both the box around a photo and the time on a post carry one */
+const POST_LINK = 'a[href*="/status/"]';
 const MEDIA = [PHOTO, ...VIDEO].join(', ');
 const PROFILE_LINK = 'a[role="link"][href^="https://x.com/"]';
 /** X calls this Birdwatch internally, and that name is still in the marker */
@@ -124,6 +127,41 @@ export const WHO_TO_FOLLOW_MORE = 'a[href*="/i/connect_people"]';
  * it shows times.
  */
 const AD_PLACEMENT = '[data-testid="placementTracking"]';
+
+/**
+ * The description written for a photo, as X carries it.
+ *
+ * X puts it in two places at once — the box's `aria-label` and the `img`'s `alt` — and
+ * where nobody wrote one it puts its own word for a picture there instead ("Image",
+ * 「画像」). That word cannot be told from a description by looking at it, so telling the
+ * two apart is left to `appearance/alt.ts`, which learns it from the page.
+ * The `img` is read first: the box is what carries the marker, but the picture is what
+ * the description belongs to.
+ */
+export const altTextOf = (media: Element): string | null => {
+  const written =
+    media.querySelector('img')?.getAttribute('alt') ?? media.getAttribute('aria-label');
+  return written?.trim() ? written : null;
+};
+
+/**
+ * Whose post a picture belongs to, read from an address on the way out of it
+ * (`…/someone/status/1234567890/photo/1`).
+ *
+ * A photo sits inside a link to itself, but a video does not, so the post around it is
+ * asked instead: the first such address in the cell is the time it carries, which links
+ * to the post. Going by the photo's own link alone would leave every video unattributed.
+ *
+ * Used to tell whose pictures a text turns up on (`appearance/alt.ts`). A picture inside
+ * a quote is answered with the quoting account, which is close enough for that question:
+ * what is being asked is whether two pictures came from two different people.
+ * null where there is no address to read at all.
+ */
+export const accountOfPicture = (media: Element): string | null => {
+  const own = media.closest(POST_LINK)?.getAttribute('href');
+  const inCell = media.closest(CELL_SELECTOR)?.querySelector(POST_LINK)?.getAttribute('href');
+  return (own ?? inCell)?.match(/\/([^/]+)\/status\/\d+/)?.[1] ?? null;
+};
 
 /**
  * The screen name. On a repost the avatar points at the original author; on a quote
