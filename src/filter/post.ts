@@ -43,7 +43,14 @@ export const avatarNameOf = (avatar: Element | null | undefined): string | null 
 export const X_SHOW_MORE = '[data-testid="tweet-text-show-more-link"]';
 
 export const PHOTO = '[data-testid="tweetPhoto"]';
-/** X draws a video in one of two shapes, depending on where it came from */
+/**
+ * The two markers X puts on a video. They are not alternatives: `videoComponent` sits
+ * inside `videoPlayer`, so one video answers to both.
+ *
+ * Both are named because the rules that hide media have to reach the inner box as well —
+ * it carries a size of its own, and hiding the outer alone leaves it holding the space.
+ * Anything counting videos rather than styling them wants `isOutermostMedia`.
+ */
 export const VIDEO = ['[data-testid="videoPlayer"]', '[data-testid="videoComponent"]'];
 
 /** A link into a post. Both the box around a photo and the time on a post carry one */
@@ -143,6 +150,50 @@ export const altTextOf = (media: Element): string | null => {
     media.querySelector('img')?.getAttribute('alt') ?? media.getAttribute('aria-label');
   return written?.trim() ? written : null;
 };
+
+/**
+ * Whether this is the outermost marker on the media it is part of.
+ *
+ * X marks one video twice, `videoComponent` sitting inside `videoPlayer` (see `VIDEO`),
+ * and the description is read the same off either. Taken as two, a video says everything
+ * it has to say twice over — two identical lines under the picture, two in the line put
+ * into the post.
+ *
+ * So anything counting media, or gathering what it says, asks this first. The rules that
+ * hide media do not: there both markers are wanted.
+ */
+export const isOutermostMedia = (media: Element): boolean =>
+  media.parentElement?.closest(MEDIA) == null;
+
+/**
+ * What X writes on its own button for reading a picture's description.
+ *
+ * It is the face of the button rather than a marker: X gives it no `data-testid`, and the
+ * tooltip beside it ("画像の説明を読む") is worded per interface language. "ALT" is not —
+ * it is the same three letters in every locale seen, X using it as a badge rather than as
+ * a word.
+ */
+const ALT_BUTTON_FACE = 'ALT';
+
+/**
+ * Whether X is already offering the description of the pictures in this block itself.
+ *
+ * On a post opened to be read, X puts an ALT button beside the picture — on both sites —
+ * and pressing it shows the whole description. There is nothing to add there, so no
+ * caption goes in.
+ *
+ * It is asked of the block rather than of the scope because X is sparing with the button:
+ * in a post opened on x.com it stood on the opened post's picture and on none of the
+ * pictures in the replies below it. Standing down for the whole scope would take the
+ * caption off those too, and they have no button to fall back on.
+ *
+ * Where X someday translates the face of the button, this stops recognising it and the
+ * caption comes back — the same words twice, which is the harmless way to be wrong.
+ */
+export const showsOwnAltButton = (block: Element): boolean =>
+  Array.from(block.querySelectorAll('button')).some(
+    (button) => button.textContent?.trim() === ALT_BUTTON_FACE
+  );
 
 /**
  * Whose post a picture belongs to, read from an address on the way out of it
