@@ -8,6 +8,8 @@
  */
 import { surface } from '../surface/index.ts';
 import {
+  accountOfPicture,
+  altTextOf,
   ARTICLE,
   authorOf,
   cardTextOf,
@@ -20,6 +22,7 @@ import {
   VIDEO,
   X_SHOW_MORE,
 } from '../filter/post.ts';
+import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
@@ -40,6 +43,7 @@ import {
   markedLine,
   shortLineFrom,
   ATTACHMENT_CLASS,
+  MARK_CLASS,
   type LineParts,
 } from './card.ts';
 import { timeTextFrom } from './time.ts';
@@ -115,6 +119,9 @@ export const stampColumns = (): void => {
 /** Picks up only the media inside columns. Markers are set per column, so there is no need to look outside */
 const MEDIA_IN_COLUMN = MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}] ${target}`).join(', ');
 
+/** The media anywhere on the page. What a picture says for itself is not a per-column matter */
+const MEDIA_ANYWHERE = MEDIA_TARGETS.join(', ');
+
 /** Text in a post. Walking up past an ancestor containing this would shrink the body along with it */
 const TEXT_SELECTOR = '[data-testid="tweetText"], [data-testid="User-Name"]';
 
@@ -166,6 +173,97 @@ const limitOf = (media: Element, columns: ColumnAppearance[]): number | null => 
 
 const clearMediaFrames = (): void =>
   document.querySelectorAll(`[${MEDIA_FRAME_ATTR}]`).forEach((el) => el.removeAttribute(MEDIA_FRAME_ATTR));
+
+/**
+ * X's own words for a picture nobody described (`appearance/alt.ts` says how they are
+ * recognised).
+ *
+ * Kept here rather than worked out afresh each time: X has one such word per kind of
+ * media and per interface language, and what is on screen at any one moment may not
+ * repeat enough to show them.
+ */
+let genericAlts: ReadonlySet<string> = new Set();
+
+/**
+ * The words in force, from the settings.
+ *
+ * The learning never stops, because the words turn up one at a time: X has a different
+ * one for a photo and for a video, and a page that shows plenty of the first may show
+ * none of the second. Stopping at the first word found would leave the others out for
+ * good. Nothing here is ever rewritten or dropped, only added to, so a word written by
+ * hand stands as it was written.
+ */
+export const useGenericAlts = (words: readonly string[]): void => {
+  genericAlts = new Set(words);
+};
+
+/**
+ * The marker on a picture whose `title` is ours. No rule targets it: it is here so that
+ * the tooltip can be taken off again without touching a `title` X may put there itself.
+ */
+const ALT_ATTR = 'data-xpro-alt';
+
+/**
+ * Puts the description written for a picture where it can be read: the tooltip on the
+ * picture itself.
+ *
+ * Not a setting of its own. X carries the description but shows it nowhere on X Pro, so
+ * there is nothing to weigh up — reading it is the only thing this can do, and a picture
+ * nobody described is left untouched.
+ *
+ * Every picture on the page, not only those inside a scope: the description belongs to
+ * the picture rather than to the column it happens to stand in, and nothing about it is
+ * set per scope.
+ *
+ * Ours is marked, so that a description gone from a picture X has reused for another post
+ * takes the tooltip with it, while a `title` that was never ours is never touched.
+ *
+ * The learning rides along on the same walk, both wanting the same thing of every picture.
+ * Answers with X's own words where this round added one, for the caller to keep
+ * (`content.ts`). null the rest of the time, which is every round once they are known.
+ */
+export const stampAltTitles = (): readonly string[] | null => {
+  /** Every picture and what it says. Read once: walking the page is the whole cost here */
+  const read: [Element, string | null][] = [];
+  const unknown: PhotoAlt[] = [];
+  document.querySelectorAll(MEDIA_ANYWHERE).forEach((picture) => {
+    const alt = altTextOf(picture);
+    read.push([picture, alt]);
+    /*
+     * Whose post a picture is on is only ever asked to prove a word is X's, so a word
+     * already known to be one is not chased any further. That leaves the chasing to the
+     * few pictures somebody described, and to the rounds before the words are known.
+     */
+    if (alt !== null && !genericAlts.has(alt))
+      unknown.push({ alt, account: accountOfPicture(picture) });
+  });
+
+  const before = genericAlts.size;
+  genericAlts = learnGenericAlts(unknown, genericAlts);
+  const learned = genericAlts.size > before ? [...genericAlts] : null;
+
+  for (const [picture, alt] of read) {
+    const description = descriptionOf(alt, genericAlts);
+    if (description !== null) {
+      picture.setAttribute(ALT_ATTR, '');
+      picture.setAttribute('title', description);
+    } else if (picture.hasAttribute(ALT_ATTR)) {
+      picture.removeAttribute(ALT_ATTR);
+      picture.removeAttribute('title');
+    }
+  }
+  return learned;
+};
+
+/**
+ * Takes those tooltips off again. Called where the extension is paused: what it does is
+ * not driven by the settings, so applying empty ones does not reach it (`content.ts`).
+ */
+export const clearAltTitles = (): void =>
+  document.querySelectorAll(`[${ALT_ATTR}]`).forEach((picture) => {
+    picture.removeAttribute(ALT_ATTR);
+    picture.removeAttribute('title');
+  });
 
 const clearTimes = (): void =>
   document.querySelectorAll(`[${TIME_ATTR}]`).forEach((el) => {
@@ -369,7 +467,7 @@ type Line = {
 
 /** Whether that style asks for what it names to be put into the post as a line */
 const movesCards = (style: AttachmentStyle): boolean => style === 'text' || style === 'mark';
-const movesMedia = (style: MediaStyle): boolean => style === 'mark';
+const movesMedia = (style: MediaStyle): boolean => style === 'text' || style === 'mark';
 
 /**
  * What hangs off a post, in the order the lines go in: the cards first, then the
@@ -382,7 +480,9 @@ const linesIn = (
   cell: Element,
   quote: Element | null,
   appearance: AppearanceNode,
-  messages: Messages
+  messages: Messages,
+  /** X's own words for a picture nobody described, so that they are not passed on as one */
+  generic: ReadonlySet<string>
 ): Line[] => {
   const cardStyle = cardStyleOf(appearance.cardStyle);
   const quoteStyle = quoteStyleOf(appearance.quoteStyle);
@@ -448,22 +548,31 @@ const linesIn = (
       ['photo', PHOTO],
       ['video', VIDEO.join(', ')],
     ] as const) {
-      const media = cell.querySelector(selector);
-      // One mark per kind, however many there are: a post with four photos is still "a
+      const pictures = [...cell.querySelectorAll(selector)];
+      // One line per kind, however many there are: a post with four photos is still "a
       // post with photos", and four marks in a row would say nothing more
-      if (media) {
-        // No tooltip, and nothing to drop in front of a body: a photo has nothing to say
-        // beyond the mark itself
-        lines.push({
-          anchor: media,
-          source: null,
-          text: markedLine(kind, null),
-          mark: markedLine(kind, null),
-          title: null,
-          href: null,
-          media: true,
-        });
-      }
+      const first = pictures[0];
+      if (!first) continue;
+      /*
+       * What their authors wrote for them, in the order they hang off the post. Several
+       * described pictures share the one line, their words following the single mark with
+       * a break between them — which the body's single line folds into a space and the
+       * tooltip keeps as it was written.
+       * A picture nobody described has nothing to say, and the mark stands alone as before.
+       */
+      const written = pictures
+        .map((picture) => descriptionOf(altTextOf(picture), generic))
+        .filter((description) => description !== null);
+      const parts: LineParts = { words: written.join('\n') || null, source: null };
+      lines.push({
+        anchor: first,
+        source: null,
+        text: markedLine(kind, shown(mediaStyle, shortLineFrom(parts, messages))),
+        mark: markedLine(kind, null),
+        title: lineTextFrom(parts, messages),
+        href: null,
+        media: true,
+      });
     }
   }
 
@@ -553,8 +662,11 @@ const matches = (el: Element, line: Line, where: Placement): boolean =>
 /** Builds the element for one line: an `a` where there is something to open, a `span` where there is not */
 const lineElement = (line: Line, where: Placement): HTMLElement => {
   const el = document.createElement(line.href === null ? 'span' : 'a');
-  el.className = ATTACHMENT_CLASS;
-  el.textContent = textFor(line, where);
+  const text = textFor(line, where);
+  // Told apart however it came to be the mark alone — the style asking for it, the line
+  // limit leaving room for nothing else, or there being no words to show in the first place
+  el.className = text.trim() === line.mark ? `${ATTACHMENT_CLASS} ${MARK_CLASS}` : ATTACHMENT_CLASS;
+  el.textContent = text;
   // Shown on hover, the way X puts its own explanations on things too small to read
   if (line.title !== null) el.title = line.title;
   if (el instanceof HTMLAnchorElement && line.href !== null) {
@@ -603,7 +715,8 @@ const insertionPoint = (line: Line, cell: Element): Element =>
 const restampAttachments = (
   columns: ColumnAppearance[],
   messages: Messages,
-  readLinkColor: () => string | null
+  readLinkColor: () => string | null,
+  generic: ReadonlySet<string>
 ): void => {
   /** The lines and the sources that belong to this round. Anything else is left over */
   const live = new Set<Element>();
@@ -637,7 +750,7 @@ const restampAttachments = (
       live.add(quote);
     }
 
-    const lines = linesIn(cell, quote, appearance, messages);
+    const lines = linesIn(cell, quote, appearance, messages, generic);
     if (lines.length === 0) return;
 
     /** The lines that go into a body, gathered per body: a quoted card goes into the quoted body */
@@ -893,7 +1006,7 @@ export const stampMediaFrames = (): void => {
         movesMedia(mediaStyleOf(column.appearance.media.style))
     )
   ) {
-    restampAttachments(lastColumns, lastMessages, readLinkColor);
+    restampAttachments(lastColumns, lastMessages, readLinkColor, genericAlts);
   } else {
     clearAttachments();
   }

@@ -66,12 +66,20 @@ export const filterApplies = (enabled: boolean | null): boolean => enabled !== f
  * How the photos and videos in a post are shown.
  *
  * `show` is X Pro's own, held as a value so a lower tier can undo what an upper one set.
- * `mark` takes them off the timeline but says so, by putting a mark into the post where
- * they were (`appearance/apply.ts`); `hidden` takes them off and says nothing.
- * Between the two: a mark tells a post with a photo from a post without one, at the cost
- * of a character; hiding outright is quieter and leaves the two looking alike.
+ * `text` puts the description written for the picture into the post as a line and takes
+ * the picture away; `mark` takes them off the timeline but says so, by putting a mark
+ * into the post where they were (`appearance/apply.ts`); `hidden` takes them off and says
+ * nothing.
+ * Between them: a mark tells a post with a photo from a post without one, at the cost of
+ * a character; hiding outright is quieter and leaves the two looking alike. The text says
+ * what the picture was of, for the posts whose author wrote it down — where nobody did,
+ * there is nothing to say and the mark alone is what goes in.
+ *
+ * The same four ways as the cards (`ATTACHMENT_STYLES`), listed apart from them: the two
+ * are separate settings, described in their own words, and either may come to hold a way
+ * the other has no use for.
  */
-export const MEDIA_STYLES = ['show', 'mark', 'hidden'] as const;
+export const MEDIA_STYLES = ['show', 'text', 'mark', 'hidden'] as const;
 export type MediaStyle = (typeof MEDIA_STYLES)[number];
 
 const isMediaStyle = (v: unknown): v is MediaStyle => MEDIA_STYLES.includes(v as MediaStyle);
@@ -443,6 +451,20 @@ export type Settings = {
   language: Language;
   /** What the compose form does after a post. One for the whole extension, like `language` */
   compose: ComposeSettings;
+  /**
+   * X's own words for a picture nobody described ("Image", 「画像」), which are never
+   * passed on as a description (`appearance/alt.ts`).
+   *
+   * The words are X's, in X's interface language, so they cannot be listed in advance:
+   * they are learned from the pages being read and written back here, where they can be
+   * read and corrected. The learning only ever adds — a word written by hand is never
+   * rewritten or dropped — and it never stops, X having a different word for a photo and
+   * for a video and a page showing them at different times.
+   *
+   * One for the whole extension, like `language`: they follow the language X is shown in,
+   * which is one for the account rather than one per column.
+   */
+  genericAlts: string[];
   global: SettingsNode;
   /** Screen name → settings, the screen name being all that can be obtained from the DOM */
   accounts: Record<string, SettingsNode>;
@@ -638,12 +660,28 @@ const fillCompose = (v: unknown): ComposeSettings => {
   return { reopen: compose.reopen === true, keepHashtags: compose.keepHashtags === true };
 };
 
+/**
+ * The words are kept as they were written, only tidied: blank lines are dropped and the
+ * same word twice counts once. A word is compared with what X wrote into a picture, so
+ * trimming anything else off it would stop it matching.
+ *
+ * Exported because the settings screen tidies what was typed with the same rule. Written
+ * twice, the box would show one thing and the stored list hold another.
+ */
+export const tidyGenericAlts = (words: readonly string[]): string[] => [
+  ...new Set(words.filter((word) => word.trim() !== '')),
+];
+
+const fillGenericAlts = (v: unknown): string[] =>
+  tidyGenericAlts(arr(v).map(str).filter(isPresent));
+
 export const fillAll = (v: unknown): Settings => {
   const stored = rec(v);
   return {
     version: SCHEMA_VERSION,
     language: isLanguage(stored.language) ? stored.language : 'auto',
     compose: fillCompose(stored.compose),
+    genericAlts: fillGenericAlts(stored.genericAlts),
     global: fillNode(stored.global),
     accounts: nodeMap(stored.accounts),
     columns: nodeMap(stored.columns),

@@ -112,6 +112,22 @@
 }
 
 /*
+ * A line that came out as the mark alone is one character across, and everything it has
+ * to say — the description written for a picture, a card's headline — is in the tooltip.
+ * Aiming at 16 pixels to read it is more than it is worth, so the box the pointer has to
+ * land on is grown.
+ *
+ * The margin takes back exactly what the padding adds, so nothing on the line moves: the
+ * mark stays where it was and only what counts as "on it" gets bigger. Padding on an
+ * inline box does not raise the line it sits on either, so the height of the post is
+ * untouched.
+ */
+.xpro-attachment.xpro-mark {
+  padding: 5px;
+  margin: -5px;
+}
+
+/*
  * The "Show more" shown under body text cut off by the line limit.
  * It follows X's button for the same purpose: text only, in the link color.
  *

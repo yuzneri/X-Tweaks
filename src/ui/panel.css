@@ -345,6 +345,25 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * The box holding X's own words for a picture, one to a line.
+ *
+ * It takes the whole width under its name rather than sitting beside it: the words are
+ * X's, in whatever language X is shown in, and one of them can be long enough that a
+ * field squeezed into half a row would show a few characters of it.
+ */
+.xpro-ui .generic-alts textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  resize: vertical;
+}
+
 .xpro-ui .transfer {
   flex: 0 0 auto;
   margin-top: 16px;

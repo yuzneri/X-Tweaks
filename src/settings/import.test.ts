@@ -143,3 +143,16 @@ test('投稿フォームの設定も書き出しと読み戻しを通り抜け�
   // The test is here to catch it if that ever stops being true
   assert.deepEqual(result.ok && result.settings.compose, { reopen: true, keepHashtags: true });
 });
+
+test('X の文言も書き出しと読み戻しを通り抜ける', () => {
+  const settings = fillAll({
+    version: SCHEMA_VERSION,
+    genericAlts: ['画像', '埋め込み動画'],
+  });
+
+  const result = parseImport(exported(settings));
+
+  assert.equal(result.ok, true);
+  // Carried along, so a device that has them does not have to work them out again
+  assert.deepEqual(result.ok && result.settings.genericAlts, ['画像', '埋め込み動画']);
+});

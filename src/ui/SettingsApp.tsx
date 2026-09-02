@@ -12,6 +12,7 @@ import {
   hasContent,
   isEmptyNode,
   SCHEMA_VERSION,
+  tidyGenericAlts,
   type SettingsNode,
 } from '../settings/schema.ts';
 import {
@@ -122,6 +123,52 @@ const LanguageSelect = ({
         ))}
       </select>
     </label>
+  );
+};
+
+/**
+ * X's own words for a picture nobody described, one to a line.
+ *
+ * Left empty the extension works them out from the pages being read and writes them here,
+ * so what is shown is what is in use. They are X's words in X's interface language, and
+ * anything written here by hand is left alone — emptying the box hands the job back.
+ *
+ * The text is held while it is being typed and only handed over on the way out: turning
+ * every keystroke into a list would make a half-typed word take effect, and a line the
+ * typing has just emptied would be dropped from under the cursor.
+ */
+const GenericAlts = ({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (words: string[]) => void;
+}) => {
+  const m = useMessages();
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? value.join('\n');
+  return (
+    <div class="generic-alts">
+      <label class="row">
+        <span>
+          {m.genericAlts.label}
+          <small>{m.genericAlts.note}</small>
+        </span>
+        <textarea
+          rows={3}
+          value={shown}
+          aria-label={m.genericAlts.label}
+          onInput={(e) => setText(e.currentTarget.value)}
+          onBlur={() => {
+            // Nothing was typed, so there is nothing to save. Without this, passing
+            // through the box would write the same list back and count as a change
+            if (text === null) return;
+            onChange(tidyGenericAlts(text.split('\n')));
+            setText(null);
+          }}
+        />
+      </label>
+    </div>
   );
 };
 
@@ -715,6 +762,11 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                   <LanguageSelect
                     value={settings.language}
                     onChange={(language) => update({ ...settings, language })}
+                  />
+                  {/* Beside the language: both are about the words X itself shows, rather than ours */}
+                  <GenericAlts
+                    value={settings.genericAlts}
+                    onChange={(genericAlts) => update({ ...settings, genericAlts })}
                   />
                   {/*
                     A place of its own rather than a box opened over the screen, so there is

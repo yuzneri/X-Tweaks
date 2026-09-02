@@ -609,16 +609,17 @@ const columnRules = (
    * opened in order to be read, and what is worth taking off a timeline is worth seeing
    * there.
    *
-   * Under `mark` the hiding is confined to the posts that carry the mark: hiding them
-   * everywhere would leave a post with no body to mark with its photos gone and nothing
-   * said about it, which reads as an empty post (see `MEDIA_MARKED_ATTR`).
+   * Under `text` and `mark` the hiding is confined to the posts that carry the line:
+   * hiding them everywhere would leave a post with no body to put a line in with its
+   * photos gone and nothing said about it, which reads as an empty post (see
+   * `MEDIA_MARKED_ATTR`).
    */
   const mediaStyle = mediaStyleOf(media.style);
   if (mediaStyle === 'hidden') {
     rules.push(
       rule(within(skimming, [TARGETS.media, TARGETS.mediaFrame]), 'display: none !important;')
     );
-  } else if (mediaStyle === 'mark') {
+  } else if (mediaStyle === 'text' || mediaStyle === 'mark') {
     rules.push(rule(within(skimming, [TARGETS.markedMedia]), 'display: none !important;'));
   }
 

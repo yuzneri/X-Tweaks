@@ -251,6 +251,21 @@ test('表示言語は auto・ja・en だけを受け入れ、それ以外は aut
   assert.equal(fillAll({ language: 1 }).language, 'auto');
 });
 
+test('X の文言は文字列だけを受け、空白だけの行と重複は落とす', () => {
+  const words = (v: unknown) => fillAll({ genericAlts: v }).genericAlts;
+
+  assert.deepEqual(words(['画像', '埋め込み動画']), ['画像', '埋め込み動画']);
+  // Nothing stored means "work them out", which is the empty list
+  assert.deepEqual(words(undefined), []);
+  assert.deepEqual(words('画像'), []);
+  // A blank line typed into the box, and the same word written twice, say nothing extra
+  assert.deepEqual(words(['画像', '', '   ', '画像']), ['画像']);
+  // What is not a string is dropped, the rest is kept
+  assert.deepEqual(words(['画像', 1, null, { a: 1 }, '動画']), ['画像', '動画']);
+  // Kept as written otherwise: it is compared with what X put on a picture
+  assert.deepEqual(words([' 画像 ']), [' 画像 ']);
+});
+
 test('保存されていない段は空になり、3段の形は常に揃う', () => {
   const settings = emptySettings();
   assert.deepEqual(settings.accounts, {});

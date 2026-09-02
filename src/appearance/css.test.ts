@@ -530,6 +530,14 @@ test('画像と動画の「マークだけ」は、マークを入れた投稿�
   for (const target of hidden.split(', ')) assert.match(target, /\[data-xpro-media-marked\] /);
 });
 
+test('画像と動画の「説明のテキスト」も、行を入れた投稿のぶんだけ隠す', () => {
+  const text = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'text')) }]);
+  const mark = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.media.style = 'mark')) }]);
+  // What goes into the post differs (the description, or the mark alone), but which
+  // pictures come off the timeline does not. That part is `appearance/apply.ts`'s
+  assert.equal(text, mark);
+});
+
 test('カードの指定は、画像と動画には触れない', () => {
   for (const cardStyle of ['text', 'mark', 'hidden'] as const) {
     const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = cardStyle)) }]);

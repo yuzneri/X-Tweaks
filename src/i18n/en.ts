@@ -22,6 +22,17 @@ export const en = {
   },
 
   /**
+   * X's own words for a picture nobody described. Kept beside the language: both are
+   * about what X shows rather than what the extension does
+   */
+  genericAlts: {
+    label: "X's word for a picture with no description",
+    note:
+      'One to a line, worked out from the pages you read. A line written here is left as ' +
+      'written; a line deleted comes back if a page shows the same word again.',
+  },
+
+  /**
    * The post traits usable as conditions. They are the option names and also appear in
    * a condition's description.
    * The negated form is not held here, since conditions.trait attaches it.
@@ -534,13 +545,15 @@ export const en = {
     timeParens: { open: ' (', close: ')' } as { open: string; close: string },
     media: {
       maxThumbHeight: 'Largest thumbnail height',
-      /** How photos and videos are shown. The mark goes into the post, where they were */
+      /** How photos and videos are shown. The line goes into the post, where they were */
       style: 'Photos and videos',
+      /** "Text" is the description written for the picture. A picture with none takes the mark alone */
       styles: {
         show: 'As they are',
+        text: 'Their description',
         mark: 'A mark',
         hidden: 'Not shown',
-      } as { show: string; mark: string; hidden: string },
+      } as { show: string; text: string; mark: string; hidden: string },
     },
     /**
      * How the things that hang off a post are shown: a link card, an article, a quoted

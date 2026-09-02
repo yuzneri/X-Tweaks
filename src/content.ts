@@ -21,6 +21,7 @@ import { surfaceFor } from './surface/select.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
+import { clearAltTitles, stampAltTitles, useGenericAlts } from './appearance/apply.ts';
 import { open as openPanel, toggle as togglePanel } from './panel/panel.tsx';
 import { OPEN_PANEL } from './panel/message.ts';
 import { watchTrigger } from './panel/trigger.ts';
@@ -134,6 +135,13 @@ const main = async (): Promise<void> => {
   startCompose(effectiveSettings(current, paused).compose, { log });
 
   /*
+   * The words X puts on a picture nobody described, as known so far. Handed over before
+   * anything is read, so that a page opened with them already written down neither learns
+   * them again nor writes over what was corrected by hand. `reapply` keeps them current.
+   */
+  useGenericAlts(current.genericAlts);
+
+  /*
    * The same two settings, reachable from the compose form itself.
    * A change made there is saved from here, and comes back to every surface (this one
    * included) through `subscribe`, so there is one copy of the values and one way in.
@@ -164,6 +172,9 @@ const main = async (): Promise<void> => {
      */
     updateCompose(effectiveSettings(current, paused).compose);
     updateComposeSwitches(effectiveSettings(current, paused).compose);
+    // Told unconditionally too: which words are X's own is not a setting that pausing
+    // stands down, it is what stops a picture's own description being mistaken for one
+    useGenericAlts(current.genericAlts);
     if (!started) {
       missed = true;
       return false;
@@ -232,9 +243,28 @@ const main = async (): Promise<void> => {
       // rather than left showing values that would not take effect
       if (paused) {
         removeComposeSwitches();
+        // Reading a picture's description is no setting of anyone's, so applying the empty
+        // settings does not stop it the way it stops the rest. It is stopped here instead,
+        // this being where the pause is known
+        clearAltTitles();
         return;
       }
       insertComposeSwitches(messages);
+      /*
+       * The tooltip carrying what a picture is of. Set here rather than with the markers
+       * driven by the settings, for the same reason it is cleared above.
+       *
+       * X's own word for a picture with no description comes back where this round was
+       * the one to work it out, and is written down so that the next page starts knowing
+       * it — and so that it can be read and corrected on the settings screen. Nothing
+       * comes back once it is known, so this saves once and then never again.
+       */
+      const learned = stampAltTitles();
+      if (learned) {
+        save({ ...current, genericAlts: [...learned] }).catch(
+          warnSaveFailed("X's own word for a picture")
+        );
+      }
       // The compose form is written down while it is open: once a post goes out it is
       // gone, and nothing about it can be read any more
       noticeComposeForm();

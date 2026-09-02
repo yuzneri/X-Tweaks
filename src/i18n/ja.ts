@@ -12,6 +12,13 @@ export const ja: Messages = {
     en: 'English',
   },
 
+  genericAlts: {
+    label: '説明の無い画像に X が入れる文言',
+    note:
+      '1行に1つ。見たページから自動で調べて足していきます。手で書いた行はそのまま残りますが、' +
+      '消した行は、ページが同じ文言をまた示せば戻ります。',
+  },
+
   traits: {
     repost: 'リポスト',
     quote: '引用',
@@ -448,6 +455,8 @@ export const ja: Messages = {
       style: '画像と動画の表示',
       styles: {
         show: 'そのまま',
+        // 画像に書かれた説明（alt）。説明の無い画像はマークだけになる
+        text: '説明のテキスト',
         mark: 'マーク',
         hidden: '表示しない',
       },

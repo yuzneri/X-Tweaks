@@ -17,6 +17,15 @@ import type { Messages } from '../i18n/index.ts';
 export const ATTACHMENT_CLASS = 'xpro-attachment';
 
 /**
+ * The class on a line that came out as the mark alone.
+ *
+ * Such a line is one character wide, and everything it has to say is in the tooltip. The
+ * stylesheet gives it a little more for the pointer to land on, which is worth telling
+ * apart from a line carrying words: that one is as wide as its words and needs nothing.
+ */
+export const MARK_CLASS = 'xpro-mark';
+
+/**
  * The mark each kind is given.
  *
  * They tell a line the extension put in from the post's own words, and in the
