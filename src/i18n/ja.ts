@@ -411,6 +411,9 @@ export const ja: Messages = {
     fontSize: '本文の字の大きさ',
     maxLines: '本文の行数の上限',
     lines: '行',
+    // 拡張が本文に入れる行と画像の下のキャプションに共通。未指定なら80字
+    wordsShown: '説明や引用を出す文字数',
+    characters: '字',
     collapseNewlines: '本文の改行',
     collapseNewlinesOn: '改行を削除',
     collapseNewlinesOff: 'そのまま',

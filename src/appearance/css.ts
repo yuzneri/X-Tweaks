@@ -66,28 +66,26 @@ export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
 export const MEDIA_FRAME_ATTR = 'data-xpro-media';
 
 /**
- * The media in the columns asking for a caption under their pictures.
+ * The media in one column, for a column asking for a caption under its pictures. Empty
+ * where it asked for no such thing.
  *
- * Named column by column rather than gathered everywhere and sorted out afterwards: a deck
- * is mostly columns that asked for no such thing, and each of their pictures would cost a
- * walk up to its column and a lookup only to be turned away.
+ * Named per column rather than gathered across all of them, because what each caption says
+ * follows that column's own settings — how much of a description goes on screen, above all.
+ * It also keeps the walk off the columns that asked for nothing: a deck is mostly those,
+ * and each of their pictures would cost a walk up to its column only to be turned away.
  *
  * Scopes with a post opened are *not* left out, unlike in the rules that take things off a
  * timeline. X puts its own ALT button on the opened post's pictures, but on those alone —
  * the replies under it carry none — so which pictures to leave to X is asked of each
  * picture rather than of the scope (`showsOwnAltButton`).
  *
- * Empty where no column asked, which reads as "there is nothing to walk" — an empty
- * selector matches nothing, but `querySelectorAll` refuses it outright, so the caller has
- * to answer for it.
+ * An empty selector matches nothing, but `querySelectorAll` refuses it outright, so the
+ * caller has to answer for it.
  */
-export const captionTargets = (columns: ColumnAppearance[]): string =>
-  columns
-    .filter((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
-    .flatMap((column) =>
-      MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}="${column.key}"] ${target}`)
-    )
-    .join(', ');
+export const captionTargets = (column: ColumnAppearance): string =>
+  mediaStyleOf(column.appearance.media.style) === 'caption'
+    ? MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}="${column.key}"] ${target}`).join(', ')
+    : '';
 
 /**
  * The marker holding a post's time in absolute form. It goes on the parent of the

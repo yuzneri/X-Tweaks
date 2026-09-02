@@ -8,6 +8,7 @@ import {
   moreThanShown,
   partFor,
   shortLineFrom,
+  WORDS_SHOWN,
 } from './card.ts';
 
 /** What a line shows on a post being read as it stands, and on one shown cut short */
@@ -151,4 +152,13 @@ test('出し切っていないときだけ、まだ言うことがあるとみ�
   const bare = partFor('photo', null, null);
   assert.equal(moreThanShown(bare, SHOWN), false);
   assert.equal(moreThanShown(bare, MARKS), false);
+});
+
+test('出す文字数は、列の指定に従う。未指定なら既定の80字', () => {
+  const parts = { words: 'あ'.repeat(200), source: null };
+  assert.equal(shortLineFrom(parts, ja, 20), `${'あ'.repeat(20)}…`);
+  assert.equal(shortLineFrom(parts, ja, null), `${'あ'.repeat(WORDS_SHOWN)}…`);
+  assert.equal(shortLineFrom(parts, ja), `${'あ'.repeat(WORDS_SHOWN)}…`);
+  // Short enough for the limit given, and nothing is cut
+  assert.equal(shortLineFrom({ words: '短い', source: null }, ja, 20), '短い');
 });

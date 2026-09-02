@@ -485,6 +485,12 @@ export const en = {
     fontSize: 'Post text size',
     maxLines: 'Post text line limit',
     lines: 'lines',
+    /**
+     * How much of a description, a quoted post or a headline goes on screen — one setting
+     * for the line put into a post and for the caption under a picture. 80 when unset.
+     */
+    wordsShown: 'Characters shown of a description or quote',
+    characters: 'characters',
     collapseNewlines: 'Line breaks in the post text',
     collapseNewlinesOn: 'Fold each into a space',
     collapseNewlinesOff: 'As they are',

@@ -113,6 +113,11 @@ const appearanceRows = (
       tier: of((n) => n.appearance.maxLines),
     },
     {
+      label: m.appearance.wordsShown,
+      value: size(effective.wordsShown, m.appearance.characters),
+      tier: of((n) => n.appearance.wordsShown),
+    },
+    {
       label: m.appearance.collapseNewlines,
       value: collapsesNewlines(effective.collapseNewlines)
         ? m.appearance.collapseNewlinesOn

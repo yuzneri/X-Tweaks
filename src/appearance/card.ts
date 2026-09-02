@@ -98,13 +98,15 @@ export const colorInStyle = (
 export type LineParts = { words: string | null; source: string | null };
 
 /**
- * How much of the words the line shows.
+ * How much of the words a line shows where no column says otherwise.
  *
  * A card's headline is a headline, but a quoted post runs to a couple of hundred
  * characters, and put in whole it takes more room than the frame it replaced. What is cut
- * off is not lost: the tooltip carries the words as they were written.
+ * off is not lost: the tooltip carries the words as they were written, and the "Show more"
+ * puts them in.
+ * Settable per column (`AppearanceNode.wordsShown`); this is what an unset column takes.
  */
-const WORDS_SHOWN = 80;
+export const WORDS_SHOWN = 80;
 
 /** Whitespace runs, the line breaks written into a quoted post among them, become one space */
 const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim();
@@ -131,9 +133,15 @@ const built = (
 export const lineTextFrom = (parts: LineParts, m: Messages): string | null =>
   built(parts, m, null);
 
-/** The same, cut down to what goes on screen: one line, and only so many characters of it */
-export const shortLineFrom = (parts: LineParts, m: Messages): string | null =>
-  built(parts, m, WORDS_SHOWN);
+/**
+ * The same, cut down to what goes on screen: one line, and only so many characters of it.
+ * `limit` is the column's own setting, or `WORDS_SHOWN` where it set none.
+ */
+export const shortLineFrom = (
+  parts: LineParts,
+  m: Messages,
+  limit: number | null = null
+): string | null => built(parts, m, limit ?? WORDS_SHOWN);
 
 /**
  * One thing a line stands for: a card, an article, a quoted post, or a single picture.

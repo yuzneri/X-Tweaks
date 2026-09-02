@@ -395,6 +395,15 @@ export type AppearanceNode = {
   fontSize: number | null;
   /** Cuts the body at this many lines, with the rest opened by "Show more". Lines as wrapped on screen */
   maxLines: number | null;
+  /**
+   * How many characters of what the extension writes into a post go on screen: the
+   * description given to a picture, a quoted post's text, a card's headline. The rest is
+   * opened by "Show more".
+   *
+   * One setting for the caption under a picture and for the line put into the body, so the
+   * two show the same amount. Unset takes the default (`WORDS_SHOWN`).
+   */
+  wordsShown: number | null;
   /** Drops the line breaks written into the body, turning each into a single space */
   collapseNewlines: boolean | null;
   /** Takes the block of accounts X suggests following off the timeline */
@@ -630,6 +639,7 @@ export const fillNode = (v: unknown): SettingsNode => {
       compact: bool(appearance.compact),
       fontSize: size(appearance.fontSize),
       maxLines: size(appearance.maxLines),
+      wordsShown: size(appearance.wordsShown),
       collapseNewlines: bool(appearance.collapseNewlines),
       hideWhoToFollow: bool(appearance.hideWhoToFollow),
       colors: {
@@ -740,6 +750,7 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.compact !== null ||
   appearance.fontSize !== null ||
   appearance.maxLines !== null ||
+  appearance.wordsShown !== null ||
   appearance.collapseNewlines !== null ||
   appearance.hideWhoToFollow !== null ||
   appearance.timeFormat !== null ||

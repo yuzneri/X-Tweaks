@@ -162,6 +162,7 @@ test('外観の項目は1つ残らず継承する。合成が項目を列挙し�
     compact: true,
     fontSize: 13,
     maxLines: 5,
+    wordsShown: 40,
     collapseNewlines: true,
     hideWhoToFollow: true,
     colors: {

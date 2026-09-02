@@ -519,7 +519,7 @@ const linesIn = (
         anchor: card,
         source: card,
         parts: [
-          partFor('link', shown(cardStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+          partFor('link', shown(cardStyle, shortLineFrom(parts, messages, appearance.wordsShown)), lineTextFrom(parts, messages)),
         ],
         // A headline is a link, and is drawn like one
         dim: false,
@@ -541,7 +541,7 @@ const linesIn = (
         // The frame carries the border and is what has to go, not the cover image alone
         source: article.parentElement,
         parts: [
-          partFor('article', shown(cardStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+          partFor('article', shown(cardStyle, shortLineFrom(parts, messages, appearance.wordsShown)), lineTextFrom(parts, messages)),
         ],
         dim: false,
         terse: cardStyle === 'mark',
@@ -561,7 +561,7 @@ const linesIn = (
       anchor: quote,
       source: quote,
       parts: [
-        partFor('quote', shown(quoteStyle, shortLineFrom(parts, messages)), lineTextFrom(parts, messages)),
+        partFor('quote', shown(quoteStyle, shortLineFrom(parts, messages, appearance.wordsShown)), lineTextFrom(parts, messages)),
       ],
       // Somebody else's post, said in their words rather than this post's
       dim: true,
@@ -602,7 +602,7 @@ const linesIn = (
         const said: LineParts = { words: descriptionOf(altTextOf(picture), generic), source: null };
         return partFor(
           kind,
-          shown(mediaStyle, shortLineFrom(said, messages)),
+          shown(mediaStyle, shortLineFrom(said, messages, appearance.wordsShown)),
           lineTextFrom(said, messages)
         );
       });
@@ -1004,15 +1004,6 @@ const restampCaptions = (
   messages: Messages,
   readLinkColor: () => string | null
 ): void => {
-  /*
-   * Only the columns that asked are walked (`captionTargets`).
-   * The caller asks the same question before calling at all, so this is never the empty
-   * answer in practice; it is answered anyway, because an empty selector is not something
-   * `querySelectorAll` will take.
-   */
-  const wanted = captionTargets(columns);
-  if (wanted === '') return clearCaptions();
-
   /**
    * The quote frame of a cell, asked at most once for each.
    *
@@ -1038,36 +1029,45 @@ const restampCaptions = (
   const blocks = new Map<Element, { nth: number; short: string; full: string }[]>();
   /** How many pictures each block holds, described or not. What the numbering counts against */
   const counts = new Map<Element, number>();
-  document.querySelectorAll(wanted).forEach((picture) => {
-    // A video answers to both of X's markers; counted twice it would write its description
-    // out twice under the one picture
-    if (!isOutermostMedia(picture)) return;
-    const cell = picture.closest(CELL_SELECTOR);
-    if (!cell) return;
-    /*
-     * A quoted post's picture is left alone. The words written for it are the quoted
-     * author's, and set down in the quoting post they read as the quoting author's — the
-     * one place a description can say the wrong thing about who said it.
-     */
-    if (quotedIn(cell)?.contains(picture)) return;
-    const block = mediaBlockOf(picture, cell);
-    /*
-     * Counted before the description is looked at, so the number says which picture this
-     * is among all of them. Counting only the described ones would call the third picture
-     * of four "the first" whenever the two before it carried nothing.
-     */
-    const nth = (counts.get(block) ?? 0) + 1;
-    counts.set(block, nth);
-    // A picture nobody described has nothing to say, and takes no caption. X's own word
-    // for one is not a description (`appearance/alt.ts`)
-    const description = descriptionOf(altTextOf(picture), genericAlts);
-    if (description === null) return;
-    const said: LineParts = { words: description, source: null };
-    const short = shortLineFrom(said, messages);
-    const full = lineTextFrom(said, messages);
-    if (short === null || full === null) return;
-    blocks.set(block, [...(blocks.get(block) ?? []), { nth, short, full }]);
-  });
+  /*
+   * Walked a column at a time, because how much of a description goes on screen is that
+   * column's own setting (`wordsShown`). Gathering every column's pictures in one sweep
+   * would leave each of them to be traced back to a column afterwards.
+   */
+  for (const column of columns) {
+    const wanted = captionTargets(column);
+    if (wanted === '') continue;
+    document.querySelectorAll(wanted).forEach((picture) => {
+      // A video answers to both of X's markers; counted twice it would write its
+      // description out twice under the one picture
+      if (!isOutermostMedia(picture)) return;
+      const cell = picture.closest(CELL_SELECTOR);
+      if (!cell) return;
+      /*
+       * A quoted post's picture is left alone. The words written for it are the quoted
+       * author's, and set down in the quoting post they read as the quoting author's — the
+       * one place a description can say the wrong thing about who said it.
+       */
+      if (quotedIn(cell)?.contains(picture)) return;
+      const block = mediaBlockOf(picture, cell);
+      /*
+       * Counted before the description is looked at, so the number says which picture this
+       * is among all of them. Counting only the described ones would call the third
+       * picture of four "the first" whenever the two before it carried nothing.
+       */
+      const nth = (counts.get(block) ?? 0) + 1;
+      counts.set(block, nth);
+      // A picture nobody described has nothing to say, and takes no caption. X's own word
+      // for one is not a description (`appearance/alt.ts`)
+      const description = descriptionOf(altTextOf(picture), genericAlts);
+      if (description === null) return;
+      const said: LineParts = { words: description, source: null };
+      const short = shortLineFrom(said, messages, column.appearance.wordsShown);
+      const full = lineTextFrom(said, messages);
+      if (short === null || full === null) return;
+      blocks.set(block, [...(blocks.get(block) ?? []), { nth, short, full }]);
+    });
+  }
 
   /** The captions this round put in or kept. The rest stand under a picture that no longer says anything */
   const live = new Set<Element>();

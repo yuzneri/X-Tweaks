@@ -205,6 +205,22 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
         </label>
 
         {/*
+          How much of what the extension writes into a post goes on screen: a picture's
+          description, a quoted post, a card's headline. Placed beside the body's own line
+          limit, the two being the same kind of question about how much a post takes up
+        */}
+        <label class="row">
+          <span>{m.appearance.wordsShown}</span>
+          <SizeField
+            value={node.wordsShown}
+            inherited={above.wordsShown}
+            onChange={(wordsShown) => patch({ wordsShown })}
+            label={m.appearance.wordsShown}
+            unit={m.appearance.characters}
+          />
+        </label>
+
+        {/*
           Folds the line breaks written into a post into a single space each.
           Placed under the line limit: both are about how much room the body takes
         */}

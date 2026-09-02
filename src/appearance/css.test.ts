@@ -616,34 +616,29 @@ test('横の欄の規則は、カラムがいくつあっても1行しか出な�
 });
 
 test('キャプションを出す列だけが、説明を探す対象になる', () => {
-  const targets = captionTargets([
-    { key: 'a', appearance: appearanceOf((a) => (a.media.style = 'caption')) },
-    { key: 'b', appearance: appearanceOf((a) => (a.media.style = 'show')) },
-    { key: 'c', appearance: appearanceOf((a) => (a.media.style = 'text')) },
-  ]);
+  const targets = captionTargets({
+    key: 'a',
+    appearance: appearanceOf((a) => (a.media.style = 'caption')),
+  });
   for (const target of targets.split(', ')) {
     assert.ok(target.startsWith(`[${COLUMN_ATTR}="a"] `), `${target} が a の中に閉じている`);
   }
   // A deck is mostly columns that did not ask. Walking them and turning each picture away
   // one at a time is what this avoids
-  assert.equal(targets.includes('"b"'), false);
-  assert.equal(targets.includes('"c"'), false);
+  for (const style of ['show', 'text', 'mark', 'hidden'] as const) {
+    assert.equal(
+      captionTargets({ key: 'b', appearance: appearanceOf((a) => (a.media.style = style)) }),
+      '',
+      `${style} は対象にならない`
+    );
+  }
 });
 
 test('写真と動画の両方が対象になる', () => {
-  const targets = captionTargets([
-    { key: 'a', appearance: appearanceOf((a) => (a.media.style = 'caption')) },
-  ]);
+  const targets = captionTargets({
+    key: 'a',
+    appearance: appearanceOf((a) => (a.media.style = 'caption')),
+  });
   assert.ok(targets.includes('[data-testid="tweetPhoto"]'));
   assert.ok(targets.includes('[data-testid="videoPlayer"]'));
-});
-
-test('どの列も出さないなら空。呼ぶ側が空を見て walk そのものをやめる', () => {
-  // An empty string is not a selector querySelectorAll will take, so it must not be
-  // handed to one
-  assert.equal(
-    captionTargets([{ key: 'a', appearance: appearanceOf((a) => (a.media.style = 'mark')) }]),
-    ''
-  );
-  assert.equal(captionTargets([]), '');
 });
