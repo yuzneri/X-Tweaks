@@ -40,7 +40,7 @@ The following can be changed per column on X Pro, and per view (home, notificati
 - **Post text size**
 - **Post text line limit**: a post past the limit opens with “Show more” (not while the posts are packed)
 - **Line breaks in the post text**: each is folded into a single space, so a post takes less room
-- **Photos and videos**: as they are, as a mark (they come off the timeline and a mark, 📷 or 🎬, goes into the post where they were), or not shown at all (off the timeline with nothing left behind)
+- **Photos and videos**: as they are, as their description (what the author wrote for the picture goes into the post as one line, “📷 the description”, and the picture comes off; a picture nobody described takes the mark alone), as a mark (they come off the timeline and a mark, 📷 or 🎬, goes into the post where they were), or not shown at all (off the timeline with nothing left behind)
 - **Largest thumbnail height**
 - **Link cards and articles**: as they are, as text in the post (each goes into the end of the post body as one line — “🔗 headline (domain)”, “📄 the article's headline” — and the box itself goes; a card's line keeps its link, in X’s own link color), as a mark (the words are dropped, leaving 🔗 or 📄), or not shown at all
 - **Quoted posts**: the same four ways. As text it reads “💬 what the quote says (name @id)”, cut at 80 characters with the rest on hover. The line does not open anything: X Pro writes no address on a quote frame
@@ -57,6 +57,9 @@ The following can be changed per column on X Pro, and per view (home, notificati
   - Line between posts
 - **What highlights blend over**: the background set above, or X’s own with that color ignored
 - **When a highlight makes text unreadable**: whether the text color is fixed automatically
+
+The description written for a picture is shown on hover whatever the setting says, X Pro showing it nowhere itself: on the line put into the post under “their description” and “a mark”, and on the picture itself under “as they are”.
+A picture nobody described carries a word of X's own instead (“Image”, and another for a video), which is not passed on as a description. Those words are X's, in the language X is shown in, so they are worked out from the pages you read. What was worked out is shown under “Other → Settings”, where it can be corrected — a line written there is left as written.
 
 Anything left unset keeps the way the site itself shows it.
 A line put into a post goes at the end of the body: on a line of its own where the post's line breaks are kept, and on from the body where they are folded into spaces.
