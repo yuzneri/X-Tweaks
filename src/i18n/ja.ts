@@ -307,10 +307,10 @@ export const ja: Messages = {
 
       leaveOutNote:
         '表示された結果に対して行います。',
-      excludeReposts: 'リポスト',
-      excludeHashtags: 'ハッシュタグを含む投稿',
-      excludeNameOnly: '表示名のみに引っかかった投稿',
-      excludeHandleOnly: 'ユーザーIDのみに引っかかった投稿',
+      excludeReposts: 'リポストを非表示',
+      excludeHashtags: 'ハッシュタグを含む投稿を非表示',
+      excludeNameOnly: '表示名のみに引っかかった投稿を非表示',
+      excludeHandleOnly: 'ユーザーIDのみに引っかかった投稿を非表示',
     },
 
     groups: {

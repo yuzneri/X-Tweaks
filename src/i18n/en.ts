@@ -382,10 +382,10 @@ export const en = {
        * part of the search and wonder why they are gone on the next visit.
        */
       leaveOutNote: 'Done to the results on screen.',
-      excludeReposts: 'Reposts',
-      excludeHashtags: 'Posts with a hashtag',
-      excludeNameOnly: 'Posts that matched the display name only',
-      excludeHandleOnly: 'Posts that matched the user ID only',
+      excludeReposts: 'Hide reposts',
+      excludeHashtags: 'Hide posts with a hashtag',
+      excludeNameOnly: 'Hide posts that matched the display name only',
+      excludeHandleOnly: 'Hide posts that matched the user ID only',
     },
 
     /** The folded groups. Folded because the rail is narrow and the open form is tall */
