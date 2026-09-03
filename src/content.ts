@@ -45,7 +45,7 @@ import { injectStyles as injectComposeStyles } from './compose/styles.ts';
 import {
   insertInto as insertSearchForm,
   remove as removeSearchForm,
-} from './search/insert.ts';
+} from './search/insert.tsx';
 import { injectStyles as injectSearchStyles } from './search/styles.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';

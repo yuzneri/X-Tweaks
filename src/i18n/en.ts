@@ -320,6 +320,64 @@ export const en = {
       /** Shown in place of `note` while the rail has been taken away */
       noteWide: 'Not while the items on the right are taken away: there is nowhere to put it.',
     },
+
+    /**
+     * The form's own fields, as they read in the rail.
+     *
+     * Worded as what the reader wants rather than as X's operator names. Somebody who
+     * knows `min_faves:` can write it into the first field and have it reach X untouched;
+     * the point of the rest is to be usable without knowing any of them.
+     */
+    fields: {
+      all: 'All of these words',
+      exact: 'This exact phrase',
+      any: 'Any of these words',
+      none: 'None of these words',
+      hashtags: 'These hashtags',
+
+      from: 'From these accounts',
+      to: 'Replying to these accounts',
+      mentioning: 'Mentioning these accounts',
+      /** The one word shared by the three account fields, each having the same switch */
+      exclude: 'Leave these out instead',
+
+      verified: 'Verified accounts',
+      links: 'Links',
+      images: 'Photos',
+      videos: 'Videos',
+      /** How each of those four is asked for */
+      choices: { any: 'Either way', include: 'Only these', exclude: 'Leave out' },
+
+      replies: 'Replies',
+      repliesAny: 'Either way',
+      repliesOnly: 'Only replies',
+      repliesExclude: 'Leave replies out',
+
+      lang: 'Language',
+      langAny: 'Any language',
+
+      minReplies: 'Replies, at least',
+      minFaves: 'Likes, at least',
+      minRetweets: 'Reposts, at least',
+
+      since: 'From',
+      until: 'Until',
+
+      tab: 'Show',
+      /** X's own tabs, worded as X words them */
+      tabs: { top: 'Top', live: 'Latest', user: 'People', media: 'Media', list: 'Lists' },
+      followedOnly: 'Only accounts you follow',
+      nearbyOnly: 'Only near you',
+    },
+
+    /** The folded groups. Folded because the rail is narrow and the open form is tall */
+    groups: {
+      accounts: 'Accounts',
+      filters: 'What the post has',
+      engagement: 'How much it got',
+      dates: 'When',
+      where: 'Where to look',
+    },
   },
 
   effective: {

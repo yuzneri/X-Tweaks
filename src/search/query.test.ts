@@ -5,8 +5,8 @@ import {
   emptyForm,
   emptyScopes,
   quoted,
+  epochSecondsOf,
   searchPath,
-  sinceDaysBefore,
   tokenize,
   type SearchForm,
 } from './query.ts';
@@ -192,11 +192,13 @@ test('反応数の 0 は指定として通る', () => {
   assert.equal(buildQuery(form({ minFaves: '0' })), 'min_faves:0');
 });
 
-test('日付は since: と until: になる', () => {
-  assert.equal(
-    buildQuery(form({ since: '2026-01-01', until: '2026-02-01' })),
-    'since:2026-01-01 until:2026-02-01'
-  );
+test('日時は since_time: と until_time: の秒になる', () => {
+  // since:/until: は日付までしか言えない。時刻を言えるのはこの形だけ
+  const q = buildQuery(form({ since: '2026-01-01T00:00:00', until: '2026-01-01T01:00:00' }));
+  assert.match(q, /^since_time:\d+ until_time:\d+$/);
+  const [since, until] = q.split(' ').map((term) => Number(term.split(':')[1]));
+  // 1時間の差はちょうど 3600 秒。読み手の時間帯に依らず成り立つ
+  assert.equal(until! - since!, 3600);
 });
 
 test('全部埋めたときの並び', () => {
@@ -216,12 +218,45 @@ test('全部埋めたときの並び', () => {
         links: 'exclude',
         replies: 'exclude',
         minFaves: '100',
-        since: '2026-01-01',
+        since: '2026-01-01T00:00:00',
       })
     ),
     'rust "hello world" (go OR zig) -crab #rustlang lang:ja from:alice -to:bob @carol ' +
-      'filter:verified -filter:links -filter:replies min_faves:100 since:2026-01-01'
+      'filter:verified -filter:links -filter:replies min_faves:100 ' +
+      `since_time:${epochSecondsOf('2026-01-01T00:00:00')}`
   );
+});
+
+// --- epochSecondsOf ---
+//
+// The values depend on the reader's time zone, which is the point of them: the field says
+// a local moment and X is told the instant. So the assertions here pin the shape and the
+// arithmetic rather than a number that would only hold in one place.
+
+test('空の欄からは秒が出ない', () => {
+  assert.equal(epochSecondsOf(''), null);
+  assert.equal(epochSecondsOf('   '), null);
+});
+
+test('日付として読めないものからは秒が出ない', () => {
+  assert.equal(epochSecondsOf('きのう'), null);
+  assert.equal(epochSecondsOf('2026-13-45T99:99:99'), null);
+});
+
+test('秒は整数で、端数を持たない', () => {
+  const seconds = epochSecondsOf('2026-01-01T09:30:15');
+  assert.ok(seconds !== null && Number.isInteger(seconds));
+});
+
+test('秒まで指定すると、その分だけ差が出る', () => {
+  const a = epochSecondsOf('2026-01-01T09:30:00');
+  const b = epochSecondsOf('2026-01-01T09:30:45');
+  assert.equal(b! - a!, 45);
+});
+
+test('時刻を省いた日付も読める', () => {
+  // The field always fills a time in, but a value arriving from elsewhere may not
+  assert.notEqual(epochSecondsOf('2026-01-01'), null);
 });
 
 // --- searchPath ---
@@ -267,27 +302,6 @@ test('f・pf・lf はクエリではなくアドレスの側に出る', () => {
   assert.equal(new URLSearchParams(path.slice(path.indexOf('?') + 1)).get('q'), 'rust');
 });
 
-// --- sinceDaysBefore ---
-
-test('直近N日は since: の日付に化ける', () => {
-  assert.equal(sinceDaysBefore(7, new Date(2026, 8, 3)), '2026-08-27');
-});
-
-test('月をまたいで戻れる', () => {
-  assert.equal(sinceDaysBefore(5, new Date(2026, 8, 3)), '2026-08-29');
-});
-
-test('年をまたいで戻れる', () => {
-  assert.equal(sinceDaysBefore(1, new Date(2026, 0, 1)), '2025-12-31');
-});
-
-test('月と日は2桁に揃う', () => {
-  assert.equal(sinceDaysBefore(0, new Date(2026, 0, 5)), '2026-01-05');
-});
-
-test('うるう日をまたいで戻れる', () => {
-  assert.equal(sinceDaysBefore(1, new Date(2028, 2, 1)), '2028-02-29');
-});
 
 // --- 読者が余分な印を付けて打ったとき ---
 // 「アカウント名の @ は付いていても外れる」と同じ発想を、除外の - とタグの # にも広げる
@@ -335,7 +349,3 @@ test('空のクエリでもアドレスは組み立てられる', () => {
   assert.equal(searchPath('', emptyScopes()), '/search?q=&src=typd');
 });
 
-test('直近N日に負の数を渡しても未来には行かない', () => {
-  // since: に未来の日付が入れば検索は必ず0件になる
-  assert.equal(sinceDaysBefore(-3, new Date(2026, 8, 3)), '2026-09-03');
-});

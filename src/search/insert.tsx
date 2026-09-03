@@ -6,7 +6,9 @@
  * (`content.ts`): a form already standing is left alone, and one X has thrown away is put
  * back. No timer of its own — the settling is the signal this extension already has.
  */
+import { render } from 'preact';
 import type { Messages } from '../i18n/index.ts';
+import { SearchFormView } from './Form.tsx';
 import { placementIn } from './rail.ts';
 
 /** The mark on what was inserted, so nothing is inserted twice */
@@ -14,6 +16,9 @@ const MARK = 'data-xpro-search';
 
 /** The mark on X's own blocks this form stands in for, so they can be uncovered again */
 const COVERED = 'data-xpro-search-covered';
+
+/** The node the form is rendered into, marked so it can be found again to unmount */
+const MOUNT = 'data-xpro-search-mount';
 
 /**
  * Hides one of X's blocks rather than removing it.
@@ -40,8 +45,13 @@ const uncover = (element: Element): void => {
 };
 
 /**
- * Builds the form's own box. Empty for now beyond its heading: what goes inside is the
- * next step's, and this is the place it will be rendered into.
+ * Builds the form's own box and renders the form into it.
+ *
+ * The box itself is plain DOM and the form inside it is Preact. Keeping the box out of the
+ * component lets the insertion move it between views without unmounting: what is typed
+ * into the form is held outside the component (`state.ts`), but the fields' own state —
+ * where the caret is, which group is open — lives in the tree, and rebuilding would take
+ * it away on every move.
  */
 const build = (messages: Messages): HTMLElement => {
   const box = document.createElement('div');
@@ -54,6 +64,11 @@ const build = (messages: Messages): HTMLElement => {
   title.className = 'xpro-search-title';
   title.textContent = messages.search.label;
   box.append(title);
+
+  const mount = document.createElement('div');
+  mount.setAttribute(MOUNT, '');
+  box.append(mount);
+  render(<SearchFormView messages={messages} />, mount);
   return box;
 };
 
@@ -111,6 +126,9 @@ export const insertInto = (messages: Messages): number => {
  * with nothing on screen to explain it.
  */
 export const remove = (): void => {
+  // Preact is let go of before the node is taken away, so what the tree held on to
+  // (listeners, effects) goes with it rather than being left behind
+  document.querySelectorAll(`[${MOUNT}]`).forEach((mount) => render(null, mount));
   document.querySelectorAll(`[${MARK}]`).forEach((box) => box.remove());
   document.querySelectorAll(`[${COVERED}]`).forEach(uncover);
 };

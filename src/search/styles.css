@@ -4,6 +4,10 @@
  * The type and the text color are inherited rather than named, so the form follows
  * whichever of X's themes the reader is in rather than carrying a second palette that
  * would be right in one theme and wrong in the other.
+ *
+ * The browser's own date and number controls (the calendar button, the spinners) follow
+ * `color-scheme`, which X sets on the root and which inherits all the way down here — so
+ * they come out dark on X's dark page without this file saying anything about them.
  */
 
 .xpro-search {
@@ -30,4 +34,77 @@
   margin: 0 0 8px;
   font-size: 17px;
   font-weight: 700;
+}
+
+.xpro-search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xpro-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/*
+ * Smaller than the box it names, so the pair reads as one thing. The rail is 350px wide
+ * and there are twenty of these; a label at the same size as its box doubles the height
+ * of every row.
+ */
+.xpro-search-label {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.xpro-search-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border, rgb(47, 51, 54));
+  border-radius: 8px;
+  /* X's own field background, which is the page's rather than a lighter panel */
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: inherit;
+}
+
+.xpro-search-input:focus-visible {
+  outline: 2px solid rgb(29, 155, 240);
+  outline-offset: -1px;
+}
+
+/* A checkbox and its words on one line, the words carrying the width */
+.xpro-search-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.xpro-search-check input {
+  flex: none;
+  margin: 0;
+}
+
+.xpro-search-group {
+  border-top: 1px solid var(--color-border, rgb(47, 51, 54));
+  padding-top: 6px;
+}
+
+.xpro-search-summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  /* The browser's own marker is kept: it is what says the group can be opened */
+  list-style-position: inside;
+}
+
+.xpro-search-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
 }

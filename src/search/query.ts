@@ -65,7 +65,15 @@ export type SearchForm = {
   minReplies: string;
   minFaves: string;
   minRetweets: string;
-  /** `YYYY-MM-DD`, the only date format X documents */
+  /**
+   * A moment, as `input[type=datetime-local]` holds it: `YYYY-MM-DDTHH:MM:SS`, read in
+   * the reader's own time zone. Empty means "not asked".
+   *
+   * Carried to X as `since_time:` / `until_time:` in whole seconds since the epoch, which
+   * is the only form that can say a time of day at all — `since:` takes a date and
+   * nothing finer. Being an absolute instant, it also settles a question the date form
+   * leaves open: which time zone X reads `since:2026-01-01` in.
+   */
   since: string;
   until: string;
 };
@@ -236,6 +244,27 @@ const valueTerm = (name: string, value: string): string[] => {
 };
 
 /**
+ * Whole seconds since the epoch for a `datetime-local` value, or null where the field is
+ * empty or holds something no date can be made of.
+ *
+ * `YYYY-MM-DDTHH:MM:SS` with no zone on the end is read as the reader's own time, which is
+ * what the field means and what the reader typed. Seconds are floored: X counts in whole
+ * seconds, and a fraction would reach it as a decimal it has no use for.
+ */
+export const epochSecondsOf = (value: string): number | null => {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const at = new Date(trimmed).getTime();
+  return Number.isNaN(at) ? null : Math.floor(at / 1000);
+};
+
+/** A `since_time:` / `until_time:` term, or nothing where the field was left empty */
+const momentTerm = (name: string, value: string): string[] => {
+  const seconds = epochSecondsOf(value);
+  return seconds === null ? [] : [`${name}:${seconds}`];
+};
+
+/**
  * Builds the query string.
  *
  * Nothing here is URL-encoded: that belongs to whoever puts the string into an address
@@ -293,8 +322,14 @@ export const buildQuery = (form: SearchForm): string => {
   parts.push(...valueTerm('min_faves', form.minFaves));
   parts.push(...valueTerm('min_retweets', form.minRetweets));
 
-  parts.push(...valueTerm('since', form.since));
-  parts.push(...valueTerm('until', form.until));
+  /*
+   * The `_time` pair rather than `since:` / `until:`. Those take a date and stop there,
+   * and a reader wanting "since this morning" has nowhere to say it. X publishes nothing
+   * about these two — they are known from use rather than from X's own writing — so if a
+   * search comes back wrong these are the first thing to doubt.
+   */
+  parts.push(...momentTerm('since_time', form.since));
+  parts.push(...momentTerm('until_time', form.until));
 
   return parts.join(' ');
 };
@@ -321,24 +356,3 @@ export const searchPath = (query: string, scopes: SearchScopes): string => {
   return `/search?${params.toString()}`;
 };
 
-/**
- * The `since:` value for "within the last N days", counted back from the day given.
- *
- * The day is passed in rather than read from the clock, so that what this returns can be
- * checked. It is what the "recent" shortcut writes into the date field.
- *
- * X documents no operator for a span shorter than a day (the one often quoted for it,
- * `within_time:`, appears nowhere in anything X publishes), so this is where the shortcut
- * stops: whole days, written as the date X does document.
- *
- * A negative span is floored at today rather than counted forward. "Within the last -3
- * days" means nothing, and a `since:` in the future makes every search return nothing —
- * a failure that looks like "there are no results" rather than like a mistake.
- */
-export const sinceDaysBefore = (days: number, today: Date): string => {
-  const day = new Date(today.getTime());
-  day.setDate(day.getDate() - Math.max(0, days));
-  const month = `${day.getMonth() + 1}`.padStart(2, '0');
-  const date = `${day.getDate()}`.padStart(2, '0');
-  return `${day.getFullYear()}-${month}-${date}`;
-};

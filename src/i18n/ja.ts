@@ -263,6 +263,53 @@ export const ja: Messages = {
       noteWide:
         '右の項目を消しているあいだは出せません。置く場所がありません。',
     },
+
+    fields: {
+      all: 'すべての語を含む',
+      exact: 'この語順のとおりに含む',
+      any: 'いずれかの語を含む',
+      none: 'これらの語を含まない',
+      hashtags: 'ハッシュタグ',
+
+      from: 'このアカウントの投稿',
+      to: 'このアカウントへの返信',
+      mentioning: 'このアカウントに言及',
+      exclude: '含めるのではなく除く',
+
+      verified: '認証済みアカウント',
+      links: 'リンク',
+      images: '画像',
+      videos: '動画',
+      choices: { any: 'どちらでも', include: 'あるものだけ', exclude: '除く' },
+
+      replies: '返信',
+      repliesAny: 'どちらでも',
+      repliesOnly: '返信だけ',
+      repliesExclude: '返信を除く',
+
+      lang: '言語',
+      langAny: 'すべての言語',
+
+      minReplies: '返信数の下限',
+      minFaves: 'いいね数の下限',
+      minRetweets: 'リポスト数の下限',
+
+      since: 'この日時から',
+      until: 'この日時まで',
+
+      tab: '表示',
+      tabs: { top: '話題のポスト', live: '最新', user: 'アカウント', media: 'メディア', list: 'リスト' },
+      followedOnly: 'フォローしているアカウントだけ',
+      nearbyOnly: '近くの場所だけ',
+    },
+
+    groups: {
+      accounts: 'アカウント',
+      filters: '投稿に含まれるもの',
+      engagement: '反応の数',
+      dates: '期間',
+      where: 'どこを探すか',
+    },
   },
 
   effective: {
