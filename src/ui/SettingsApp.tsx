@@ -12,6 +12,7 @@ import {
   hasContent,
   changesAnyChrome,
   changesAnyInjected,
+  changesAnySearch,
   isEmptyNode,
   SCHEMA_VERSION,
   tidyGenericAlts,
@@ -532,6 +533,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         // What counts as "something is set" is the shape's to answer (`settings/schema.ts`)
         configured:
           changesAnyChrome(settings.xChrome) ||
+          changesAnySearch(settings.search) ||
           changesAnyInjected(settings.injected.x) ||
           marked(settings.surfaces.x, { account: null, surface: 'x', columnId: null }),
       },
@@ -979,6 +981,8 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                               <XChrome
                                 chrome={settings.xChrome}
                                 onChange={(xChrome) => update({ ...settings, xChrome })}
+                                search={settings.search}
+                                onSearchChange={(search) => update({ ...settings, search })}
                               />
                             ) : (
                               <Compose

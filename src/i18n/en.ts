@@ -304,6 +304,24 @@ export const en = {
     },
   },
 
+  /**
+   * The detailed search form. It stands in its own box beside the items on the right
+   * rather than among them: those are things x.com draws and this is a thing put there,
+   * and a switch reading "add this" among switches reading "keep this" would be read as
+   * one of them.
+   */
+  search: {
+    label: 'Search',
+    form: {
+      label: 'Put a detailed search form on the right',
+      note:
+        'Goes under the search box, which stays as it is. On a search results page it ' +
+        'takes the place of X’s own search filters, which it already covers.',
+      /** Shown in place of `note` while the rail has been taken away */
+      noteWide: 'Not while the items on the right are taken away: there is nowhere to put it.',
+    },
+  },
+
   effective: {
     hint: 'What actually applies to this column.',
     hintView: 'What actually applies to this view.',

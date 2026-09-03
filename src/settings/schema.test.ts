@@ -12,6 +12,7 @@ import {
   emptySettings,
   fillAll,
   changesAnyChrome,
+  changesAnySearch,
   X_MENU_KEYS,
   X_NAV_KEYS,
   X_RAIL_KEYS,
@@ -347,6 +348,27 @@ test('保存されている version は読み捨て、この拡張の version �
 test('投稿フォームの設定は、何も保存されていなければ X Pro のまま（両方 off）', () => {
   assert.deepEqual(emptySettings().compose, { reopen: false, keepHashtags: false });
   assert.deepEqual(fillAll({ compose: {} }).compose, { reopen: false, keepHashtags: false });
+});
+
+test('詳細検索フォームは、何も保存されていなければ出ない', () => {
+  // The rail is not ours to fill uninvited. Everything else about x.com's page starts
+  // as x.com draws it, and this adds something nobody asked for
+  assert.deepEqual(emptySettings().search, { form: false });
+  assert.deepEqual(fillAll({ search: {} }).search, { form: false });
+});
+
+test('詳細検索フォームは明示的な true でだけ出る', () => {
+  assert.deepEqual(fillAll({ search: { form: true } }).search, { form: true });
+  // The opposite way round from xChrome, where a missing item stays on the page
+  assert.deepEqual(fillAll({ search: { form: 'true' } }).search, { form: false });
+  assert.deepEqual(fillAll({ search: 'on' }).search, { form: false });
+});
+
+test('検索フォームを出すことは「何か指定されている」に数える', () => {
+  // The mark on "all of x.com" in the list. Without this the screen says nothing is set
+  // while the form is being put on the page
+  assert.equal(changesAnySearch(emptySettings().search), false);
+  assert.equal(changesAnySearch({ form: true }), true);
 });
 
 test('投稿フォームの設定は保存された値を読み出す', () => {

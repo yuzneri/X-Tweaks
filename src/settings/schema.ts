@@ -702,6 +702,40 @@ export type InjectedSettings = {
 export const changesAnyInjected = (injected: InjectedSettings): boolean =>
   !injected.whoToFollow || !injected.discoverMore;
 
+/**
+ * Whether the detailed search form is put into x.com's rail.
+ *
+ * Not part of `XChromeSettings`, though it is shown beside it and governed by the same
+ * `wideTimeline`. That type is a list of things **x.com draws**, each switch saying
+ * whether it stays; this is a thing **the extension adds**. Putting it there would make
+ * the type's name and its contents disagree — the mistake already made once, when the
+ * compose box and the new-posts bar sat under "around the timeline" without standing
+ * around it (2026-09-02).
+ *
+ * A plain boolean rather than a tier's `boolean | null`, for the reason
+ * `ComposeSettings` gives: with nothing above to inherit from, "not set" would be saying
+ * the same as false twice.
+ *
+ * **Starts off.** Everything else about x.com's page starts as x.com draws it, and this
+ * adds something a reader never asked for; the rail is not ours to fill uninvited.
+ * The two posting switches start off for the same reason.
+ */
+export type SearchSettings = {
+  /** true puts the form in the rail. Read only on x.com; X Pro has no rail */
+  form: boolean;
+};
+
+/**
+ * Whether anything about the search has been asked for.
+ *
+ * Beside the shape, like `changesAnyChrome` and `changesAnyInjected`, so that the mark
+ * the settings screen puts on "all of x.com" cannot drift from what is actually set.
+ * Written as a predicate rather than read as a field at the call site: what counts as
+ * "something is set" is this file's answer to give, and a second item added here would
+ * otherwise have to be remembered in the screen as well.
+ */
+export const changesAnySearch = (search: SearchSettings): boolean => search.form;
+
 export type Settings = {
   version: number;
   /** The language of the text the extension shows. Not per tier: one for the whole extension */
@@ -710,6 +744,8 @@ export type Settings = {
   compose: ComposeSettings;
   /** What of x.com's own furniture is taken off the page. One for the whole site */
   xChrome: XChromeSettings;
+  /** What the extension adds to x.com's search. One for the whole site, like `xChrome` */
+  search: SearchSettings;
   /**
    * What X slips into a timeline, one answer per site. Kept apart by site rather than
    * shared, because the two sites are read in different frames of mind and what is
@@ -972,6 +1008,13 @@ const fillCompose = (v: unknown): ComposeSettings => {
 };
 
 /**
+ * The default is off, so only an explicit `true` puts the form on the page — the opposite
+ * way round from `fillChrome` below, and for the opposite reason: this adds something
+ * rather than leaving something X drew.
+ */
+const fillSearch = (v: unknown): SearchSettings => ({ form: rec(v).form === true });
+
+/**
  * An item missing from the stored value stays where X put it, as does one stored as
  * something odd — so the default is `true` (it is on the page), and only an explicit
  * `false` takes something away.
@@ -1052,6 +1095,7 @@ export const fillAll = (v: unknown): Settings => {
     language: isLanguage(stored.language) ? stored.language : 'auto',
     compose: fillCompose(stored.compose),
     xChrome: fillChrome(stored.xChrome),
+    search: fillSearch(stored.search),
     injected: fillInjected(stored.injected),
     genericAlts: fillGenericAlts(stored.genericAlts),
     global: fillNode(stored.global),

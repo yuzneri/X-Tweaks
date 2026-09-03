@@ -10,6 +10,13 @@
  * What x.com puts at the head of the timeline is not here but in `XTimeline` below: it is
  * the same stored settings, but it stands in the timeline rather than around it.
  *
+ * One box here is not x.com's: the search form. It is a thing the extension adds rather
+ * than one x.com draws, and it is stored apart for exactly that reason
+ * (`SearchSettings`). It is shown here all the same, because where it goes is the rail —
+ * the reader looking for it will look beside the rail's own switches, and taking the rail
+ * away governs it the same way it governs them. Its own box is what keeps the two kinds
+ * of switch from reading as one kind.
+ *
  * Every switch sits in a named box. One standing outside them reads as belonging to
  * whichever box it happens to follow.
  */
@@ -17,6 +24,7 @@ import {
   X_MENU_KEYS,
   X_NAV_KEYS,
   X_RAIL_KEYS,
+  type SearchSettings,
   type XChromeSettings,
 } from '../settings/schema.ts';
 import { ShownSwitch } from './fields.tsx';
@@ -28,13 +36,25 @@ import { useMessages } from './messages.tsx';
  */
 const WIDE_NOTE = 'xpro-chrome-wide-note';
 const COMPOSE_NOTE = 'xpro-chrome-compose-note';
+const SEARCH_NOTE = 'xpro-search-form-note';
 
-type Props = {
+/** What both screens here need. `XTimeline` needs nothing beyond it */
+type ChromeProps = {
   chrome: XChromeSettings;
   onChange: (chrome: XChromeSettings) => void;
 };
 
-export const XChrome = ({ chrome, onChange }: Props) => {
+type Props = ChromeProps & {
+  /**
+   * The search form's switch. Passed beside the chrome rather than merged into it: it is
+   * stored apart for the reason `SearchSettings` gives, and the screen is what puts the
+   * two next to each other.
+   */
+  search: SearchSettings;
+  onSearchChange: (search: SearchSettings) => void;
+};
+
+export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => {
   const m = useMessages();
   const patch = (part: Partial<XChromeSettings>) => onChange({ ...chrome, ...part });
 
@@ -106,6 +126,32 @@ export const XChrome = ({ chrome, onChange }: Props) => {
         ))}
       </fieldset>
 
+      {/*
+        Straight after the rail, that being where the form goes, and in a box of its own:
+        the box above lists what x.com draws and each switch there says whether it stays,
+        while this one says to add something. Among them it would read as one of them.
+
+        Held shut with the rail taken away, the same as the blocks above and for the same
+        reason — there is nowhere to put it. The stored value is left alone, so turning the
+        widening off brings the form back if it was asked for.
+      */}
+      <fieldset>
+        <legend>{m.search.label}</legend>
+        <label class="row switch">
+          <input
+            type="checkbox"
+            checked={!railGone && search.form}
+            disabled={railGone}
+            aria-describedby={SEARCH_NOTE}
+            onChange={(event) => onSearchChange({ ...search, form: event.currentTarget.checked })}
+          />
+          <span>{m.search.form.label}</span>
+        </label>
+        <p class="hint indent" id={SEARCH_NOTE}>
+          {railGone ? m.search.form.noteWide : m.search.form.note}
+        </p>
+      </fieldset>
+
       <fieldset>
         <legend>{m.xChrome.drawers.label}</legend>
         <ShownSwitch
@@ -134,7 +180,7 @@ export const XChrome = ({ chrome, onChange }: Props) => {
  * (`Injected`). Reading a tab called "around the timeline" and finding the timeline's own
  * head in it was the confusion this splits apart.
  */
-export const XTimeline = ({ chrome, onChange }: Props) => {
+export const XTimeline = ({ chrome, onChange }: ChromeProps) => {
   const m = useMessages();
   const patch = (part: Partial<XChromeSettings>) => onChange({ ...chrome, ...part });
 
