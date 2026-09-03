@@ -139,6 +139,8 @@ export const en = {
     unknownView: '(a view not visited yet)',
     global: 'Global',
     accounts: 'Account',
+    /** The accounts as a tier of one site. Named with the site, the tier above being called 'Account' too */
+    accountsOn: (site: string) => `Accounts on ${site}`,
     columns: 'Column',
     /** Settings with nothing to match, collected across the tiers */
     unassignedGroup: 'Not assigned',
@@ -198,14 +200,18 @@ export const en = {
      * compose form (`compose/switches.ts`)
      */
     compose: 'Posting',
-    /** The result of merging the three tiers. Shown only while a column or a view is selected */
+    /** The result of merging the tiers. Shown only while a column or a view is selected */
     effective: 'What applies',
+    /**
+     * The fourth tab on a site's page. What appears in a timeline without being a post:
+     * on x.com the box at its head and the new-posts bar, on both sites what X slips in.
+     * The pair of "Around the timeline", the tab before it
+     */
+    inTimeline: 'In the timeline',
   },
 
   compose: {
-    hint:
-      'What the compose form does once a post has gone out. Left alone it does what X Pro ' +
-      'does: the form closes and the box is emptied.',
+    label: 'The compose form',
     reopen: {
       label: 'Open the compose form again',
       note: 'Opens the compose form again, ready to type the next post into.',
@@ -216,18 +222,105 @@ export const en = {
     },
   },
 
+  /** What X slips into a timeline that is not a post. Offered for either site */
+  injected: {
+    label: 'Insertions other than posts',
+    hint: 'What X slips into a timeline that is not a post.',
+    whoToFollow: {
+      label: 'Accounts X suggests following',
+      note: 'Clearing it takes the one beside the timeline too.',
+    },
+    discoverMore: {
+      label: '“Discover more”',
+      note: 'The conversation itself stays.',
+    },
+  },
+
+  /**
+   * The page x.com draws around the timeline. The names of the items are X's own, so they
+   * are decided here and follow the language, the way `tiers.viewNames` are.
+   */
+  xChrome: {
+    /**
+     * What stands around the timeline, as one word. Used as a tab name, so it is kept
+     * short — the groups inside name the parts (the items down the left, the rail).
+     */
+    label: 'Around the timeline',
+    nav: {
+      label: 'The items on the left',
+      items: {
+        explore: 'Explore',
+        follow: 'Follow',
+        messages: 'Chat',
+        grok: 'Grok',
+        history: 'History (bookmarks, likes)',
+        creatorStudio: 'Creator Studio',
+        articles: 'Articles',
+        /** X names it Premium for somebody who has not subscribed and Premium+ for somebody who has */
+        premium: 'Premium',
+        profile: 'Profile',
+        postButton: 'Post button',
+      },
+    },
+    menu: {
+      label: 'Inside the “More” menu',
+      items: {
+        lists: 'Lists',
+        communities: 'Communities',
+        communityNotes: 'Community Notes',
+        business: 'Business',
+        ads: 'Ads',
+        spaces: 'Create your Space',
+        mutedKeyword: 'Add muted word',
+        settings: 'Settings and privacy',
+      },
+    },
+    wideTimeline: {
+      label: 'Widen the timeline',
+      note: 'Takes the items on the right away, search box and all, and widens the timeline.',
+    },
+    rail: {
+      label: 'The items on the right',
+      items: {
+        premium: 'The pitch for Premium',
+        news: 'Today’s News',
+        trends: 'What’s happening',
+        relevantPeople: 'Relevant people',
+        footer: 'Terms, privacy and the rest',
+      },
+    },
+    drawers: {
+      label: 'The items in the bottom-right corner',
+      items: { grok: 'Grok', chat: 'Chat' },
+    },
+    /** A group inside the "In the timeline" tab: the two that stand at its head */
+    timeline: { label: 'The head of the timeline' },
+    composeBox: {
+      label: 'The compose form on the timeline',
+      note: 'The reply form stays either way.',
+    },
+    autoNewPosts: {
+      label: 'Bring new posts in by itself',
+    },
+  },
+
   effective: {
-    hint:
-      'What actually applies to this column, after combining the global, account ' +
-      'and column settings.',
-    hintView:
-      'What actually applies to this view, after combining the global, account ' +
-      'and view settings.',
+    hint: 'What actually applies to this column.',
+    hintView: 'What actually applies to this view.',
     // `view` is not a tier of its own: it is what `column` is called on x.com
-    from: { global: 'Global', account: 'Account', column: 'This column', view: 'This view' },
+    from: {
+      global: 'Global',
+      account: 'Account',
+      // Which site it is, the page it is read on says
+      surface: 'This site',
+      /** The account and the site together: the tier that holds one account's exception on one site */
+      surfaceAccount: 'Account on this site',
+      column: 'This column',
+      view: 'This view',
+    },
     unset: 'Not set',
-    rules: 'Rules, in the order they are read',
-    noRules: 'No rules here',
+    rules: 'Rules',
+    noRules: 'No rules',
     /** Disabled rules are listed too. This screen is for tracing "why is this not applying", so seeing that they exist helps */
     disabled: 'off',
     filterStopped: 'Filtering is off, so no rule below applies.',
@@ -238,16 +331,12 @@ export const en = {
   /** What happens to settings with nothing to match */
   forget: {
     column: {
-      action: 'Remove this column from the list',
-      hint:
-        'Tidies up a column you deleted. If the column is still there, it comes back ' +
-        'the next time it is found. The extension cannot tell deletion from being scrolled out of view.',
-      confirm: 'The settings for this column go with it. This cannot be undone.',
+      action: 'Delete this column',
+      confirm: 'Its settings are deleted with it. This cannot be undone.',
     },
     view: {
-      action: 'Remove this view from the list',
-      hint: 'Tidies up the record of this view. Opening it again puts it back in the list.',
-      confirm: 'The settings for this view go with it. This cannot be undone.',
+      action: 'Delete this view',
+      confirm: 'Its settings are deleted with it. This cannot be undone.',
     },
     confirmYes: 'Remove with its settings',
     confirmNo: 'Cancel',
@@ -259,21 +348,21 @@ export const en = {
     remove: 'Delete these settings',
     account: {
       notFound: 'No matching account',
-      moveTo: 'Move these settings to an account that exists now',
+      moveTo: 'Move to an account that exists now',
       noTargets: 'No account to move them to',
-      skipConfigured: 'Accounts that already have settings are left out, to avoid overwriting them.',
+      skipConfigured: 'Accounts that already have settings cannot be chosen, to avoid overwriting them.',
     },
     column: {
       notFound: 'No matching column',
-      moveTo: 'Move these settings to a column that exists now',
+      moveTo: 'Move to a column that exists now',
       noTargets: 'No column to move them to',
-      skipConfigured: 'Columns that already have settings are left out, to avoid overwriting them.',
+      skipConfigured: 'Columns that already have settings cannot be chosen, to avoid overwriting them.',
     },
     view: {
       notFound: 'No matching view',
-      moveTo: 'Move these settings to a view that exists now',
+      moveTo: 'Move to a view that exists now',
       noTargets: 'No view to move them to',
-      skipConfigured: 'Views that already have settings are left out, to avoid overwriting them.',
+      skipConfigured: 'Views that already have settings cannot be chosen, to avoid overwriting them.',
     },
   },
 
@@ -295,7 +384,7 @@ export const en = {
     copy: 'Copy',
     copied: 'Copied',
     /** The clipboard can be refused. Do not fail silently */
-    copyFailed: 'Could not copy. Select the text above and copy it yourself.',
+    copyFailed: 'Could not copy. Copy it from the box above.',
     close: 'Close',
     choose: 'Choose a file',
     load: 'Replace my settings with this',
@@ -305,7 +394,7 @@ export const en = {
     confirmNo: 'Cancel',
     loaded: 'Loaded',
     forget: 'Forget the columns and views found',
-    forgotten: 'Forgotten. Reload pro.x.com or x.com to rebuild it from what is there',
+    forgotten: 'Forgotten. Reload pro.x.com or x.com to build it again',
     forgetFailed: 'Could not forget it. Reopen this page and try again',
     errors: {
       badJson: (detail: string) => `Not valid JSON (${detail})`,
@@ -323,17 +412,12 @@ export const en = {
     on: 'Apply',
     off: 'Do not apply',
     /** Keeps the dimmed values below from reading as "what is in effect" while it is off */
-    stoppedHint:
-      'Appearance is off here, so nothing below is applied. ' +
-      'What you set is still saved, and takes effect when you turn it back on.',
+    stoppedHint: 'Appearance is off, so nothing below takes effect.',
   },
 
   rules: {
     legend: 'Rules',
-    hint:
-      'Pick what the post is, then fill in only the boxes you want to match on. ' +
-      'Picking a kind of post adds the boxes that go with it. ' +
-      'The rule applies to posts that meet everything you filled in.',
+    hint: 'The rule applies to posts that meet everything set here.',
     /**
      * The description of the selected action. Only the selected one is shown, next to
      * where the action is chosen.
@@ -342,7 +426,7 @@ export const en = {
      */
     actionHints: {
       collapse: 'Folds the post into a single line; press “Show” to bring it back.',
-      hide: 'Removes the post entirely, with no way to open it again.',
+      hide: 'Deletes the post.',
       highlight: 'Tints the post’s background.',
       emphasize: 'Tints only the matched text.',
       nothing: 'Stops every rule for that post, including the ones above this tier.',
@@ -356,8 +440,8 @@ export const en = {
     /** The innermost tier's name, as it reads inside the sentence below */
     orderScopes: { pro: 'column', x: 'view', both: 'column or view' },
     orderHint: (scope: string) =>
-      'Rules are read from the top, and the first one that matches decides what happens. ' +
-      `Across tiers they are read ${scope} first, then account, then global. ` +
+      'Rules are read from the top, and the first one that matches is used. ' +
+      `Narrower scopes are read first (${scope} → account on this site → site → account → global). ` +
       '“Do nothing” ends the decision right there.',
     moveUp: (label: string) => `Move ${label} up`,
     moveDown: (label: string) => `Move ${label} down`,
@@ -475,9 +559,16 @@ export const en = {
     hint: 'Anything left empty or unset keeps the way X Pro shows it.',
     hintX: 'Anything left empty or unset keeps the way x.com shows it.',
     columnWidth: 'Column width',
-    columnOnly: {
-      legend: 'X Pro only',
-      hint: 'x.com has no columns, so what is set here takes effect on X Pro alone.',
+    /**
+     * The three groups below are named after what they are about, not after where they
+     * work. Named for the range ("X Pro only"), a group has nothing left to say on that
+     * site's own page, and its contents move into the groups above — so the same item
+     * would sit in a different place depending on the page it is read on.
+     * The range is said in the hint instead, which is the same sentence on every page.
+     */
+    columnGroup: {
+      legend: 'Columns',
+      hint: 'Only X Pro has columns, so this is what a column of X Pro looks like.',
     },
     compact: 'Pack the posts',
     compactOn: 'Packed',
@@ -497,26 +588,35 @@ export const en = {
     colors: {
       legend: 'Colors',
       columnHeader: 'Behind the column name',
-      background: 'Column background',
-      backgroundX: 'Timeline background',
+      /**
+       * One name for both sites. X Pro's columns each hold a timeline, so the word is true
+       * on either, and it saves the same setting from being called two different things
+       * depending on the page it is read on.
+       */
+      background: 'Background inside the timeline',
+      /** Said on every page, so that the name above does not have to change per site */
+      backgroundNote: 'Inside a column on X Pro',
       columnTitle: 'Column name',
       name: 'Author name',
       text: 'Post text',
       meta: 'Secondary text (times, counts, reply-to)',
       link: 'Links',
       border: 'Line between posts',
+      composeBackground: 'Compose form background',
+      pageBackground: 'Background outside the timeline',
+      /** Why the row is missing on X Pro: there is no page there to paint */
+      pageNote: 'Only x.com has one',
     },
     autoContrast: 'When a highlight makes text unreadable',
     autoContrastOn: 'Fix the text color',
     autoContrastOff: 'Nothing',
     /** What a highlight color is laid over */
     highlightBase: 'Blend highlights over',
-    highlightBaseNote: '“X’s own” ignores the background color set above.',
     highlightBases: {
-      column: 'Column background',
-      columnX: 'Timeline background',
+      /** The same name the color field uses, so the two read as the one thing */
+      column: 'Background inside the timeline',
       theme: 'X’s own',
-    } as { column: string; columnX: string; theme: string },
+    } as { column: string; theme: string },
     /** How a post's time is shown */
     timeFormat: 'Time display',
     timeFormats: {
@@ -560,8 +660,8 @@ export const en = {
        */
       styles: {
         show: 'As they are',
-        caption: 'As they are, with a description',
-        text: 'Their description',
+        caption: 'Add the description',
+        text: 'Text',
         mark: 'A mark',
         hidden: 'Not shown',
       } as { show: string; caption: string; text: string; mark: string; hidden: string },
@@ -594,9 +694,6 @@ export const en = {
      * The block of accounts X slips into a timeline, and shows beside it on x.com. Named
      * by what it is rather than by X's own heading, which is worded per UI language
      */
-    hideWhoToFollow: 'Accounts X suggests following',
-    hideWhoToFollowOn: 'Hide',
-    hideWhoToFollowOff: 'As they are',
   },
 
   /** Sizes entered in px */
@@ -617,7 +714,7 @@ export const en = {
   status: {
     /** The same wording is used when a save from another screen arrives */
     saved: 'Saved',
-    saveFailed: 'Could not save. What you see here is not stored yet',
+    saveFailed: 'Could not save',
   },
 
   /** When the stored format version differs and cannot be read */
@@ -628,12 +725,22 @@ export const en = {
       `Your settings are still saved. Please update the extension.`,
     older: (stored: number, supported: number) =>
       `The saved settings use format version ${stored}; this extension uses version ` +
-      `${supported}, and the two are not compatible, so it started from the defaults. ` +
-      `The old settings are still stored and are replaced only once you change something here.`,
+      `${supported}, and the two are not compatible, so it started from the defaults.`,
   },
 
   /** Not set (on toggle-style rules, inheriting the setting from above) */
   unset: 'Not set',
+
+  /**
+   * Putting one item back to how X shows it, cancelling what an upper range set. It
+   * appears on the colour and size fields. The row is narrow, so the visible words are
+   * short and what it means goes to `title` and the accessible name.
+   */
+  cleared: {
+    short: 'As X',
+    label: (item: string) => `Keep ${item} as X shows it`,
+    note: 'Ignores the value set by a wider range and keeps X’s own display.',
+  },
 
   title: 'X Tweaks settings',
 
@@ -646,26 +753,19 @@ export const en = {
   health: {
     cell: 'The way posts are marked seems to have changed. Neither filters nor appearance apply.',
     post: 'The way posts are read seems to have changed. Filters do not apply.',
-    column:
-      'The way columns are identified seems to have changed. Per-column settings do not apply '
-      + '(account and global settings still do).',
-    text:
-      'The way post text is read seems to have changed. Rules that look at text are off ' +
-      '(otherwise a "does not contain" condition would match every post).',
+    column: 'The way columns are identified seems to have changed. Per-column settings do not apply',
+    text: 'The way post text is read seems to have changed. Rules that read text are off.',
     hint: 'This clears itself once X changes back. Reload pro.x.com to check again.',
   },
   adGuardNotice:
-    'Too many posts looked like ads, so the ad rules were turned off to avoid hiding ' +
-    'everything. Reload pro.x.com to try again.',
+    'Too many posts looked like ads, so the ad rules were turned off for now.',
 
   /**
    * The notice shown on the settings screen while the extension is paused.
    * Being paused is shown only in the popup, so without this there is nothing on screen
    * to say why the settings have no effect
    */
-  pausedNotice:
-    'The extension is paused, so nothing here is applied. ' +
-    'Your changes are still saved. Resume it from the toolbar icon.',
+  pausedNotice: 'The extension is paused for now. Resume it from the toolbar icon.',
 
   /** The popup on the toolbar icon */
   popup: {

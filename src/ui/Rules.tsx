@@ -461,6 +461,11 @@ const RuleForm = ({
         />
         <ColorField
           hidden={!usesColor(draft.action)}
+          /*
+           * Emphasis paints a few characters, highlight a whole post, so the two want
+           * colours of different strength — the defaults differ for the same reason
+           */
+          kind={draft.action === ACTIONS.EMPHASIZE ? 'strong' : 'tint'}
           fallback={defaultColorFor(draft.action)}
           value={draft.color}
           onChange={(color) => onDraftChange({ ...draft, color })}

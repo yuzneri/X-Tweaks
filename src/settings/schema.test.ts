@@ -4,10 +4,17 @@ import {
   ACTIONS,
   SCHEMA_VERSION,
   adjustsContrast,
+  ACCOUNT_COLORS,
   COLUMN_COLORS,
+  X_ONLY_COLORS,
+  emptyChrome,
   emptyNode,
   emptySettings,
   fillAll,
+  changesAnyChrome,
+  X_MENU_KEYS,
+  X_NAV_KEYS,
+  X_RAIL_KEYS,
   minutesOf,
   splitDuration,
   appearanceApplies,
@@ -284,6 +291,50 @@ test('アカウント段・カラム段の設定も、段ごとに正規化さ�
   assert.equal(settings.columns['col-1']?.filter.rules.length, 1);
 });
 
+test('サイト段の設定も、段ごとに正規化される', () => {
+  const settings = fillAll({
+    version: SCHEMA_VERSION,
+    surfaces: {
+      x: { appearance: { colors: { text: '#FF0000' } } },
+      pro: { filter: { enabled: false } },
+    },
+  });
+  // Normalized the same way as any other tier (the color is folded to lower case)
+  assert.equal(settings.surfaces.x.appearance.colors.text, '#ff0000');
+  assert.equal(settings.surfaces.pro.filter.enabled, false);
+  // Two sites keeping separate answers is the point of this tier
+  assert.equal(settings.surfaces.x.filter.enabled, null);
+});
+
+test('サイトのアカウント段も、段ごとに正規化される', () => {
+  const settings = fillAll({
+    version: SCHEMA_VERSION,
+    surfaceAccounts: {
+      pro: { alice: { appearance: { colors: { text: '#FF0000' } } } },
+      x: { alice: { appearance: { fontSize: 0 } } },
+    },
+  });
+  assert.equal(settings.surfaceAccounts.pro.alice?.appearance.colors.text, '#ff0000');
+  // The same site's other account, and the same account's other site, stay untouched
+  assert.equal(settings.surfaceAccounts.pro.bob, undefined);
+  assert.equal(settings.surfaceAccounts.x.alice?.appearance.colors.text, null);
+  // A size that cannot apply falls to "not set", as in any other tier
+  assert.equal(settings.surfaceAccounts.x.alice?.appearance.fontSize, null);
+});
+
+test('サイトのアカウント段は、サイトの箱だけ常にあり、中身はアカウントで増える', () => {
+  // Two sites that never go away, each holding a map that is empty until something is written
+  assert.deepEqual(emptySettings().surfaceAccounts, { pro: {}, x: {} });
+  assert.deepEqual(fillAll({ surfaceAccounts: 'x' }).surfaceAccounts, { pro: {}, x: {} });
+  assert.deepEqual(fillAll({ surfaceAccounts: { pro: 'x' } }).surfaceAccounts, { pro: {}, x: {} });
+});
+
+test('サイト段は、何も保存されていなくても両方そろっている', () => {
+  // There are exactly two and they never go away, so nothing here is ever dropped
+  assert.deepEqual(emptySettings().surfaces, { pro: emptyNode(), x: emptyNode() });
+  assert.deepEqual(fillAll({ surfaces: 'x' }).surfaces, { pro: emptyNode(), x: emptyNode() });
+});
+
 test('対応するカラムが見つからない設定も、そのまま読み出せる', () => {
   const settings = fillAll({ columns: { 'col-gone': { filter: { enabled: false } } } });
   assert.equal(settings.columns['col-gone']?.filter.enabled, false);
@@ -318,6 +369,92 @@ test('ハッシュタグを残すかどうかは、開いたままにする設�
   assert.equal(restoresHashtags({ reopen: false, keepHashtags: false }), false);
 });
 
+test('x.com の外枠は、何も保存されていなければサイトのまま', () => {
+  // The switches say what is on the page, so "nothing set" is every one of them on
+  const chrome = emptySettings().xChrome;
+  assert.equal(chrome.wideTimeline, false);
+  assert.equal(chrome.autoNewPosts, false);
+  assert.equal(chrome.composeBox, true);
+  assert.equal(chrome.grokDrawer, true);
+  assert.equal(chrome.chatDrawer, true);
+  // The three lists too: a key added to one of them must arrive on like the rest
+  assert.deepEqual(
+    X_NAV_KEYS.filter((key) => !chrome.nav[key]),
+    []
+  );
+  assert.deepEqual(
+    X_MENU_KEYS.filter((key) => !chrome.menu[key]),
+    []
+  );
+  assert.deepEqual(
+    X_RAIL_KEYS.filter((key) => !chrome.rail[key]),
+    []
+  );
+});
+
+test('x.com の外枠は保存された値を読み出す', () => {
+  const settings = fillAll({
+    xChrome: {
+      wideTimeline: true,
+      composeBox: false,
+      grokDrawer: false,
+      nav: { grok: false, premium: false },
+      rail: { trends: false },
+    },
+  });
+  assert.equal(settings.xChrome.grokDrawer, false);
+  assert.equal(settings.xChrome.chatDrawer, true);
+  assert.equal(settings.xChrome.rail.trends, false);
+  assert.equal(settings.xChrome.rail.news, true);
+  assert.equal(settings.xChrome.wideTimeline, true);
+  assert.equal(settings.xChrome.composeBox, false);
+  // The items left out of the stored value stay where X put them
+  assert.deepEqual(
+    X_NAV_KEYS.filter((key) => !settings.xChrome.nav[key]),
+    ['grok', 'premium']
+  );
+});
+
+test('x.com の外枠は、読めない値をサイトのままに倒す', () => {
+  const settings = fillAll({
+    xChrome: { wideTimeline: 'true', nav: { grok: 1 }, autoNewPosts: null },
+  });
+  assert.equal(settings.xChrome.wideTimeline, false);
+  // Only an explicit `false` takes something away, so an unreadable value leaves it on
+  assert.equal(settings.xChrome.nav.grok, true);
+  assert.equal(settings.xChrome.autoNewPosts, false);
+  // The key itself being something other than an object lands on the same side
+  assert.deepEqual(fillAll({ xChrome: 'hide' }).xChrome, emptyChrome());
+});
+
+test('外枠に何か指定してあるかどうかを判定する', () => {
+  assert.equal(changesAnyChrome(emptyChrome()), false);
+  assert.equal(changesAnyChrome({ ...emptyChrome(), wideTimeline: true }), true);
+  assert.equal(changesAnyChrome({ ...emptyChrome(), chatDrawer: false }), true);
+  assert.equal(
+    changesAnyChrome({ ...emptyChrome(), rail: { ...emptyChrome().rail, trends: false } }),
+    true
+  );
+  assert.equal(changesAnyChrome({ ...emptyChrome(), autoNewPosts: true }), true);
+  assert.equal(
+    changesAnyChrome({ ...emptyChrome(), nav: { ...emptyChrome().nav, grok: false } }),
+    true
+  );
+});
+
+test('「X の表示のまま」に戻す項目は、知っている名前だけを重複なく読む', () => {
+  const cleared = (v: unknown) => fillNode({ appearance: { cleared: v } }).appearance.cleared;
+  assert.deepEqual(cleared(['fontSize', 'colors.background']), ['fontSize', 'colors.background']);
+  // A name this version does not know is dropped rather than kept as dead weight
+  assert.deepEqual(cleared(['fontSize', 'そんな項目は無い', 42, null]), ['fontSize']);
+  // The same name twice counts once
+  assert.deepEqual(cleared(['fontSize', 'fontSize']), ['fontSize']);
+  // 打ち消せるのは色と数値だけ。選択式・真偽値は値そのもので打ち消せる
+  assert.deepEqual(cleared(['compact', 'timeFormat', 'cardStyle', 'enabled']), []);
+  assert.deepEqual(cleared('fontSize'), []);
+  assert.deepEqual(emptyNode().appearance.cleared, []);
+});
+
 test('何も指定していない段は「空」と判定する', () => {
   assert.equal(isEmptyNode(emptyNode()), true);
   assert.equal(isEmptyNode(undefined), true);
@@ -341,11 +478,13 @@ test('フィルタでも外観でも、何か指定していれば空ではな�
     (n) => { n.appearance.media.style = 'hidden'; },
     (n) => { n.appearance.compact = true; },
     (n) => { n.appearance.collapseNewlines = true; },
-    (n) => { n.appearance.hideWhoToFollow = true; },
     (n) => { n.appearance.autoContrast = false; },
     (n) => { n.appearance.highlightBase = 'theme'; },
     (n) => { n.appearance.cardStyle = 'hidden'; },
     (n) => { n.appearance.quoteStyle = 'mark'; },
+    // Putting an item back to "as X shows it" is a setting too. Counted as empty, a tier
+    // that only cancels things would be dropped on save and the cancelling would be lost
+    (n) => { n.appearance.cleared = ['colors.background']; },
   ];
   for (const [i, apply] of samples.entries()) {
     const node = emptyNode();
@@ -484,6 +623,7 @@ test('印が見る「中身」に、適用するかどうかの切り替えは�
   assert.equal(hasContent(fillNode({ appearance: { columnWidth: 400 } })), true);
   assert.equal(hasContent(fillNode({ appearance: { colors: { text: '#ffffff' } } })), true);
   assert.equal(hasContent(fillNode({ appearance: { media: { style: 'hidden' } } })), true);
+  assert.equal(hasContent(fillNode({ appearance: { cleared: ['fontSize'] } })), true);
 
   // Merely toggling "does it apply" is not content
   assert.equal(hasContent(fillNode({ filter: { enabled: true } })), false);
@@ -500,24 +640,15 @@ test('印が見る「中身」に、適用するかどうかの切り替えは�
 
 test('外観の切り替えは、真偽値以外を未指定として読む', () => {
   const read = (v: unknown) => {
-    const { appearance } = fillNode({
-      appearance: { compact: v, collapseNewlines: v, hideWhoToFollow: v },
-    });
-    return [appearance.compact, appearance.collapseNewlines, appearance.hideWhoToFollow];
+    const { appearance } = fillNode({ appearance: { compact: v, collapseNewlines: v } });
+    return [appearance.compact, appearance.collapseNewlines];
   };
 
-  assert.deepEqual(read(true), [true, true, true]);
+  assert.deepEqual(read(true), [true, true]);
   // false is a value of its own: it is what cancels an upper tier's true
-  assert.deepEqual(read(false), [false, false, false]);
-  assert.deepEqual(read(undefined), [null, null, null]);
-  assert.deepEqual(read('true'), [null, null, null]);
-  assert.deepEqual(read(1), [null, null, null]);
-
-  // They are independent: one being set says nothing about the others
-  const only = fillNode({ appearance: { compact: true } }).appearance;
-  assert.equal(only.compact, true);
-  assert.equal(only.collapseNewlines, null);
-  assert.equal(only.hideWhoToFollow, null);
+  assert.deepEqual(read(false), [false, false]);
+  assert.deepEqual(read(undefined), [null, null]);
+  assert.deepEqual(read('true'), [null, null]);
 });
 
 test('保存された寸法は正の整数だけを受ける', () => {
@@ -706,7 +837,6 @@ test('落とすのはカラム専用の 3 つだけ', () => {
   node.fontSize = 14;
   node.maxLines = 5;
   node.collapseNewlines = true;
-  node.hideWhoToFollow = true;
   node.autoContrast = false;
   node.highlightBase = 'theme';
   node.timeFormat = 'absolute';
@@ -727,4 +857,34 @@ test('落とすのはカラム専用の 3 つだけ', () => {
     (key) => out.colors[key as keyof typeof out.colors] === null
   );
   assert.deepEqual(clearedColors.sort(), [...COLUMN_COLORS].sort());
+});
+
+test('アカウントで決まる色と、x.com だけの色は、カラム専用とは別に名指す', () => {
+  // Three lists, no overlap: a color answered by the account is not a column's, and the
+  // page behind x.com is neither. The settings screen and the applying side both read
+  // these, so a key landing in two of them would be offered in two places at once
+  for (const key of ACCOUNT_COLORS) assert.equal(COLUMN_COLORS.includes(key), false, key);
+  for (const key of X_ONLY_COLORS) assert.equal(COLUMN_COLORS.includes(key), false, key);
+  for (const key of X_ONLY_COLORS) assert.equal(ACCOUNT_COLORS.includes(key), false, key);
+});
+
+test('新しい2色も、何も保存されていなければ未指定', () => {
+  const colors = emptySettings().global.appearance.colors;
+  assert.equal(colors.composeBackground, null);
+  assert.equal(colors.pageBackground, null);
+});
+
+test('新しい2色も、色として読めないものは弾く', () => {
+  const colors = fillNode({
+    appearance: { colors: { composeBackground: 'むらさき', pageBackground: '#14293d' } },
+  }).appearance.colors;
+  assert.equal(colors.composeBackground, null);
+  assert.equal(colors.pageBackground, '#14293d');
+});
+
+test('投稿フォームの色だけでも「中身のある段」として数える', () => {
+  // Otherwise an account whose only setting is the color of its compose form would be
+  // taken for empty and dropped the next time it is edited
+  const node = fillNode({ appearance: { colors: { composeBackground: '#3b1d5e' } } });
+  assert.equal(hasContent(node), true);
 });

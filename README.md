@@ -3,7 +3,8 @@
 [日本語](README.ja.md)
 
 A browser extension that hides unwanted posts from the X Pro (pro.x.com, formerly TweetDeck) and x.com timelines, and changes how they look.
-Settings can be placed in three scopes: global, account, and the column or view being looked at.
+Settings can be placed in five scopes: global, account, site (X Pro / x.com), an account on one site, and the column or view being looked at.
+The narrower scope wins, and a colour or size set by a wider one can be put back to how X shows it.
 
 ## Install
 
@@ -33,7 +34,8 @@ Each rule can be switched on and off without being deleted.
 
 ## Appearance
 
-The following can be changed per column on X Pro, and per view (home, notifications, bookmarks, a list, somebody's profile, a search) on x.com:
+The following can be changed per column on X Pro, and per view (home, notifications, bookmarks, a list, somebody's profile, a search) on x.com.
+The same items can also be set for the global, account, site and account-on-one-site scopes, with the narrower one winning:
 
 - **Column width** (X Pro only)
 - **Pack the posts**: packs the padding around a post, shrinks the avatar, and folds away the row of buttons. Repost and like move up beside the name, to the left of the “…”, while reply and the view count are hidden. No “Show more” is shown either, X’s own included: the rest of a post is read by opening it
@@ -47,18 +49,28 @@ The following can be changed per column on X Pro, and per view (home, notificati
 - **Link cards and articles**: as they are, as text in the post (each goes into the end of the post body as one line — “🔗 headline (domain)”, “📄 the article's headline” — and the box itself goes; a card's line keeps its link, in X’s own link color), as a mark (the words are dropped, leaving 🔗 or 📄), or not shown at all
 - **Quoted posts**: the same four ways. As text it reads “💬 what the quote says (name @id)”, cut at 80 characters with the rest on hover. The line does not open anything: X Pro writes no address on a quote frame
 - **Time display**: as it is, the date and time, or both
-- **Accounts X suggests following**: the block X slips into a timeline goes in one piece, from its heading down to its “Show more” (on x.com the one in the rail beside the timeline goes with it)
-- **Colors**: eight places can be colored
+- **Colors**: ten places can be colored
   - Behind the column name (X Pro only)
-  - Column background — the timeline background on x.com
+  - Timeline background — inside a column on X Pro
+  - Everything outside the timeline (x.com only) — the items down the left, the rail beside it, and the margins either side. The timeline itself is left as X draws it, so this and the one above can be set to different colors
+  - Compose form background — decided by the account it will post as and by the site, so setting it on one account tells you at a glance which account a post is about to go out as, and one of the two sites can be given a different colour or none at all. It reaches X Pro's compose drawer, x.com's post window, and the box at the head of x.com's timeline
   - Column name (X Pro only)
   - Author name
   - Post text
   - Secondary text (times, counts, reply-to)
   - Links
   - Line between posts
-- **What highlights blend over**: the background set above, or X’s own with that color ignored
+- **What highlights blend over**: the timeline background set above, or X’s own with that color ignored
 - **When a highlight makes text unreadable**: whether the text color is fixed automatically
+
+On the settings screen, what belongs to a column (its width and the colors of its name) sits in a group of its own.
+Every scope puts things in the same place, and what cannot apply is left out (x.com has no columns; X Pro has no page around the timeline).
+
+The colour and size fields carry an “As X” switch that cancels what a wider scope set — shown only where there is something to cancel.
+It is how an account's compose-form colour can be kept off one of the two sites, say.
+
+Each site's tab lists the accounts again, under “Accounts on X Pro” and “Accounts on x.com”.
+That is where an account's settings are changed, or kept away, on one of the two sites alone — the “Account” scope itself reaches both.
 
 The description written for a picture is shown on hover whatever the setting says, X Pro showing it nowhere itself: on the line put into the post under “their description” and “a mark”, and on the picture itself under “as they are”.
 A touch screen has no hover and cannot reach any of that, so where you want to read a description with nothing but a finger, choose “as they are, with a description” and it is written out under the picture.
@@ -74,6 +86,17 @@ Where the post is being shown cut short, the line is a mark alone and stands out
 Cut short covers X's own doing as well as the line limit: X shortens a long post whether or not a limit is set. On a post with no body the line takes the place the box was in.
 Where a post is open to be read — a column with one opened on X Pro, a post's own page on x.com — the packing, the line limit, the folding of line breaks and the hiding of cards and photos all stand down.
 
+## What X slips in
+
+Two blocks X puts into a timeline that are not posts can be taken away. They apply to both sites, and are one setting for the whole of a site rather than being held per column or per view: X decides where they go, not the reader.
+
+- **Accounts X suggests following**: the block goes in one piece, from its heading down to its “Show more”, and so does the one X stacks in the rail beside the timeline on x.com
+- **“Discover more” under a post**: the posts X appends under a conversation once the replies have run out. The conversation itself stays
+
+Each site keeps its own answer, so a block can go on one and stay on the other.
+
+“Accounts X suggests following” used to be a per-column setting under Appearance. It has moved here, and the old value is not carried over: if you had it on, switch it on again. Nothing else changes.
+
 ## Posting
 
 Two things about the compose form for a new post can be changed. They apply to X Pro, and are one setting for the whole of it rather than being held per column.
@@ -86,6 +109,21 @@ Both start off, and left off X Pro behaves as it always has.
 
 Replies and quotes are left alone, and a post that fails to go out changes nothing.
 
+## The page around the timeline
+
+What x.com draws around the timeline can be taken away. These apply to x.com, and are one setting for the whole site rather than being held per view: the same furniture stands in the same place whichever view you are on.
+
+- **Take the rail away and widen the timeline**: the whole rail goes, search box and all, and the timeline spreads into the room it was using — as far as 1050px, the width the two of them stood in together, and no further however wide the window is. The two are one switch because widening with the rail still on screen pushes the rail out of the window
+- **What is in the rail**, one switch each: the pitch for Premium, Today’s News, What’s happening, Relevant people (the block beside somebody’s profile), and the small print. The search box is not on the list: a rail with nothing else in it is worth less than no rail, so take the whole rail away instead. With the rail gone these are moot, and the settings screen shows them so
+- **The items down the left**, one switch each: Explore, Follow, Chat, Grok, History, Creator Studio, Articles, Premium, your profile, and the Post button. An item X is not showing you is simply not there to take away, and each is matched by where it leads, so Grok covers SuperGrok and Premium covers Premium+. Home, notifications and “More” are not on the list — “More” is the way into these settings, so hiding it would shut the door from the inside
+- **The items inside the “More” menu**, one switch each: Lists, Communities, Community Notes, Business, Ads, Create your Space, Add muted word, and Settings and privacy. The menu itself stays, and so does the entry that opens these settings
+- **The box for writing a post**: the one at the head of the timeline. The box for writing a reply on a post's own page is the same element of X's, and stays
+- **The two bars in the bottom-right corner**: the one for Grok and the one for chat, each on its own switch
+- **Bring new posts in by itself**: X holds new posts back and floats a button over the timeline offering them; this presses it as soon as it appears, so the timeline fills itself. Only while you are at the top — pressing it moves to the new posts, and further down that would pull you off what you were reading, so further down the offer is left standing until you come back up
+
+A ticked box means the thing is on the page. Everything starts ticked, and what you untick goes away.
+“Widen the timeline” and “Bring new posts in by itself” read the other way round: ticked means do it.
+
 ## Opening the settings
 
 Most editing happens inside the site itself.
@@ -95,6 +133,8 @@ Most editing happens inside the site itself.
 | X Pro | A column’s options (the “…” in its header) | That column’s settings |
 | X Pro | The bottom-left menu | The global settings |
 | x.com | The “More” menu in the side navigation | The settings for the view you are on |
+
+Whichever entry point you use, a whole site's own settings — “What X slips in”, and on x.com the page around the timeline — are at the head of that site's list, above the columns or views.
 
 The settings are split into tabs by site, because X Pro’s columns and x.com’s views never appear together on one screen.
 

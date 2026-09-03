@@ -7,10 +7,10 @@ import {
   appearanceApplies,
   ATTACHMENT_STYLES,
   cardStyleOf,
+  ACCOUNT_COLORS,
   collapsesNewlines,
   COLUMN_COLORS,
   emptyNode,
-  hidesWhoToFollow,
   HIGHLIGHT_BASES,
   highlightBaseOf,
   isCompact,
@@ -19,10 +19,14 @@ import {
   quoteStyleOf,
   TIME_FORMATS,
   timeFormatOf,
+  X_ONLY_COLORS,
+  colorItem,
   type AppearanceNode,
+  type ClearableItem,
 } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
 import { BoolSelect, ChoiceSelect, ColorField, SizeField } from './fields.tsx';
+import type { PaletteKind } from './palettes.ts';
 import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
@@ -34,6 +38,8 @@ import { useMessages } from './messages.tsx';
 export const COLOR_ORDER = [
   'columnHeader',
   'background',
+  'pageBackground',
+  'composeBackground',
   'columnTitle',
   'name',
   'text',
@@ -47,15 +53,71 @@ type ColorKey = (typeof COLOR_ORDER)[number];
 /** Whether that color is one of the column-only ones (`COLUMN_COLORS`, named beside the shape) */
 export const isColumnColor = (key: ColorKey): boolean => COLUMN_COLORS.includes(key);
 
+/** Whether that color only means something on x.com (`X_ONLY_COLORS`) */
+export const isXOnlyColor = (key: ColorKey): boolean => X_ONLY_COLORS.includes(key);
+
 /**
- * What that color is called on this site's tab.
- *
- * x.com has one timeline down the middle of the page rather than a column, so the
- * background is named after what is actually painted. Decided in one place because
- * "what is in effect" lists the same colors in the same order to be compared with these.
+ * Whether that color is answered by the account rather than by the scope on screen
+ * (`ACCOUNT_COLORS`). Those are offered on the tiers that cover whole accounts and
+ * nowhere else: set on a column they would never be read.
  */
-export const colorLabel = (key: ColorKey, site: Site, m: Messages): string =>
-  key === 'background' && site === 'x' ? m.appearance.colors.backgroundX : m.appearance.colors[key];
+export const isAccountColor = (key: ColorKey): boolean => ACCOUNT_COLORS.includes(key);
+
+/**
+ * What each colour is for, which decides the swatches its picker offers
+ * (`ui/palettes.ts`). Written out by name rather than derived from the key: "is this a
+ * ground, a piece of text or a line" is a fact about the thing painted, and nothing in
+ * the key says it.
+ *
+ * Every ground takes the tints. A ground is something the page shows through, whether it
+ * is laid behind a post or behind the whole page, so one set covers them all.
+ */
+const PALETTE_OF: Record<ColorKey, PaletteKind> = {
+  columnHeader: 'tint',
+  background: 'tint',
+  pageBackground: 'tint',
+  composeBackground: 'tint',
+  columnTitle: 'text',
+  name: 'text',
+  text: 'text',
+  meta: 'text',
+  link: 'text',
+  border: 'line',
+};
+
+/**
+ * Whether that color belongs in the colors group rather than in the one named after the
+ * columns, which only X Pro has.
+ *
+ * The same answer on every page: a color never moves from one group to another with the
+ * page it is read on. What does change is whether it is offered at all, and a color the
+ * page cannot apply is left out rather than shown dead (`shownColor`).
+ *
+ * Only the columns get a group of their own, and only because the width goes in it too —
+ * a size among the colors would need a group anyway. A lone color needs no group: what
+ * sets it apart is a word under its name (`colorNote`), which is how the compose form's
+ * and the page outside the timeline's are handled.
+ */
+const isPlainColor = (key: ColorKey): boolean => !isColumnColor(key);
+
+/**
+ * What is added under a color's name, where the name alone leaves a question.
+ *
+ * The background is one setting called by one name on both sites, although X Pro paints it
+ * inside a column and x.com paints the timeline down the middle of the page. The note says
+ * so on every page rather than the name changing with the page, which is what a reader
+ * moving between the two of them has to relearn.
+ *
+ * The page outside the timeline says why its row is not always there: x.com alone has one.
+ * (The compose form's row is left out on a column or a view for its own reason — it belongs
+ * to neither — and stands without a note.)
+ */
+const colorNote = (key: ColorKey, m: Messages): string | null =>
+  key === 'background'
+    ? m.appearance.colors.backgroundNote
+    : key === 'pageBackground'
+      ? m.appearance.colors.pageNote
+      : null;
 
 type Props = {
   node: AppearanceNode;
@@ -66,11 +128,34 @@ type Props = {
    * so what is shown dimmed is the effective value as far as it can be resolved.
    */
   inherited: AppearanceNode;
+  /**
+   * The same, with the accounts folded in where this scope belongs to none of them
+   * (`settable` in settings/resolve.ts). Read only to decide whether an item is worth
+   * offering to put back to X's own display — never shown.
+   */
+  settable: AppearanceNode;
   /** Which site's settings these are (see `Site`) */
   site: Site;
+  /**
+   * Whether what is being edited is one column or view.
+   *
+   * The colors answered as far down as the site rather than by the scope on screen
+   * (`ACCOUNT_COLORS`) are offered everywhere else and not here: the form a post is
+   * written in belongs to no column and no view, so set on one it would never be read.
+   * Told apart from `site` because a site's own page is that site's — so `site` is `pro`
+   * or `x` there, the same as on a column of it — while the range it covers is not a column.
+   */
+  oneColumn: boolean;
 };
 
-export const Appearance = ({ node, onChange, inherited, site }: Props) => {
+export const Appearance = ({
+  node,
+  onChange,
+  inherited,
+  settable: setAbove,
+  site,
+  oneColumn,
+}: Props) => {
   const m = useMessages();
   /**
    * Whether the appearance applies in this scope, as the effective value looking up to the top.
@@ -79,11 +164,45 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
    */
   const applying = appearanceApplies(node.enabled ?? inherited.enabled);
   const above = applying ? inherited : emptyNode().appearance;
+  // Switched off here, nothing comes down at all, so there is nothing to offer cancelling
+  const settable = applying ? setAbove : emptyNode().appearance;
   const patch = (part: Partial<AppearanceNode>) => onChange({ ...node, ...part });
   const colors = (part: Partial<AppearanceNode['colors']>) =>
     patch({ colors: { ...node.colors, ...part } });
   const media = (part: Partial<AppearanceNode['media']>) =>
     patch({ media: { ...node.media, ...part } });
+
+  /** The list with that item taken off. Used wherever a value is written for it */
+  const without = (item: ClearableItem) => node.cleared.filter((held) => held !== item);
+
+  /**
+   * The props that give a field its "as X shows it" switch.
+   *
+   * `above` is what an upper tier sets for that one item, taken from `settable` rather
+   * than from the dimmed value: on a site's page the dimmed value stops at the global
+   * tier, while an account may well be setting the item — and cancelling an account's
+   * colour on one site is the whole reason this switch exists (`settable` in resolve.ts).
+   * Passed in by the caller, beside the row's `inherited`, so the two cannot come from
+   * different items.
+   */
+  const clearing = (item: ClearableItem, above: string | number | null) => ({
+    cleared: node.cleared.includes(item),
+    clearable: above !== null,
+    onCleared: (on: boolean) =>
+      patch({ cleared: on ? [...without(item), item] : without(item) }),
+  });
+
+  /**
+   * Writes one size, and takes the item off the cancelled list when a value goes in.
+   *
+   * Left on, the two would say opposite things about the same item. `inherit` reads the
+   * value first, so nothing would look wrong — until the box was emptied again, when the
+   * item would fall back to "as X shows it" rather than to what comes down from above.
+   */
+  const sizeChange =
+    (item: ClearableItem, apply: (value: number | null) => Partial<AppearanceNode>) =>
+    (value: number | null) =>
+      patch({ ...apply(value), ...(value === null ? {} : { cleared: without(item) }) });
 
   /*
    * The column-only items. Built here so the same row can stand in its usual place on X
@@ -95,25 +214,53 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
       <SizeField
         value={node.columnWidth}
         inherited={above.columnWidth}
-        onChange={(columnWidth) => patch({ columnWidth })}
+        onChange={sizeChange('columnWidth', (columnWidth) => ({ columnWidth }))}
         label={m.appearance.columnWidth}
+        {...clearing('columnWidth', settable.columnWidth)}
       />
     </label>
   );
 
+  /**
+   * Whether that color is offered on this page at all.
+   *
+   * Two are not always: the form a post is written in belongs to no column and no view, so
+   * set on one it would never be read; the page around the timeline is x.com's alone.
+   * Left out rather than shown dead — a field that cannot do anything is worse than a
+   * field that is not there, and the note under the name says where it does work.
+   */
+  const shownColor = (key: ColorKey): boolean =>
+    isPlainColor(key) &&
+    !(oneColumn && isAccountColor(key)) &&
+    !(site === 'pro' && isXOnlyColor(key));
+
   const colorRow = (key: ColorKey) => {
-    const label = colorLabel(key, site, m);
+    const label = m.appearance.colors[key];
+    const note = colorNote(key, m);
+    // Tied to the box below, which has a name of its own and would otherwise shut the note out
+    const noteId = note !== null ? `xpro-color-note-${key}` : undefined;
     return (
       <label class="row" key={key}>
-        <span>{label}</span>
+        <span>
+          {label}
+          {note !== null && <small id={noteId}>{note}</small>}
+        </span>
         <ColorField
+          kind={PALETTE_OF[key]}
           value={node.colors[key]}
-          onChange={(color) => colors({ [key]: color })}
+          onChange={(color) =>
+            patch({
+              colors: { ...node.colors, [key]: color },
+              ...(color === null ? {} : { cleared: without(colorItem(key)) }),
+            })
+          }
+          {...clearing(colorItem(key), settable.colors[key])}
           // When an upper tier sets it, that color appears in the swatch and the dimmed text
           fallback={above.colors[key]}
           // Not a default color but one that came down from above. It can be traced and changed, so it is worded differently
           fallbackInherited
           label={label}
+          describedBy={noteId}
         />
       </label>
     );
@@ -163,8 +310,6 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
       <fieldset>
         <legend>{m.appearance.legend}</legend>
 
-        {site === 'pro' && columnWidthRow}
-
         {/*
           Packs the posts: the padding around them, the avatar, and the row of reply and
           repost buttons. First of the items that are about the timeline as a whole
@@ -188,8 +333,9 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           <SizeField
             value={node.fontSize}
             inherited={above.fontSize}
-            onChange={(fontSize) => patch({ fontSize })}
+            onChange={sizeChange('fontSize', (fontSize) => ({ fontSize }))}
             label={m.appearance.fontSize}
+            {...clearing('fontSize', settable.fontSize)}
           />
         </label>
 
@@ -198,9 +344,10 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           <SizeField
             value={node.maxLines}
             inherited={above.maxLines}
-            onChange={(maxLines) => patch({ maxLines })}
+            onChange={sizeChange('maxLines', (maxLines) => ({ maxLines }))}
             label={m.appearance.maxLines}
             unit={m.appearance.lines}
+            {...clearing('maxLines', settable.maxLines)}
           />
         </label>
 
@@ -214,9 +361,10 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           <SizeField
             value={node.wordsShown}
             inherited={above.wordsShown}
-            onChange={(wordsShown) => patch({ wordsShown })}
+            onChange={sizeChange('wordsShown', (wordsShown) => ({ wordsShown }))}
             label={m.appearance.wordsShown}
             unit={m.appearance.characters}
+            {...clearing('wordsShown', settable.wordsShown)}
           />
         </label>
 
@@ -260,8 +408,11 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           <SizeField
             value={node.media.maxThumbHeight}
             inherited={above.media.maxThumbHeight}
-            onChange={(maxThumbHeight) => media({ maxThumbHeight })}
+            onChange={sizeChange('media.maxThumbHeight', (maxThumbHeight) => ({
+              media: { ...node.media, maxThumbHeight },
+            }))}
             label={m.appearance.media.maxThumbHeight}
+            {...clearing('media.maxThumbHeight', settable.media.maxThumbHeight)}
           />
         </label>
 
@@ -305,28 +456,12 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
           />
         </label>
 
-        {/*
-          Last, and on its own: everything above says how a post is shown, while this one
-          says whether a block that is not a post appears at all
-        */}
-        <label class="row">
-          <span>{m.appearance.hideWhoToFollow}</span>
-          <BoolSelect
-            value={node.hideWhoToFollow}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
-            effective={hidesWhoToFollow(above.hideWhoToFollow)}
-            onChange={(hideWhoToFollow) => patch({ hideWhoToFollow })}
-            label={m.appearance.hideWhoToFollow}
-            on={m.appearance.hideWhoToFollowOn}
-            off={m.appearance.hideWhoToFollowOff}
-          />
-        </label>
       </fieldset>
 
       <fieldset>
         <legend>{m.appearance.colors.legend}</legend>
         {/* Every one keeps X Pro's own when unset. The extension does not know the color used instead (fallback is null) */}
-        {COLOR_ORDER.filter((key) => site === 'pro' || !isColumnColor(key)).map(colorRow)}
+        {COLOR_ORDER.filter(shownColor).map(colorRow)}
 
         {/*
           Shifts the text color only when a highlight or emphasis makes it unreadable.
@@ -353,19 +488,14 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
         <label class="row">
           <span>
             {m.appearance.highlightBase}
-            <small>{m.appearance.highlightBaseNote}</small>
           </span>
           <ChoiceSelect
             value={node.highlightBase}
             // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
             effective={highlightBaseOf(above.highlightBase)}
             options={HIGHLIGHT_BASES}
-            // Named after what is painted, the same as the background color above
-            labels={
-              site === 'x'
-                ? { ...m.appearance.highlightBases, column: m.appearance.highlightBases.columnX }
-                : m.appearance.highlightBases
-            }
+            // The same name the color field above uses, so the two read as the one thing
+            labels={m.appearance.highlightBases}
             onChange={(highlightBase) => onChange({ ...node, highlightBase })}
             label={m.appearance.highlightBase}
           />
@@ -373,19 +503,21 @@ export const Appearance = ({ node, onChange, inherited, site }: Props) => {
       </fieldset>
 
       {/*
-        The items that only take effect where a scope is a column. Grouped at the end
-        rather than dimmed in place: dimming would read as "does not work", while what is
-        set here really does apply — on X Pro.
-        x.com's own tab does not get this group at all; there they can never apply
+        What a column of X Pro is: its width and the two colors of its name. Kept in a
+        group of its own on X Pro's own pages as well, although nothing there needs telling
+        which site it is. Folded into the groups above, these three would sit in one place
+        on X Pro's pages and in another everywhere else.
+        x.com has no columns, so the group is left out rather than shown dead.
       */}
-      {site === 'both' && (
+      {site !== 'x' && (
         <fieldset>
-          <legend>{m.appearance.columnOnly.legend}</legend>
-          <p class="hint">{m.appearance.columnOnly.hint}</p>
+          <legend>{m.appearance.columnGroup.legend}</legend>
+          <p class="hint">{m.appearance.columnGroup.hint}</p>
           {columnWidthRow}
           {COLOR_ORDER.filter(isColumnColor).map(colorRow)}
         </fieldset>
       )}
+
     </>
   );
 };

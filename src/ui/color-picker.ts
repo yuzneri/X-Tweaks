@@ -5,7 +5,7 @@
 import Coloris from '@melloware/coloris';
 import type { Messages } from '../i18n/index.ts';
 import colorisCss from '@melloware/coloris/dist/coloris.css';
-import { DEFAULT_HIGHLIGHT_COLOR } from '../settings/schema.ts';
+import { PALETTES, type PaletteKind } from './palettes.ts';
 
 const STYLE_ID = 'xpro-coloris-style';
 
@@ -44,19 +44,18 @@ export const closeColorPicker = (): void => {
 };
 
 /**
- * Swatches of frequently used colors. They are taken from colors X actually uses, so a choice never looks out of place.
- * Every one includes 15% opacity (the trailing `26`), letting the background show through so the text stays readable.
+ * Hands each kind of field its own swatches.
+ *
+ * Coloris has one picker for the whole document, so what differs per field is registered
+ * as a "virtual instance" against the class the field carries (`ui/fields.tsx` writes it).
+ * Registered once, after `init`: the sets are fixed, and nothing about them changes with
+ * the language or with what is on screen.
  */
-const swatches = [
-  DEFAULT_HIGHLIGHT_COLOR, // pink (the color X uses for likes)
-  '#00ba7c26', // green (reposted)
-  '#1d9bf026', // blue (the standard accent)
-  '#7856ff26', // purple
-  '#ff7a0026', // orange
-  '#ffd40026', // yellow
-  '#f4212e26', // red (warnings, destructive actions)
-  '#71767b26', // gray (secondary text)
-];
+const setSwatches = (): void => {
+  for (const [kind, swatches] of Object.entries(PALETTES) as [PaletteKind, string[]][]) {
+    Coloris.setInstance(`.colorcode-${kind}`, { swatches });
+  }
+};
 
 /**
  * Sets the picker up and applies the wording.
@@ -117,10 +116,12 @@ export const setupColorPicker = (messages: Messages): void => {
     format: 'hex',
     // The settings screen follows the OS color scheme, so the picker follows it too
     themeMode: 'auto',
-    swatches,
+    // Every field carries a kind, so this is only what a field with none would get
+    swatches: PALETTES.tint,
     // Coloris's own wording is English, so it is brought into line with the rest of the screen
     clearLabel: picker.clear,
     closeLabel: picker.close,
     a11y: a11yOf(messages),
   });
+  setSwatches();
 };

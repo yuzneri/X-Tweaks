@@ -2,6 +2,11 @@
  * What the compose form does after a post. Unlike the filter and the appearance, these
  * are not per tier: there is one answer for the whole extension, so no value is inherited
  * and nothing is shown dimmed.
+ *
+ * No box of its own: these have a tab to themselves, and the tab's name is the heading.
+ * Boxed as well, the same words would stand twice on the same screen. The one page that
+ * does keep boxes is x.com's furniture, which has several groups inside one tab and needs
+ * to say where each of them ends.
  */
 import type { ComposeSettings } from '../settings/schema.ts';
 import { useMessages } from './messages.tsx';
@@ -25,8 +30,6 @@ export const Compose = ({ compose, onChange }: Props) => {
 
   return (
     <>
-      <p class="hint">{m.compose.hint}</p>
-
       {/*
         A plain checkbox, not the three-way select the tiers use. With no tier above,
         "unset" and "off" would be the same answer written twice

@@ -42,7 +42,7 @@ let current: Settings | null = null;
 
 let messages: Messages = messagesFor('en');
 
-/** The effective settings per column, so the three-tier merge and regex compilation are not repeated per post */
+/** The effective settings per column, so the merge across tiers and regex compilation are not repeated per post */
 const effective = new Map<string, { filter: CompiledFilter; look: Look }>();
 
 /** On receiving settings, rebuilds the language, the effective settings and the appearance together */
@@ -65,7 +65,14 @@ let knownSignature = '';
 /** The column contents most recently reported. They are re-read on every settling, but unchanged contents are not reported */
 let reported = '';
 
-/** The key the effective settings are looked up by. The same combination of tiers gives the same result */
+/**
+ * The key the effective settings are looked up by. The same combination of tiers gives
+ * the same result.
+ *
+ * The site is left out although it is one of the tiers: it is fixed for the whole page
+ * (the two sites are separate origins, so no navigation swaps one for the other), and a
+ * part that is the same in every key is worth leaving out of all of them.
+ */
 const keyOf = (scope: ColumnScope): string => `${scope.account ?? ''} ${scope.columnId ?? ''}`;
 
 const effectiveFor = (scope: ColumnScope, settings: Settings) => {

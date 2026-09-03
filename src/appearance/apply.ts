@@ -57,10 +57,15 @@ import {
 import { timeTextFrom } from './time.ts';
 import { limitFor, needsFrame, setsHeight, wrapsBox } from './frame.ts';
 import type { Messages } from '../i18n/index.ts';
+import { composeColors, pageColor } from './compose-colors.ts';
 import {
   buildCss,
   captionTargets,
+  chromeCss,
   columnKey,
+  composeCss,
+  injectedCss,
+  pageCss,
   CAPTION_CLASS,
   CAPTION_MORE_CLASS,
   CAPTION_OPEN_CLASS,
@@ -1480,7 +1485,31 @@ export const applyAppearance = (
     seen.add(key);
     columns.push({ key, appearance: here(appearanceFor(settings, scope)) });
   }
-  const css = buildCss(columns, messages.appearance.timeParens);
+  /*
+   * The page's own furniture belongs to the site rather than to any scope, and only
+   * x.com has any. Written out here rather than left to match nothing on X Pro: which
+   * site is being drawn on is known in this one place, and saying so beats relying on
+   * selectors happening to miss.
+   */
+  const chrome = surface().id === 'x' ? chromeCss(settings.xChrome) : '';
+  /*
+   * What X slips into a timeline is answered per site rather than per scope, so it is
+   * written once here instead of coming out of `columnRules` per key
+   */
+  const injected = injectedCss(settings.injected[surface().id]);
+  /*
+   * The form a new post is written in, and the page behind x.com. Both are written from
+   * the settings rather than from what is on screen: the form comes and goes as it is
+   * used, and rebuilding the stylesheet each time it opened would cost a repaint for
+   * nothing. `appearance/compose-mark.ts` puts the account on the form; these rules wait
+   * for it.
+   */
+  const { colors, except } = composeColors(settings, surface().id);
+  const compose = composeCss(colors, except);
+  const page = surface().id === 'x' ? pageCss(pageColor(columns)) : '';
+  const css = [buildCss(columns, messages.appearance.timeParens), injected, chrome, compose, page]
+    .filter((part) => part !== '')
+    .join('\n');
 
   const style = styleElement();
   if (style.textContent !== css) style.textContent = css;

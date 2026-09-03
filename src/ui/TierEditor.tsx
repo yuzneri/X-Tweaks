@@ -12,7 +12,17 @@ import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 import { Rules } from './Rules.tsx';
 
-const TABS = ['filter', 'appearance', 'effective'] as const;
+/**
+ * The last three are not the tier's settings at all. `effective` reads the tiers back,
+ * and `site` and `injected` hold what belongs to the whole site the tier is for. They come
+ * last so that the two tabs that edit the tier itself stay where they always are, whatever
+ * page you are on.
+ *
+ * The site's own settings are two tabs rather than one because they are two subjects, and
+ * one word covering both could only be vague. What `site` holds differs between the two
+ * sites, so its name is passed in rather than looked up here (see `screens`).
+ */
+const TABS = ['filter', 'appearance', 'effective', 'site', 'timeline'] as const;
 
 export type Tab = (typeof TABS)[number];
 
@@ -29,20 +39,47 @@ type Props = {
   inherited: Inherited;
   /** Which site these settings are for. It names the innermost tier and picks the appearance's items (see `Site`) */
   site: Site;
+  /** Whether the range being edited is one column or view. Passed along for the appearance */
+  oneColumn: boolean;
   /**
    * The "what is in effect" surface. That tab appears only when this is passed.
-   * Its contents cannot be built without knowing all three tiers, so building it is left to the caller.
+   * Its contents cannot be built without knowing every tier, so building it is left to the caller.
    */
   effective?: ComponentChildren;
+  /**
+   * The settings belonging to the whole site rather than to this tier: what X puts on the
+   * page, what the compose form does after a post, and what X slips into a timeline.
+   * Passed only on a site's own page, and nowhere else.
+   *
+   * Each carries its own name. What a site keeps here is not the same on the two of them —
+   * X Pro has the compose form where x.com has the furniture around the timeline — so one
+   * shared word would fit neither.
+   */
+  screens?: { key: 'site' | 'timeline'; label: string; content: ComponentChildren }[];
 };
 
-export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, site, effective }: Props) => {
+export const TierEditor = ({
+  node,
+  onChange,
+  tab,
+  onTabChange,
+  inherited,
+  site,
+  oneColumn,
+  effective,
+  screens,
+}: Props) => {
   const m = useMessages();
   const updateFilter = (patch: Partial<FilterNode>) =>
     onChange({ ...node, filter: { ...node.filter, ...patch } });
 
-  // The last tab belongs to one kind of scope, and appears only where it applies
-  const tabs = TABS.filter((key) => (key === 'effective' ? !!effective : true));
+  const named = new Map((screens ?? []).map((one) => [one.key, one]));
+  // The last tabs each belong to one kind of scope, and appear only where they apply
+  const tabs = TABS.filter((key) => {
+    if (key === 'effective') return !!effective;
+    if (key === 'site' || key === 'timeline') return named.has(key);
+    return true;
+  });
   // Moving between scopes takes tabs away. If the open tab is gone, fall back to the first
   const current = tabs.includes(tab) ? tab : 'filter';
 
@@ -62,7 +99,8 @@ export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, site, 
             class={key === current ? 'tab current' : 'tab'}
             onClick={() => onTabChange(key)}
           >
-            {m.tabs[key]}
+            {/* The site's own tabs are named by the caller; the tier's own by the dictionary */}
+            {key === 'site' || key === 'timeline' ? named.get(key)?.label : m.tabs[key]}
           </button>
         ))}
       </nav>
@@ -111,12 +149,16 @@ export const TierEditor = ({ node, onChange, tab, onTabChange, inherited, site, 
         <Appearance
           node={node.appearance}
           inherited={inherited.appearance}
+          settable={inherited.settable}
           site={site}
+          oneColumn={oneColumn}
           onChange={(appearance) => onChange({ ...node, appearance })}
         />
       )}
 
       {current === 'effective' && effective}
+
+      {(current === 'site' || current === 'timeline') && named.get(current)?.content}
     </>
   );
 };

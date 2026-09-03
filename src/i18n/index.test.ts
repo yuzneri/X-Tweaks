@@ -91,6 +91,9 @@ const UNTRANSLATED = [
   // The names of the two sites. They are X's own, and are not translated anywhere
   'surfaces.pro',
   'surfaces.x',
+  // A name of X's own, written the same way in the Japanese interface
+  'xChrome.nav.items.grok',
+  'xChrome.drawers.items.grok',
 ];
 
 test('訳し忘れたまま英語が残っているキーが無い', () => {

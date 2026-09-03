@@ -48,6 +48,7 @@ const accountOf = (): string | null => {
  */
 const currentScope = (): ColumnScope => ({
   account: accountOf(),
+  surface: 'x',
   columnId: viewKeyOf(location.pathname, location.search),
 });
 

@@ -10,6 +10,8 @@ import {
   emptyNode,
   filterApplies,
   hasContent,
+  changesAnyChrome,
+  changesAnyInjected,
   isEmptyNode,
   SCHEMA_VERSION,
   tidyGenericAlts,
@@ -49,6 +51,8 @@ import {
 import { Transfer } from './Transfer.tsx';
 import { About } from './About.tsx';
 import { Compose } from './Compose.tsx';
+import { Injected } from './Injected.tsx';
+import { XChrome, XTimeline } from './XChrome.tsx';
 import { Effective } from './Effective.tsx';
 import { useSettings } from './useSettings.ts';
 
@@ -103,7 +107,7 @@ const useHealth = (): Marker[] => {
   return broken;
 };
 
-/** The language selector. It belongs to none of the three tiers, so it sits outside the scope switching */
+/** The language selector. It belongs to none of the tiers, so it sits outside the scope switching */
 const LanguageSelect = ({
   value,
   onChange,
@@ -137,6 +141,8 @@ const LanguageSelect = ({
  * every keystroke into a list would make a half-typed word take effect, and a line the
  * typing has just emptied would be dropped from under the cursor.
  */
+const GENERIC_ALTS_NOTE = 'xpro-generic-alts-note';
+
 const GenericAlts = ({
   value,
   onChange,
@@ -152,12 +158,14 @@ const GenericAlts = ({
       <label class="row">
         <span>
           {m.genericAlts.label}
-          <small>{m.genericAlts.note}</small>
+          <small id={GENERIC_ALTS_NOTE}>{m.genericAlts.note}</small>
         </span>
         <textarea
           rows={3}
           value={shown}
           aria-label={m.genericAlts.label}
+          // The box names itself, which shuts the note above out unless it is tied on here
+          aria-describedby={GENERIC_ALTS_NOTE}
           onInput={(e) => setText(e.currentTarget.value)}
           onBlur={() => {
             // Nothing was typed, so there is nothing to save. Without this, passing
@@ -224,7 +232,7 @@ const scopeLabel = (key: string, title: string | null, m: Messages): string =>
 const tabOf = (scope: Scope | undefined): SurfaceTab => {
   if (!scope) return 'common';
   if (scope.tier === 'columns') return surfaceOfKey(scope.key);
-  if (scope.tier === 'surface') return scope.key === 'x' ? 'x' : 'pro';
+  if (scope.tier === 'surface') return scope.key;
   if (scope.tier === 'meta') return 'meta';
   return 'common';
 };
@@ -307,6 +315,15 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     update({ ...settings, accounts: put(settings.accounts, key, node) });
   const updateColumn = (key: string, node: SettingsNode) =>
     update({ ...settings, columns: put(settings.columns, key, node) });
+  /** The site's box is always there; the account inside it comes and goes like any other key */
+  const updateSurfaceAccount = (surface: SurfaceId, key: string, node: SettingsNode) =>
+    update({
+      ...settings,
+      surfaceAccounts: {
+        ...settings.surfaceAccounts,
+        [surface]: put(settings.surfaceAccounts[surface], key, node),
+      },
+    });
 
   /** Moves settings to another key. No overwrite can happen (keys with settings are left out of the targets) */
   const moveIn = (nodes: Record<string, SettingsNode>, from: string, to: string) => {
@@ -324,9 +341,19 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
   const marked = (node: SettingsNode | undefined, scope: ColumnScope): boolean =>
     hasContent(node) && filterApplies(enabledAt(settings, scope));
 
+  /**
+   * The accounts somebody is signed in as right now, across both sites.
+   * Written once: four places ask the same question (the two account lists and the two
+   * sets of destinations to move settings to), and they must not come to disagree.
+   */
+  const liveAccounts = useMemo(
+    () => new Set(detected.map((scope) => scope.account).filter((a) => a !== null)),
+    [detected]
+  );
+
   /** Lists the accounts detected, and the accounts only their settings remain for */
   const accountEntries = useMemo<ScopeEntry[]>(() => {
-    const live = new Set(detected.map((scope) => scope.account).filter((a) => a !== null));
+    const live = liveAccounts;
     /*
      * What that account holds. An account spans both sites, so the two are counted apart:
      * on x.com they are views rather than columns, and calling them columns would name
@@ -343,9 +370,51 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
       label: `@${account}`,
       detail: live.has(account) ? countFor(account) : undefined,
       unassigned: detecting && !live.has(account),
-      configured: marked(settings.accounts[account], { account, columnId: null }),
+      // An account reaches both sites, so no site tier takes part in the mark
+      configured: marked(settings.accounts[account], { account, surface: null, columnId: null }),
     }));
-  }, [detected, settings, detecting, m]);
+  }, [detected, settings, detecting, liveAccounts, m]);
+
+  /**
+   * The same accounts again, once per site: the tier where an account's exception on one of
+   * the two sites is written.
+   *
+   * The list is not narrowed to the accounts seen on that site. "Keep this account's colour
+   * off X Pro" is written before the account is next read there, and the colour of the form
+   * a post is written in is resolved from what is stored rather than from what is on screen.
+   */
+  const surfaceAccountEntries = useMemo<Record<SurfaceId, ScopeEntry[]>>(() => {
+    const live = liveAccounts;
+    const forSite = (surface: SurfaceId): ScopeEntry[] => {
+      const nodes = settings.surfaceAccounts[surface];
+      const keys = [
+        ...new Set([...live, ...Object.keys(settings.accounts), ...Object.keys(nodes)]),
+      ]
+        // An account nobody is signed in as, holding nothing on this site, has nothing to
+        // offer here: there is no exception to write for it and none left behind to tidy up.
+        // Its own tier still lists it under "both", where its settings are
+        .filter((account) => live.has(account) || nodes[account] !== undefined);
+      return keys.sort().map((account) => {
+        // What that account holds on this site alone, counted the way the site names it
+        const mine = detected.filter(
+          (scope) => scope.account === account && surfaceOfKey(scope.key) === surface
+        ).length;
+        return {
+          scope: { tier: 'surfaceAccount', surface, key: account },
+          label: `@${account}`,
+          detail:
+            mine > 0
+              ? m.tiers.scopeCount(surface === 'x' ? 0 : mine, surface === 'x' ? mine : 0)
+              : undefined,
+          // Marked the same way as its own tier: settings for an account nobody is signed
+          // in as any more, waiting to be moved or dropped
+          unassigned: detectingOn[surface] && !live.has(account),
+          configured: marked(nodes[account], { account, surface, columnId: null }),
+        };
+      });
+    };
+    return { pro: forSite('pro'), x: forSite('x') };
+  }, [detected, settings, detectingOn, liveAccounts, m]);
 
   /**
    * The groups of columns per deck. The heading is the deck's name, or a number when unreadable.
@@ -383,6 +452,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
           unassigned: false,
           configured: marked(settings.columns[column.key], {
             account: column.account,
+            // Read from the key rather than from the group, so it cannot disagree with
+            // the settings being marked (which are held under that same key)
+            surface: surfaceOfKey(column.key),
             columnId: column.key,
           }),
         };
@@ -423,7 +495,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
           detail: id,
           unassigned: seen,
           // With no matching scope, the account is unknown too. The effective value is judged up to global
-          configured: marked(settings.columns[id], { account: null, columnId: id }),
+          configured: marked(settings.columns[id], { account: null, surface, columnId: id }),
         },
       };
       });
@@ -436,8 +508,8 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
   /**
    * The entry for one whole site, at the head of that site's tab.
    *
-   * Only where the site has something to put in it. X Pro has the compose form; x.com has
-   * nothing yet, and an entry leading to an empty page would be worse than no entry.
+   * X Pro has the compose form; x.com has the page it draws around the timeline. Both
+   * belong to their site rather than to any scope in it.
    */
   const wholeSurface = useMemo<Record<SurfaceId, ScopeEntry | null>>(
     () => ({
@@ -445,12 +517,26 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         scope: { tier: 'surface', key: 'pro' },
         label: m.tiers.whole(m.surfaces.pro),
         unassigned: false,
-        // The compose form's two switches are off by default; on, they are worth marking
-        configured: settings.compose.reopen || settings.compose.keepHashtags,
+        // The compose form's two switches are off by default; on, they are worth marking.
+        // The site's own tier counts too, the same way an account's or a column's does
+        configured:
+          settings.compose.reopen ||
+          settings.compose.keepHashtags ||
+          changesAnyInjected(settings.injected.pro) ||
+          marked(settings.surfaces.pro, { account: null, surface: 'pro', columnId: null }),
       },
-      x: null,
+      x: {
+        scope: { tier: 'surface', key: 'x' },
+        label: m.tiers.whole(m.surfaces.x),
+        unassigned: false,
+        // What counts as "something is set" is the shape's to answer (`settings/schema.ts`)
+        configured:
+          changesAnyChrome(settings.xChrome) ||
+          changesAnyInjected(settings.injected.x) ||
+          marked(settings.surfaces.x, { account: null, surface: 'x', columnId: null }),
+      },
     }),
-    [settings.compose, m]
+    [settings, m]
   );
 
   /** Global is always there. It heads the list and catches the fall when the chosen scope disappears */
@@ -459,7 +545,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
       scope: { tier: 'global' },
       label: m.tiers.global,
       unassigned: false,
-      configured: marked(settings.global, { account: null, columnId: null }),
+      configured: marked(settings.global, { account: null, surface: null, columnId: null }),
     }),
     [settings, m]
   );
@@ -498,10 +584,23 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     }
 
     const listed = groupsBySurface[surfaceTab];
-    const missing = missingBySurface[surfaceTab];
+    const accounts = surfaceAccountEntries[surfaceTab];
+    // One "not assigned" group, not two: what is in it — an account nobody signs in as, a
+    // column no deck has — differs, but what is to be done with it is the same
+    const missing = [
+      ...accounts.filter((entry) => entry.unassigned),
+      ...missingBySurface[surfaceTab],
+    ];
     const whole = wholeSurface[surfaceTab];
     return [
       ...(whole ? [{ entries: [whole] }] : []),
+      // Named after the site as well, so it is not the same heading as the accounts on the
+      // "both" tab, which are a different tier reaching both sites
+      {
+        label: m.tiers.accountsOn(m.surfaces[surfaceTab]),
+        entries: accounts.filter((entry) => !entry.unassigned),
+        empty: m.tiers.accountsEmpty,
+      },
       // Even when nothing could be read, one empty group is shown to explain the situation
       // (with no group at all, the tier itself would look absent)
       ...(listed.length > 0
@@ -515,7 +614,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
           ]),
       ...(missing.length > 0 ? [{ label: m.tiers.unassignedGroup, entries: missing }] : []),
     ];
-  }, [surfaceTab, globalEntry, accountEntries, groupsBySurface, missingBySurface, wholeSurface, m]);
+  }, [surfaceTab, globalEntry, accountEntries, surfaceAccountEntries, groupsBySurface, missingBySurface, wholeSurface, m]);
 
   /**
    * The scope shown on the right. The selection itself is not rewritten: detection arrives late,
@@ -530,8 +629,17 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
   /** Where it can be moved to. Ones that already have settings are left out, to avoid overwriting */
   const reassignTargets = useMemo<ReassignTarget[]>(() => {
     if (current.scope.tier === 'accounts') {
-      return [...new Set(detected.map((scope) => scope.account).filter((a) => a !== null))]
+      return [...liveAccounts]
         .filter((account) => !settings.accounts[account])
+        .sort()
+        .map((account) => ({ key: account, label: `@${account}` }));
+    }
+    if (current.scope.tier === 'surfaceAccount') {
+      // Only within the same site: what is held here is that site's answer for an account,
+      // and the same account on the other site is a different scope with its own entry
+      const { surface } = current.scope;
+      return [...liveAccounts]
+        .filter((account) => !settings.surfaceAccounts[surface][account])
         .sort()
         .map((account) => ({ key: account, label: `@${account}` }));
     }
@@ -549,7 +657,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         }));
     }
     return [];
-  }, [current.scope, detected, settings.accounts, settings.columns, m]);
+  }, [current.scope, detected, liveAccounts, settings.accounts, settings.surfaceAccounts, settings.columns, m]);
 
   /** Show the destination straight away. After the move, the original key is no longer in the list */
   const reassign = (to: string) => {
@@ -557,6 +665,16 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     if (from.tier === 'accounts') {
       update({ ...settings, accounts: moveIn(settings.accounts, from.key, to) });
       setScope({ tier: 'accounts', key: to });
+    } else if (from.tier === 'surfaceAccount') {
+      const { surface } = from;
+      update({
+        ...settings,
+        surfaceAccounts: {
+          ...settings.surfaceAccounts,
+          [surface]: moveIn(settings.surfaceAccounts[surface], from.key, to),
+        },
+      });
+      setScope({ tier: 'surfaceAccount', surface, key: to });
     } else if (from.tier === 'columns') {
       update({ ...settings, columns: moveIn(settings.columns, from.key, to) });
       setScope({ tier: 'columns', key: to });
@@ -582,6 +700,16 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     const from = current.scope;
     if (from.tier === 'accounts') {
       update({ ...settings, accounts: removeFrom(settings.accounts, from.key) });
+    } else if (from.tier === 'surfaceAccount') {
+      // Only this site's. The same account on the other site is another scope, listed and
+      // deleted on its own — deleting from here what is not shown here would be a surprise
+      update({
+        ...settings,
+        surfaceAccounts: {
+          ...settings.surfaceAccounts,
+          [from.surface]: removeFrom(settings.surfaceAccounts[from.surface], from.key),
+        },
+      });
     } else if (from.tier === 'columns') {
       update({ ...settings, columns: removeFrom(settings.columns, from.key) });
     }
@@ -590,19 +718,24 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
 
   /**
    * The values coming down from the tiers above. Above the column tier sits the account it
-   * belongs to, but that is known only from what was detected, so with pro.x.com not open it is global alone.
+   * belongs to, but that is known only from what was detected, so with pro.x.com not open it is
+   * the site and global alone.
    * The dimmed value is "the effective value as far as is known here", not necessarily what actually applies.
    */
   const inherited = useMemo(() => {
     const target = current.scope;
     if (target.tier === 'global') return inheritedFor(settings, { tier: 'global' });
     if (target.tier === 'accounts') return inheritedFor(settings, { tier: 'accounts' });
-    // Neither a whole site nor the extension itself is a tier: nothing above, nothing below
-    if (target.tier === 'surface' || target.tier === 'meta') {
-      return inheritedFor(settings, { tier: 'global' });
-    }
+    // A site is a tier; above it sits the account, which it belongs to none of
+    if (target.tier === 'surface') return inheritedFor(settings, { tier: 'surface' });
+    // An account on one site: everything above it is determined, so nothing is left out here
+    if (target.tier === 'surfaceAccount')
+      return inheritedFor(settings, { tier: 'surfaceAccount', account: target.key, surface: target.surface });
+    // The extension itself is not a tier: nothing above, nothing below
+    if (target.tier === 'meta') return inheritedFor(settings, { tier: 'global' });
     const account = detected.find((scope) => scope.key === target.key)?.account ?? null;
-    return inheritedFor(settings, { tier: 'columns', account });
+    // Which site a column belongs to is written into its key, so that tier is always known
+    return inheritedFor(settings, { tier: 'columns', account, surface: surfaceOfKey(target.key) });
   }, [current.scope, settings, detected]);
 
   /**
@@ -614,15 +747,30 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     shown.tier === 'columns'
       ? {
           account: detected.find((scope) => scope.key === shown.key)?.account ?? null,
+          // Which site a column belongs to is written into its key
+          surface: surfaceOfKey(shown.key),
           columnId: shown.key,
         }
       : null;
+
+  /** Which site's whole-site page is open. Only read while one is */
+  const surfaceOfScope: SurfaceId = shown.tier === 'surface' ? shown.key : 'pro';
 
   /**
    * Which site the settings on the right are for. The global and account tiers belong to
    * both, so the appearance groups the column-only items there instead of hiding them.
    */
-  const site: Site = shown.tier === 'columns' ? surfaceOfKey(shown.key) : 'both';
+  const site: Site =
+    shown.tier === 'columns'
+      ? surfaceOfKey(shown.key)
+      : // A site's own page is that site's, so the appearance offers what works there and
+        // leaves out what does not — the same as on a column of it
+        shown.tier === 'surface'
+          ? surfaceOfScope
+          : // An account's page for one site is that site's too
+            shown.tier === 'surfaceAccount'
+            ? shown.surface
+            : 'both';
 
   /**
    * Moves to another screen's settings. The scope goes with it: the one selected here has
@@ -647,11 +795,20 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     setScope(first?.scope ?? { tier: 'global' });
   };
 
-  /** The tier's stored settings. A whole site and the extension itself are not tiers, and never reach here */
+  /** The tier's stored settings. The extension itself is not a tier, and never reaches here */
   const nodeOf = (target: Scope): SettingsNode => {
     if (target.tier === 'global') return settings.global;
-    if (target.tier === 'surface' || target.tier === 'meta') return emptyNode();
-    const nodes = target.tier === 'accounts' ? settings.accounts : settings.columns;
+    if (target.tier === 'meta') return emptyNode();
+    // Both sites always have a tier, so there is no key to be missing
+    if (target.tier === 'surface') return settings.surfaces[target.key];
+    // Named one by one rather than "accounts or else columns": a tier added to `Scope`
+    // would otherwise fall silently into the columns and read another tier's settings
+    const nodes =
+      target.tier === 'accounts'
+        ? settings.accounts
+        : target.tier === 'surfaceAccount'
+          ? settings.surfaceAccounts[target.surface]
+          : settings.columns;
     return nodes[target.key] ?? emptyNode();
   };
 
@@ -659,8 +816,13 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
     const target = current.scope;
     if (target.tier === 'global') updateGlobal(node);
     else if (target.tier === 'accounts') updateAccount(target.key, node);
-    // A whole site holds no tier, so nothing here is its to write
     else if (target.tier === 'columns') updateColumn(target.key, node);
+    else if (target.tier === 'surfaceAccount') updateSurfaceAccount(target.surface, target.key, node);
+    // Kept even when emptied, unlike the accounts and the columns: there are exactly two
+    // sites and they never go away, so there is no key to tidy up
+    else if (target.tier === 'surface') {
+      update({ ...settings, surfaces: { ...settings.surfaces, [target.key]: node } });
+    }
   };
 
   return (
@@ -777,20 +939,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                 </>
               )}
 
-              {/*
-                One whole site. Not a tier, so it does not go through the merging: what is
-                here belongs to the site and to nothing above or below it.
-              */}
-              {current.scope.tier === 'surface' && (
-                <Compose
-                  compose={settings.compose}
-                  onChange={(compose) => update({ ...settings, compose })}
-                />
-              )}
-
               {/* Rebuilt when the scope changes. Components in the same position are reused, so without
                   `key` a half-typed rule or uncommitted field text would carry over to the next scope */}
-              {current.scope.tier !== 'surface' && current.scope.tier !== 'meta' && (
+              {current.scope.tier !== 'meta' && (
               <TierEditor
                 key={scopeKey(current.scope)}
                 node={nodeOf(current.scope)}
@@ -799,9 +950,74 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                 onTabChange={setTab}
                 inherited={inherited}
                 site={site}
-                // The merged result cannot be built without knowing all three tiers, so it is assembled here and passed in
+                oneColumn={current.scope.tier === 'columns'}
+                // The merged result cannot be built without knowing every tier, so it is assembled here and passed in
                 effective={
                   columnScope && <Effective settings={settings} scope={columnScope} site={site} />
+                }
+                /*
+                 * What belongs to the whole site rather than to its tier. Given tabs of
+                 * their own rather than stacked above the tabs, so the page has one row of
+                 * navigation instead of content and then navigation below it.
+                 *
+                 * Two tabs rather than one. The site keeps two separate subjects here —
+                 * what it draws around the timeline (or, on X Pro, what the compose form
+                 * does) and what X slips into the timeline — and a single tab covering
+                 * both could only be named vaguely. Split, each takes the name the group
+                 * already had.
+                 */
+                screens={
+                  current.scope.tier === 'surface'
+                    ? [
+                        {
+                          key: 'site' as const,
+                          // Which site decides both the name and what is on offer: the two
+                          // have nothing in common beyond belonging to a site
+                          label: surfaceOfScope === 'x' ? m.xChrome.label : m.compose.label,
+                          content:
+                            surfaceOfScope === 'x' ? (
+                              <XChrome
+                                chrome={settings.xChrome}
+                                onChange={(xChrome) => update({ ...settings, xChrome })}
+                              />
+                            ) : (
+                              <Compose
+                                compose={settings.compose}
+                                onChange={(compose) => update({ ...settings, compose })}
+                              />
+                            ),
+                        },
+                        {
+                          key: 'timeline' as const,
+                          label: m.tabs.inTimeline,
+                          content: (
+                            <>
+                              {/*
+                                x.com's own two stand at the head of the timeline rather
+                                than around it, so they belong here and not with the
+                                furniture. X Pro puts nothing of its own in a column
+                              */}
+                              {surfaceOfScope === 'x' && (
+                                <XTimeline
+                                  chrome={settings.xChrome}
+                                  onChange={(xChrome) => update({ ...settings, xChrome })}
+                                />
+                              )}
+                              {/* Offered under either site, each keeping its own answer */}
+                              <Injected
+                                injected={settings.injected[surfaceOfScope]}
+                                onChange={(one) =>
+                                  update({
+                                    ...settings,
+                                    injected: { ...settings.injected, [surfaceOfScope]: one },
+                                  })
+                                }
+                              />
+                            </>
+                          ),
+                        },
+                      ]
+                    : undefined
                 }
               />
               )}

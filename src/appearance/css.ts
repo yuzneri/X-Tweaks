@@ -14,16 +14,45 @@ import type { ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
   collapsesNewlines,
-  hidesWhoToFollow,
   isCompact,
   mediaStyleOf,
   quoteStyleOf,
   timeFormatOf,
+  type InjectedSettings,
+  X_MENU_KEYS,
+  X_NAV_KEYS,
+  X_RAIL_KEYS,
   type AppearanceNode,
+  type XChromeSettings,
+  type XMenuKey,
+  type XNavKey,
+  type XRailKey,
 } from '../settings/schema.ts';
 
 /** The marker put on a column. Its value is the key the rules target */
 export const COLUMN_ATTR = 'data-xpro-column';
+
+/**
+ * Drops the characters that would end an attribute selector's string early.
+ *
+ * Every value written inside `[attr="…"]` goes through this. A screen name comes from
+ * the page and holds neither, but a settings file taken in from elsewhere carries
+ * whatever keys it likes (`nodeMap` in `settings/schema.ts` keeps them as they are), and
+ * a `"` in one would close the selector and let the rest of the string be read as CSS of
+ * its own.
+ */
+export const safeInSelector = (value: string): string => value.replace(/["\\]/g, '');
+
+/**
+ * The marker put on the form a new post is written in, carrying the account it will post
+ * as (written by `appearance/compose-mark.ts`).
+ *
+ * A marker rather than a selector reaching for the account: the form holds its author's
+ * avatar, but it can hold other people's too — a quoted post brings one — and a selector
+ * cannot say "the first one". Which avatar names the account is a question for the code
+ * that walks the form, not for a stylesheet.
+ */
+export const COMPOSE_ATTR = 'data-xpro-compose';
 
 /**
  * The key an appearance is applied under.
@@ -37,9 +66,8 @@ export const COLUMN_ATTR = 'data-xpro-column';
  * attribute selector.
  */
 export const columnKey = (scope: ColumnScope): string => {
-  const safe = (value: string): string => value.replace(/["\\]/g, '');
-  if (scope.columnId !== null) return `c:${safe(scope.columnId)}`;
-  if (scope.account !== null) return `a:${safe(scope.account)}`;
+  if (scope.columnId !== null) return `c:${safeInSelector(scope.columnId)}`;
+  if (scope.account !== null) return `a:${safeInSelector(scope.account)}`;
   return 'g';
 };
 
@@ -349,11 +377,17 @@ const TARGETS = {
  * carries no marker. x.com has one view on screen at a time, so the view being looked at
  * is the one that decides. X Pro has no such rail, and there this matches nothing.
  *
- * An `aside` listing accounts in the rail is only ever this block, so the link the
- * timeline needs to tell it apart is not needed here. What is hidden is the card around
- * it: the `aside` alone would leave its border behind with nothing inside.
+ * Told apart by the link that closes it, exactly as the timeline's own cells are
+ * (`WHO_TO_FOLLOW_MORE`), so the rail and the timeline agree on what the block is. The
+ * accounts alone would not do: x.com stacks a second block of accounts in the same rail —
+ * the ones it calls relevant — and that one belongs to a switch of its own
+ * (`RAIL_BLOCKS.relevantPeople`), not to this one. Matched on the accounts, the two cross
+ * over and each switch takes away the block the other one names.
+ *
+ * What is hidden is the card around the `aside`: the `aside` alone would leave its border
+ * behind with nothing inside.
  */
-const WHO_TO_FOLLOW_RAIL = `[data-testid="sidebarColumn"] div:has(> div > aside ${USER_CELL})`;
+const WHO_TO_FOLLOW_RAIL = `[data-testid="sidebarColumn"] div:has(> div > aside ${WHO_TO_FOLLOW_MORE})`;
 
 /** Confines every target inside that column's marker */
 const within = (scope: string, targets: string[][]): string =>
@@ -709,17 +743,6 @@ const columnRules = (
     rules.push(rule(within(skimming, [TARGETS.movedCard]), 'display: none !important;'));
   }
 
-  /*
-   * Taking the accounts X suggests following off the timeline.
-   *
-   * Not held back where a post is opened, unlike the media and the cards above: those
-   * belong to the post that was opened to be read, while this block is X's own aside and
-   * is no more wanted there than on a timeline.
-   */
-  if (hidesWhoToFollow(appearance.hideWhoToFollow)) {
-    rules.push(rule(within(scope, [TARGETS.whoToFollow]), 'display: none !important;'));
-  }
-
   return rules;
 };
 
@@ -728,12 +751,356 @@ export const buildCss = (
   parens: { open: string; close: string }
 ): string => {
   const rules = columns.flatMap((column) => columnRules(column, parens));
-  /*
-   * The rail is nobody's scope, so its rule is written here rather than per column: from
-   * inside `columnRules` the same line would come out once per key.
-   */
-  if (columns.some((column) => hidesWhoToFollow(column.appearance.hideWhoToFollow))) {
+  return rules.join('\n');
+};
+
+/**
+ * The posts X appends under a conversation, headed "Discover more".
+ *
+ * They arrive as cells of the timeline, like the block of accounts X suggests: one cell
+ * carrying the heading, then a cell per post it is offering. There is no mark on any of
+ * them, so the heading is found by being the one cell of a conversation with an `h2` in
+ * it, and what follows is everything after it — the block runs to the end.
+ *
+ * Held to a conversation by X's own mark for one, the box for writing a reply. Without
+ * that, the heading of the accounts X suggests would answer on a timeline and take the
+ * whole timeline under it away; the block beside somebody's profile would answer too.
+ *
+ * The conversation is found by the `section` it stands in rather than by x.com's column,
+ * both sites drawing one and only x.com having the other.
+ */
+const DISCOVER_HEAD =
+  `section:has([data-testid="inline_reply_offscreen"]) ${CELL_SELECTOR}:has(h2)`;
+const DISCOVER_MORE = `${DISCOVER_HEAD}, ${DISCOVER_HEAD} ~ ${CELL_SELECTOR}`;
+
+/**
+ * What X slips into a timeline, taken away for a whole site.
+ *
+ * Not confined to a scope. These blocks are X's own doing rather than anything belonging
+ * to a column or a view, and the setting that governs them is held per site
+ * (`settings/schema.ts`), so which site is being drawn on is all the scoping there is —
+ * `appearance/apply.ts` decides that.
+ *
+ * Every selector here is written to hold on both sites. The rail is x.com's alone and
+ * matches nothing on X Pro; the rest are cells of a timeline, which both sites draw the
+ * same way.
+ */
+export const injectedCss = (injected: InjectedSettings): string => {
+  const rules: string[] = [];
+  // The settings say what is on the page, so a rule is written for what is not (`schema.ts`)
+  if (!injected.whoToFollow) {
+    rules.push(rule(TARGETS.whoToFollow.join(', '), 'display: none !important;'));
     rules.push(rule(WHO_TO_FOLLOW_RAIL, 'display: none !important;'));
+  }
+  if (!injected.discoverMore) {
+    rules.push(rule(DISCOVER_MORE, 'display: none !important;'));
   }
   return rules.join('\n');
 };
+
+// --- x.com's own furniture ---
+//
+// The page around the timeline: the rail beside it, the items down the left, the box for
+// writing a post, the bar announcing new ones. None of it belongs to a view, so none of
+// it is confined to a scope — x.com shows one view at a time, and these settings are held
+// for the whole site (`settings/schema.ts`). X Pro has none of this; `appearance/apply.ts`
+// is what keeps these rules off it.
+
+const SIDEBAR = '[data-testid="sidebarColumn"]';
+const SIDE_NAV = 'header[role="banner"] nav[role="navigation"]';
+
+/**
+ * Refuses anything holding the search box.
+ *
+ * The rail's blocks are siblings, but not all of them sit at the same depth: the accounts
+ * X suggests are wrapped one deeper on a timeline than on a post's own page. A selector
+ * written for the deeper shape matches the whole rail on the shallower one, taking the
+ * search box with it. Nothing that holds the search is a block, so saying that outright
+ * costs one clause and removes the trap.
+ */
+const NOT_THE_WHOLE_RAIL = ':not(:has(form[role="search"]))';
+
+/**
+ * The blocks of the rail, one selector apiece.
+ *
+ * Named one by one rather than as "every block but the search". A block X adds later
+ * stays on screen until this list catches up, which is the same bargain `NOT_A_PROFILE`
+ * (`surface/view.ts`) makes: an item too many is a smaller harm than the sibling
+ * arithmetic the other way round would need, on a container X names nothing.
+ *
+ * The accounts X suggests are not here at all: that block is X slipping something in
+ * rather than furniture of the page, and it is answered for the whole site
+ * (`WHO_TO_FOLLOW_RAIL`).
+ */
+const RAIL_BLOCKS: Record<XRailKey, string> = {
+  premium: `${SIDEBAR} div:has(> div > aside a[href*="/i/premium"])${NOT_THE_WHOLE_RAIL}`,
+  news: `${SIDEBAR} div:has(> div[data-testid="news_sidebar"])${NOT_THE_WHOLE_RAIL}`,
+  /*
+   * X draws two blocks of the rail as a `section`, and the second only shows up on
+   * somebody's profile: what's happening, and the accounts it calls relevant there. So
+   * neither is named by being a `section` — each says what it is made of. Written as
+   * `> section` alone, the trends rule takes the relevant accounts away on every profile.
+   *
+   * `:has()` cannot be nested, so the test goes inside the one `:has` as a descendant.
+   */
+  trends: `${SIDEBAR} div:has(> section [data-testid="trend"])${NOT_THE_WHOLE_RAIL}`,
+  /*
+   * The one block of the rail X draws in two shapes: a `section` beside somebody's
+   * profile, an `aside` on a post's own page. Both are said here, because both are the
+   * same block to a reader and one switch is what they asked for.
+   *
+   * The `aside` shape is also what X uses for the accounts it suggests following, on a
+   * timeline. The link that closes that block is the only thing telling the two apart, so
+   * refusing it is what keeps this switch off the block that belongs to `WHO_TO_FOLLOW_RAIL`.
+   * Written without that clause, turning this on takes the suggestions away on every
+   * timeline — measured on the saved pages.
+   */
+  relevantPeople:
+    `${SIDEBAR} div:has(> section ${USER_CELL})${NOT_THE_WHOLE_RAIL}, ` +
+    `${SIDEBAR} div:has(> aside ${USER_CELL}):not(:has(${WHO_TO_FOLLOW_MORE}))${NOT_THE_WHOLE_RAIL}`,
+  // Terms, privacy, cookies, and the rest of the small print
+  footer: `${SIDEBAR} div:has(> nav)${NOT_THE_WHOLE_RAIL}`,
+};
+
+/**
+ * The items down the left, each the anchor for one `XNavKey`.
+ *
+ * They are children of the navigation itself, so hiding the link hides the whole row.
+ * Grok, the history and the creator studio carry no `data-testid` of their own and are
+ * told apart by where they lead, the way the accounts X suggests already are
+ * (`WHO_TO_FOLLOW_MORE`). `*=` rather than `=` because X writes these as paths and a
+ * saved page rewrites them whole.
+ */
+const NAV_ITEMS: Record<XNavKey, string> = {
+  explore: `${SIDE_NAV} a[data-testid="AppTabBar_Explore_Link"]`,
+  follow: `${SIDE_NAV} a[data-testid="AppTabBar_Follow_Link"]`,
+  messages: `${SIDE_NAV} a[data-testid="AppTabBar_DirectMessage_Link"]`,
+  grok: `${SIDE_NAV} a[href*="/i/grok"]`,
+  history: `${SIDE_NAV} a[href*="/i/history"]`,
+  creatorStudio: `${SIDE_NAV} a[href*="/creators/studio"]`,
+  articles: `${SIDE_NAV} a[href*="/compose/articles"]`,
+  /*
+   * X draws this one twice over, and the two carry different marks of its own:
+   * `premium-signup-tab` at `/i/premium_sign_up` for somebody who has not subscribed,
+   * `premium-hub-tab` at `/i/premium` for somebody who has. Where it leads is what the two
+   * have in common, and one address is the beginning of the other.
+   */
+  premium: `${SIDE_NAV} a[href*="/i/premium"]`,
+  profile: `${SIDE_NAV} a[data-testid="AppTabBar_Profile_Link"]`,
+  // Beside the navigation rather than inside it, being a button rather than a destination
+  postButton: 'header[role="banner"] a[data-testid="SideNav_NewTweet_Button"]',
+};
+
+/**
+ * The items inside the "More" menu, each the anchor for one `XMenuKey`.
+ *
+ * All named by where they lead, which is what keeps the extension's own entry out of
+ * reach: `panel/x-menu.ts` gives it no address at all, so an `[href]` selector cannot
+ * pick it up however the menu is rearranged.
+ *
+ * The lists and the communities live under the signed-in screen name rather than a fixed
+ * path, so those two are matched on the end of the address instead of somewhere in the
+ * middle — `*=` would also answer to a list linked from somewhere else in a menu.
+ */
+const MENU = '[role="menu"]';
+const MENU_ITEMS: Record<XMenuKey, string> = {
+  lists: `${MENU} a[href$="/lists"]`,
+  communities: `${MENU} a[href$="/communities"]`,
+  communityNotes: `${MENU} a[href*="/i/communitynotes"]`,
+  business: `${MENU} a[href*="/verified-orgs-signup"]`,
+  ads: `${MENU} a[href*="ads.x.com"]`,
+  spaces: `${MENU} a[href*="/i/spaces/start"]`,
+  mutedKeyword: `${MENU} a[href*="/settings/add_muted_keyword"]`,
+  // Ends the address, so the muted-keyword item one level below it is not caught as well
+  settings: `${MENU} a[href$="/settings"]`,
+};
+
+/**
+ * The box for writing a post at the head of the timeline.
+ *
+ * x.com draws it with the same elements as the box for writing a reply, so the two cannot
+ * be told apart by what they are — only by where they stand. A reply belongs to the post
+ * it answers and sits in that post's cell; this one stands on its own above the timeline.
+ * Going by the address instead would answer a different question: `OPENED_ATTR` marks
+ * where a post is being read, which is not the same as where a reply box is.
+ *
+ * The two steps down from the column are load-bearing rather than decoration: they hold
+ * the candidates to the blocks the timeline is built out of, and only there does "holds
+ * no cell" mean "is the box for writing". Inside a reply's own cell there are plenty of
+ * divs holding no cell, and a selector without the two steps hides the reply box —
+ * measured on a post's page: 23 matches, the reply among them, against none with them.
+ */
+const COMPOSE_BOX =
+  `[data-testid="primaryColumn"] > div > div:has([data-testid="tweetTextarea_0_label"])` +
+  `:not(:has([data-testid="cellInnerDiv"]))`;
+
+/**
+ * The two bars X floats in the bottom-right corner, collapsed until pressed. They are
+ * siblings under one parent and each carries a mark of X's own, so neither needs telling
+ * apart by what is inside it. Hiding the chat one takes its contents with it.
+ */
+const GROK_DRAWER = '[data-testid="GrokDrawer"]';
+const CHAT_DRAWER = '[data-testid="chat-drawer-root"]';
+
+/**
+ * Letting the timeline have the room the rail was taking.
+ *
+ * x.com sizes the two columns together: the pair stands in a box 1050px wide, of which the
+ * timeline may use 600 and the rail takes 350. Hiding the rail leaves the box the size it
+ * was, so the timeline stays at 600 with the emptied half beside it. Lifting the cap hands
+ * it the whole box — which is exactly the room the rail was taking.
+ *
+ * The same 600 is written in three places, and all three have to go. The column carries
+ * it; so does the wrapper the posts themselves stand in, one step further down where a
+ * timeline is drawn; and so does the row of buttons under each post. Lifting only the
+ * column's widens the bar of tabs across the top and leaves every post at 600 underneath
+ * it, which reads as a wide empty column with narrow posts in it. Lifting the first two
+ * and not the third leaves the buttons bunched into the left 600 of a post 1002 wide,
+ * with nothing to their right.
+ * A post's own page has no such wrapper, and there that second one matches nothing.
+ *
+ * The row spaces its buttons out itself once the cap is gone: X gives the first four
+ * `flex: 1` inside a `space-between` row, so they land at even steps across the whole
+ * width with the bookmark and the share at the far end — measured at 231px apart.
+ *
+ * Nothing is done to the box itself. Stretching it as well was tried and measured worse in
+ * both directions: the box's width is what x.com centres the page on, so widening it slides
+ * the navigation sideways by a couple of hundred pixels, and on a post's own page the box
+ * settles narrower than it started, leaving the timeline *narrower* than with the setting
+ * off. Left alone, the navigation does not move at all and the timeline is 1050 wide on
+ * every page and every window — measured, not guessed.
+ *
+ * So the timeline stops growing at 1050 however wide the window is. That is a limit worth
+ * having: a line of text the width of a large screen is not one anybody wants to read.
+ * Photos are left where X puts them: it sizes those to the picture, not to the column.
+ *
+ * Only ever written with the rail hidden. With the rail still on screen the timeline takes
+ * the whole box and pushes it out of the window.
+ */
+const WIDE_TIMELINE: [selector: string, body: string][] = [
+  [
+    `[data-testid="primaryColumn"], [data-testid="primaryColumn"] div:has(> section), ` +
+      `[data-testid="primaryColumn"] ${ACTION_BAR}`,
+    'max-width: none !important;',
+  ],
+];
+
+/**
+ * The rules for x.com's own furniture. Nothing set emits nothing at all, the same way an
+ * unset appearance item does.
+ */
+export const chromeCss = (chrome: XChromeSettings): string => {
+  const hide = (selector: string): string => rule(selector, 'display: none !important;');
+  const rules: string[] = [];
+
+  if (chrome.wideTimeline) {
+    // The rail goes first: widening with it still on screen pushes it out of the window
+    rules.push(hide(SIDEBAR));
+    rules.push(...WIDE_TIMELINE.map(([selector, body]) => rule(selector, body)));
+  } else {
+    // Only worth writing while the rail is still there; hidden, it took them with it
+    const rail = X_RAIL_KEYS.filter((key) => !chrome.rail[key]).map((key) => RAIL_BLOCKS[key]);
+    if (rail.length > 0) rules.push(hide(rail.join(', ')));
+  }
+
+  // Again, a rule for each one taken off: true means it stays where X put it
+  const nav = X_NAV_KEYS.filter((key) => !chrome.nav[key]).map((key) => NAV_ITEMS[key]);
+  if (nav.length > 0) rules.push(hide(nav.join(', ')));
+
+  const menu = X_MENU_KEYS.filter((key) => !chrome.menu[key]).map((key) => MENU_ITEMS[key]);
+  if (menu.length > 0) rules.push(hide(menu.join(', ')));
+
+  if (!chrome.composeBox) rules.push(hide(COMPOSE_BOX));
+
+  const drawers = [!chrome.grokDrawer && GROK_DRAWER, !chrome.chatDrawer && CHAT_DRAWER].filter(
+    (one): one is string => one !== false
+  );
+  if (drawers.length > 0) rules.push(hide(drawers.join(', ')));
+
+  return rules.join('\n');
+};
+
+// --- the form a new post is written in ---
+
+/**
+ * Where a new post is written, in the three shapes the two sites draw it.
+ *
+ * Each is one element that paints itself and holds nothing painted inside it, so coloring
+ * the one element colors the whole form — measured on the saved pages: the drawer at
+ * 331x328 and the modal at 552x287 are opaque, and every element from the words up to
+ * them is transparent.
+ *
+ * The box at the head of x.com's timeline is `COMPOSE_BOX`, which already keeps itself
+ * off the box for writing a reply. The other two are named by what X marks them with:
+ * the drawer by its own mark, the modal by being the dialog that a post is written in.
+ *
+ * On X Pro the drawer is also where a reply is written, so a reply there takes the color
+ * as well. There is nothing on the drawer saying which it is, and the color is worth more
+ * than the distinction: what it answers — which account this is going out as — is the
+ * same question either way.
+ */
+const COMPOSE_FORMS = [
+  `[data-testid="drawerAnimatedDiv"]:has([data-testid="tweetTextarea_0_label"])`,
+  `[role="dialog"][aria-modal="true"]:has([data-testid="tweetTextarea_0_label"])`,
+  COMPOSE_BOX,
+];
+
+/** The forms to put the account's marker on, for `appearance/compose-mark.ts` to find */
+export const COMPOSE_FORM_SELECTOR = COMPOSE_FORMS.join(', ');
+
+/**
+ * The background of the form a new post is written in.
+ *
+ * Written against the marker rather than confined to a scope: the form belongs to no
+ * column and no view (`ACCOUNT_COLORS` in `settings/schema.ts` says why), and the marker
+ * is what carries the account it will post as.
+ *
+ * One entry per account that has a color, plus one for `null` meaning "whatever account
+ * this is" — the value the top tier sets, which every account takes unless it says
+ * otherwise. Both are one attribute selector and so weigh the same, which is why the
+ * caller hands them over with the general one first: what comes later wins.
+ *
+ * Built from the settings rather than from the forms on screen. X opens and closes these
+ * as they are used, and rules for accounts whose form is not open cost nothing, while
+ * rebuilding the stylesheet every time one opens would cost the browser a repaint.
+ */
+export const composeCss = (
+  colors: { account: string | null; color: string }[],
+  except: readonly string[] = []
+): string => {
+  // The general rule reaches any marked form, so the accounts holding the appearance
+  // back have to be named out of it. Named, not left to the ordering: they set no colour
+  // of their own, so there is no later rule to overturn this one
+  const refuse = except
+    .map((account) => `:not([${COMPOSE_ATTR}="${safeInSelector(account)}"])`)
+    .join('');
+  return colors
+    .map(({ account, color }) =>
+      rule(
+        account === null
+          ? `[${COMPOSE_ATTR}]${refuse}`
+          : `[${COMPOSE_ATTR}="${safeInSelector(account)}"]`,
+        // Laid over what X paints rather than put in its place. A color chosen with an
+        // alpha is a tint, and swapping it in instead leaves the form see-through: on
+        // x.com's post window that meant reading the timeline through it. A gradient of
+        // one color is a flat fill, and `background-image` sits above `background-color`,
+        // so X's own surface stays underneath and an opaque choice still covers it whole
+        `background-image: linear-gradient(${color}, ${color}) !important;`
+      )
+    )
+    .join('\n');
+};
+
+/**
+ * The page behind x.com, outside the timeline.
+ *
+ * One rule on `body`, because x.com paints only the timeline: the items down the left and
+ * the rail beside it are transparent and take whatever is behind them (measured). So this
+ * reaches the margins, the navigation and the rail while leaving the middle of the page
+ * as X draws it — which is what makes it a different setting from `background`.
+ *
+ * x.com alone. X Pro's `body` is the ground the whole deck stands on, and painting it is
+ * not the same question as painting a column.
+ */
+export const pageCss = (color: string | null): string =>
+  color === null ? '' : rule('body', `background-color: ${color} !important;`);

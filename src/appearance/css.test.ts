@@ -1,7 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyNode, type AppearanceNode } from '../settings/schema.ts';
-import { buildCss, captionTargets, columnKey, COLUMN_ATTR } from './css.ts';
+import {
+  emptyChrome,
+  emptyNode,
+  X_MENU_KEYS,
+  X_NAV_KEYS,
+  X_RAIL_KEYS,
+  type AppearanceNode,
+  type InjectedSettings,
+  type XChromeSettings,
+} from '../settings/schema.ts';
+import {
+  buildCss,
+  captionTargets,
+  chromeCss,
+  columnKey,
+  COLUMN_ATTR,
+  composeCss,
+  COMPOSE_FORM_SELECTOR,
+  injectedCss,
+  pageCss,
+} from './css.ts';
 
 const appearanceOf = (patch: (a: AppearanceNode) => void): AppearanceNode => {
   const appearance = emptyNode().appearance;
@@ -223,8 +242,6 @@ test('メディアの折りたたみは隠すだけ。要素は残す', () => {
   assert.equal(notEmitted, '');
 });
 
-
-
 test('本文と名前は別々の当て先に当てる', () => {
   const textOnly = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.colors.text = '#ffcc00')) }]);
   assert.match(textOnly, /\[data-xpro-column="0"\] \[data-testid="tweetText"\], /);
@@ -364,19 +381,11 @@ test('詰めると、X 自身の「さらに表示」も消える', () => {
   );
 });
 
-test('入れ子の :has() を書かない。規則ごと捨てられるため', () => {
-  const css = cssOf([
-    {
-      key: '0',
-      appearance: appearanceOf((a) => {
-        a.compact = true;
-        a.collapseNewlines = true;
-        a.maxLines = 3;
-      }),
-    },
-  ]);
-  // `:has()` inside another `:has()` is invalid, and a browser throws away the whole rule
-  // without a word. Every selector here leans on `:has()`, so the shape is checked
+/**
+ * `:has()` inside another `:has()` is invalid, and a browser throws away the whole rule
+ * without a word. Every builder here leans on `:has()`, so each one's output is checked.
+ */
+const noNestedHas = (css: string): void => {
   for (const selector of css.split('\n').map((line) => line.slice(0, line.indexOf('{')))) {
     /** One entry per open parenthesis, saying whether it belongs to a `:has()` */
     const open: boolean[] = [];
@@ -390,6 +399,21 @@ test('入れ子の :has() を書かない。規則ごと捨てられるため', 
       }
     }
   }
+};
+
+test('入れ子の :has() を書かない。規則ごと捨てられるため', () => {
+  noNestedHas(
+    cssOf([
+      {
+        key: '0',
+        appearance: appearanceOf((a) => {
+          a.compact = true;
+          a.collapseNewlines = true;
+          a.maxLines = 3;
+        }),
+      },
+    ])
+  );
 });
 
 test('改行の解除は、詰めとは別に効く', () => {
@@ -458,16 +482,16 @@ test('ポストを開いているカラムでは、カードも画像も消え�
 
 test('当て先の鍵は、解決できた一番細かい段で決まる', () => {
   // Down to the column, the key is the column's
-  assert.equal(columnKey({ account: 'alice', columnId: 'col-1' }), 'c:col-1');
+  assert.equal(columnKey({ account: 'alice', surface: 'pro', columnId: 'col-1' }), 'c:col-1');
   // Even without a columnId, the account tier's appearance should still apply
-  assert.equal(columnKey({ account: 'alice', columnId: null }), 'a:alice');
+  assert.equal(columnKey({ account: 'alice', surface: 'pro', columnId: null }), 'a:alice');
   // With neither, the global tier still applies. Without a marker there would be nothing to target
-  assert.equal(columnKey({ account: null, columnId: null }), 'g');
+  assert.equal(columnKey({ account: null, surface: 'pro', columnId: null }), 'g');
 });
 
 test('鍵から、属性セレクタを壊す字を落とす', () => {
   // Both are alphanumeric in practice, but that is not assumed
-  assert.equal(columnKey({ account: null, columnId: 'a"b\\c' }), 'c:abc');
+  assert.equal(columnKey({ account: null, surface: 'pro', columnId: 'a"b\\c' }), 'c:abc');
 });
 
 test('鍵ごとに規則を書き分ける', () => {
@@ -568,53 +592,6 @@ test('アンケートとカルーセルはカードの指定から外れる。ca
   }
 });
 
-test('おすすめユーザーを隠すと、見出しからさらに表示までのセルが消える', () => {
-  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
-  const cells = css
-    .split('\n')
-    .filter((line) => line.startsWith(`[${COLUMN_ATTR}="0"] [data-testid="cellInnerDiv"]`));
-  // The three cells the block is made of: the "Show more", the accounts, the heading
-  assert.equal(cells.length, 1);
-  const [selectors, body] = cells[0]!.split(' { ');
-  assert.equal(body, 'display: none !important; }');
-  assert.equal(selectors!.split(', ').length, 3);
-  // Every one of them is tied to the link that closes the block, so a list of accounts
-  // standing for anything else is left alone
-  for (const selector of selectors!.split(', ')) {
-    assert.match(selector, /a\[href\*="\/i\/connect_people"\]/);
-  }
-});
-
-test('おすすめユーザーを隠す指定は、x.com の横の欄にも及ぶ', () => {
-  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
-  // The rail belongs to no view and carries no marker, so this one rule stands outside
-  // the column's. On X Pro there is no such rail and it matches nothing
-  assert.match(
-    css,
-    /^\[data-testid="sidebarColumn"\] div:has\(> div > aside \[data-testid="UserCell"\]\) \{ display: none !important; \}$/m
-  );
-  // Unset writes neither
-  const off = cssOf([{ key: '0', appearance: emptyNode().appearance }]);
-  assert.equal(off.includes('sidebarColumn'), false);
-});
-
-test('おすすめユーザーは、ポストを開いているカラムでも消える', () => {
-  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.hideWhoToFollow = true)) }]);
-  // Unlike the media and the cards, this block is not what the post was opened for
-  assert.equal(css.includes(':not([data-xpro-opened])'), false);
-});
-
-test('横の欄の規則は、カラムがいくつあっても1行しか出ない', () => {
-  const hiding = appearanceOf((a) => (a.hideWhoToFollow = true));
-  const css = cssOf([
-    { key: '0', appearance: hiding },
-    { key: '1', appearance: hiding },
-  ]);
-  // It belongs to no column, so `columnRules` is not where it comes from
-  const lines = css.split('\n').filter((line) => line.includes('sidebarColumn'));
-  assert.equal(lines.length, 1);
-});
-
 test('キャプションを出す列だけが、説明を探す対象になる', () => {
   const targets = captionTargets({
     key: 'a',
@@ -641,4 +618,368 @@ test('写真と動画の両方が対象になる', () => {
   });
   assert.ok(targets.includes('[data-testid="tweetPhoto"]'));
   assert.ok(targets.includes('[data-testid="videoPlayer"]'));
+});
+
+// --- x.com's own furniture ---
+
+const chromeOf = (patch: (c: XChromeSettings) => void): string => {
+  const chrome = emptyChrome();
+  patch(chrome);
+  return chromeCss(chrome);
+};
+
+test('外枠は、何も指定していなければ1行も出さない', () => {
+  assert.equal(chromeCss(emptyChrome()), '');
+});
+
+test('タイムラインを広げると、横の欄ごと消えて上限が外れる', () => {
+  const css = chromeOf((c) => (c.wideTimeline = true));
+  const lines = css.split('\n');
+  // The rail first: widening with it still on screen pushes it out of the window
+  assert.equal(lines[0], '[data-testid="sidebarColumn"] { display: none !important; }');
+  assert.match(lines[1]!, /max-width: none !important/);
+  assert.equal(lines.length, 2);
+});
+
+test('右下のバーは、指定したほうだけ消える', () => {
+  assert.match(chromeOf((c) => (c.grokDrawer = false)), /^\[data-testid="GrokDrawer"\] \{/);
+  assert.match(chromeOf((c) => (c.chatDrawer = false)), /^\[data-testid="chat-drawer-root"\] \{/);
+  // Both at once share one line
+  const both = chromeOf((c) => {
+    c.grokDrawer = false;
+    c.chatDrawer = false;
+  });
+  assert.equal(both.split('\n').length, 1);
+  assert.ok(both.includes('GrokDrawer') && both.includes('chat-drawer-root'));
+});
+
+test('横の欄の中身は、指定したブロックだけ消える', () => {
+  const css = chromeOf((c) => {
+    c.rail.news = false;
+    c.rail.footer = false;
+  });
+  const [selectors] = css.split(' { ');
+  const parts = selectors!.split(', ');
+  assert.equal(parts.length, 2);
+  assert.ok(parts[0]!.includes('news_sidebar'));
+  assert.ok(parts[1]!.includes('> nav'));
+  // Never the whole rail: that is what "take it away" is for
+  assert.equal(css.includes('[data-testid="sidebarColumn"] {'), false);
+  // Both refuse anything holding the search box
+  for (const part of parts) assert.ok(part.endsWith(':not(:has(form[role="search"]))'), part);
+});
+
+test('タイムラインを広げているときは、ブロックごとの指定を書かない', () => {
+  const css = chromeOf((c) => {
+    c.wideTimeline = true;
+    c.rail.news = false;
+    c.rail.trends = false;
+  });
+  // The rail took them with it, so the extra lines would say nothing
+  assert.equal(css.split('\n').length, 2);
+  assert.equal(css.includes('news_sidebar'), false);
+});
+
+test('ナビは、指定した項目だけを1行にまとめて消す', () => {
+  const css = chromeOf((c) => {
+    c.nav.grok = false;
+    c.nav.premium = false;
+  });
+  const lines = css.split('\n');
+  assert.equal(lines.length, 1);
+  const [selectors] = lines[0]!.split(' { ');
+  assert.deepEqual(selectors!.split(', '), [
+    'header[role="banner"] nav[role="navigation"] a[href*="/i/grok"]',
+    // Told apart by where it leads, not by X's mark on it: X writes two different marks
+    // depending on whether the account has subscribed, and one address covers both
+    'header[role="banner"] nav[role="navigation"] a[href*="/i/premium"]',
+  ]);
+});
+
+test('プレミアムは、加入済みでも未加入でも同じ1本で消える', () => {
+  const css = chromeOf((c) => (c.nav.premium = false));
+  // `/i/premium_sign_up`（未加入）は `/i/premium`（加入済み）で始まるので、部分一致1本で足りる
+  assert.match(css, /a\[href\*="\/i\/premium"\]/);
+  // X の付ける印は2種類あり、どちらにも頼らない
+  assert.equal(css.includes('premium-signup-tab'), false);
+  assert.equal(css.includes('premium-hub-tab'), false);
+});
+
+test('「もっと見る」の中の項目は、指定したものだけを1行にまとめて消す', () => {
+  const css = chromeOf((c) => {
+    c.menu.spaces = false;
+    c.menu.ads = false;
+  });
+  const lines = css.split('\n');
+  assert.equal(lines.length, 1);
+  const [selectors] = lines[0]!.split(' { ');
+  // In X_MENU_KEYS order, not the order they were switched on
+  assert.deepEqual(selectors!.split(', '), [
+    '[role="menu"] a[href*="ads.x.com"]',
+    '[role="menu"] a[href*="/i/spaces/start"]',
+  ]);
+});
+
+test('「もっと見る」の項目は、どれも行き先で名指す（拡張自身の項目に届かないため）', () => {
+  const all = chromeCss({
+    ...emptyChrome(),
+    menu: Object.fromEntries(X_MENU_KEYS.map((key) => [key, false])) as XChromeSettings['menu'],
+  });
+  const [selectors] = all.split(' { ');
+  for (const part of selectors!.split(', ')) {
+    // The extension's own entry carries no address at all (`panel/x-menu.ts`), so an
+    // `[href]` selector can never pick it up
+    assert.match(part, /^\[role="menu"\] a\[href[*$]=/, part);
+  }
+  // X's own settings link and the muted-keyword one live one under the other, so the
+  // first is matched on the end of the address rather than on part of it
+  assert.ok(selectors!.includes('a[href$="/settings"]'));
+});
+
+test('ナビと「もっと見る」は別々の行になる', () => {
+  const css = chromeOf((c) => {
+    c.nav.grok = false;
+    c.menu.ads = false;
+  });
+  const lines = css.split('\n');
+  assert.equal(lines.length, 2);
+  assert.ok(lines[0]!.includes('nav[role="navigation"]'));
+  assert.ok(lines[1]!.startsWith('[role="menu"]'));
+});
+
+test('ナビの項目は X_NAV_KEYS の順に並ぶ（保存した順ではない）', () => {
+  const css = chromeOf((c) => {
+    c.nav.premium = false;
+    c.nav.explore = false;
+  });
+  const [selectors] = css.split(' { ');
+  assert.match(selectors!, /AppTabBar_Explore_Link.*\/i\/premium/);
+});
+
+test('「もっと見る」は隠せる項目に入っていない（x.com ではそれが設定の入口）', () => {
+  const all = chromeCss({
+    ...emptyChrome(),
+    nav: Object.fromEntries(X_NAV_KEYS.map((key) => [key, false])) as XChromeSettings['nav'],
+  });
+  assert.equal(all.includes('AppTabBar_More_Menu'), false);
+  // Nor the two the navigation is there for
+  assert.equal(all.includes('AppTabBar_Home_Link'), false);
+  assert.equal(all.includes('AppTabBar_Notifications_Link'), false);
+  // The profile is on the list, unlike those: it is reached from the account button too
+  assert.ok(all.includes('AppTabBar_Profile_Link'));
+});
+
+test('投稿ボックスを消す指定は、ポストの中の返信ボックスを避ける', () => {
+  const css = chromeOf((c) => (c.composeBox = false));
+  // A reply sits in the cell of the post it answers; this box stands on its own
+  assert.match(css, /:not\(:has\(\[data-testid="cellInnerDiv"\]\)\)/);
+  assert.match(css, /^\[data-testid="primaryColumn"\] > div > div:has\(/);
+});
+
+test('外枠の指定は、指定した数だけ行が出る', () => {
+  const css = chromeOf((c) => {
+    c.nav.grok = false;
+    c.composeBox = false;
+    c.grokDrawer = false;
+  });
+  assert.equal(css.split('\n').length, 3);
+});
+
+test('広げる指定は、箱には触れず上限だけ外す', () => {
+  const css = chromeOf((c) => (c.wideTimeline = true));
+  // All three places X writes the 600: the column, the wrapper the posts stand in, and
+  // the row of buttons under each post. Leaving the third bunches the buttons into the
+  // left 600 of a post twice that wide
+  const [, lifted] = css.split('\n');
+  const parts = lifted!.split(' { ')[0]!.split(', ');
+  assert.deepEqual(parts, [
+    '[data-testid="primaryColumn"]',
+    '[data-testid="primaryColumn"] div:has(> section)',
+    '[data-testid="primaryColumn"] [role="group"]:has([data-testid="reply"])',
+  ]);
+  assert.match(lifted!, /max-width: none !important/);
+  // The box the two columns stand in is left alone: widening it slides the navigation
+  // sideways, and on a post's own page it settles narrower than it started
+  assert.equal(css.includes('main > div'), false);
+});
+
+test('横の欄の section は2種類あり、中身で見分ける', () => {
+  const trends = chromeOf((c) => (c.rail.trends = false));
+  const people = chromeOf((c) => (c.rail.relevantPeople = false));
+  // Written as `> section` alone, the trends rule takes the relevant accounts away on
+  // every profile: X draws that block as a section too
+  assert.match(trends, /div:has\(> section \[data-testid="trend"\]\)/);
+  assert.match(people, /div:has\(> section \[data-testid="UserCell"\]\)/);
+  // `:has()` cannot be nested, so neither may carry a `:has` inside its own
+  for (const css of [trends, people]) {
+    assert.equal(/:has\([^)]*:has\(/.test(css), false, css);
+  }
+});
+
+// --- what X slips into a timeline ---
+
+const injectedOf = (patch: (i: InjectedSettings) => void): string => {
+  const injected: InjectedSettings = { whoToFollow: true, discoverMore: true };
+  patch(injected);
+  return injectedCss(injected);
+};
+
+test('何も指定していなければ、差し込みの規則は1行も出ない', () => {
+  assert.equal(injectedCss({ whoToFollow: true, discoverMore: true }), '');
+});
+
+test('おすすめユーザーは、タイムラインのセルと横の欄の両方を消す', () => {
+  const css = injectedOf((i) => (i.whoToFollow = false));
+  const lines = css.split('\n');
+  assert.equal(lines.length, 2);
+  // The three cells the block is made of, each tied to the link that closes it, so a run
+  // of accounts standing for anything else is left alone
+  const cells = lines[0]!.split(' { ')[0]!.split(', ');
+  assert.equal(cells.length, 3);
+  for (const cell of cells) assert.match(cell, /a\[href\*="\/i\/connect_people"\]/);
+  // The same block as x.com stacks it in the rail beside the timeline
+  assert.ok(lines[1]!.includes('[data-testid="sidebarColumn"]'));
+  // Nothing is confined to a column: the setting is held per site, not per scope
+  assert.equal(css.includes('data-xpro-column'), false);
+});
+
+test('「もっと見つける」は、会話でだけ、見出しから下を消す', () => {
+  const css = injectedOf((i) => (i.discoverMore = false));
+  const parts = css.split(' { ')[0]!.split(', ');
+  assert.equal(parts.length, 2);
+  assert.ok(parts[1]!.includes('~ [data-testid="cellInnerDiv"]'));
+  // Held to a conversation by X's own mark for one. Without it, the heading of the
+  // accounts X suggests would answer on a timeline and take the whole timeline with it
+  for (const part of parts) {
+    assert.ok(part.startsWith('section:has([data-testid="inline_reply_offscreen"])'), part);
+  }
+  // Found by the section both sites draw, not by x.com's column
+  assert.equal(css.includes('primaryColumn'), false);
+});
+
+/*
+ * x.com draws two different blocks of accounts in the rail, and they belong to two
+ * different switches. Which shape belongs to which is the thing to hold: told apart by
+ * depth alone they cross over, and the two switches then contradict their own labels.
+ */
+test('おすすめユーザーは、横の欄では「さらに表示」を持つ形だけを消す', () => {
+  const css = injectedOf((i) => (i.whoToFollow = false));
+  // The shallow shape is the block X calls relevant on a post's own page, and belongs to
+  // the rail's own switch. The deep one that stays reads `div:has(> div > aside …)`
+  assert.equal(css.includes('div:has(> aside'), false);
+});
+
+test('横の欄の「関連性の高いユーザー」は、ポストのページの形も引き取る', () => {
+  const css = chromeOf((c) => (c.rail.relevantPeople = false));
+  // Beside a profile X draws it as a section, on a post's own page as an aside
+  assert.match(css, /div:has\(> section \[data-testid="UserCell"\]\)/);
+  assert.match(css, /div:has\(> aside \[data-testid="UserCell"\]\)/);
+  // The accounts X suggests take the same aside shape on a timeline, and are told apart
+  // by the link that closes them — otherwise this switch would take those away too
+  assert.match(css, /:not\(:has\(a\[href\*="\/i\/connect_people"\]\)\)/);
+});
+
+test('外枠と差し込みの規則にも、入れ子の :has() を書かない', () => {
+  const everything: XChromeSettings = {
+    ...emptyChrome(),
+    wideTimeline: true,
+    composeBox: false,
+    autoNewPosts: true,
+    grokDrawer: false,
+    chatDrawer: false,
+    rail: Object.fromEntries(X_RAIL_KEYS.map((key) => [key, false])) as XChromeSettings['rail'],
+    nav: Object.fromEntries(X_NAV_KEYS.map((key) => [key, false])) as XChromeSettings['nav'],
+    menu: Object.fromEntries(X_MENU_KEYS.map((key) => [key, false])) as XChromeSettings['menu'],
+  };
+  // Widening hides the rail instead of writing the blocks, so both sides are checked
+  noNestedHas(chromeCss(everything));
+  noNestedHas(chromeCss({ ...everything, wideTimeline: false }));
+  noNestedHas(injectedCss({ whoToFollow: false, discoverMore: false }));
+});
+
+// --- the form a new post is written in, and the page behind x.com ---
+
+test('投稿フォームの色は、色が付いているアカウントのぶんだけ出る', () => {
+  assert.equal(composeCss([]), '');
+  const css = composeCss([
+    { account: 'yuzneri', color: '#3b1d5e' },
+    { account: 'tadsan', color: '#14293d' },
+  ]);
+  assert.equal(css.split('\n').length, 2);
+  assert.equal(
+    css.split('\n')[0],
+    '[data-xpro-compose="yuzneri"] { background-image: linear-gradient(#3b1d5e, #3b1d5e) !important; }'
+  );
+});
+
+test('投稿フォームの色は、カラムの印の中に閉じ込めない', () => {
+  // The form belongs to no column and no view: on X Pro it stands beside the deck, on
+  // x.com it opens over the page. Confined to a scope, neither would ever be reached
+  const css = composeCss([{ account: 'yuzneri', color: '#3b1d5e' }]);
+  assert.equal(css.includes(COLUMN_ATTR), false);
+});
+
+test('ページの背景は、指定が無ければ1行も出ない', () => {
+  assert.equal(pageCss(null), '');
+});
+
+test('ページの背景は body 1本。タイムラインには触れない', () => {
+  const css = pageCss('#14293d');
+  assert.equal(css, 'body { background-color: #14293d !important; }');
+  // x.com paints the timeline itself, so the middle of the page stays as X draws it.
+  // Reaching for it here would make this the same setting as the column background
+  assert.equal(css.includes('primaryColumn'), false);
+});
+
+test('新規投稿のフォームは3つの形すべてを名指し、返信の箱は避ける', () => {
+  const parts = COMPOSE_FORM_SELECTOR.split(', ');
+  assert.equal(parts.length, 3);
+  // X Pro's drawer, x.com's modal, and the box at the head of x.com's timeline
+  assert.ok(parts.some((part) => part.includes('drawerAnimatedDiv')));
+  assert.ok(parts.some((part) => part.includes('[role="dialog"][aria-modal="true"]')));
+  // The head box keeps itself off a reply by refusing anything holding a timeline cell
+  const head = parts.find((part) => part.includes('primaryColumn'))!;
+  assert.match(head, /:not\(:has\(\[data-testid="cellInnerDiv"\]\)\)/);
+  // Every one of them is a form being written in, not an empty container X left behind
+  for (const part of parts) assert.ok(part.includes('tweetTextarea_0_label'), part);
+});
+
+test('全体の指定は印そのものに、アカウントの指定は名前つきで、全体が先に出る', () => {
+  const css = composeCss([
+    { account: null, color: '#111111' },
+    { account: 'yuzneri', color: '#222222' },
+  ]);
+  const [general, named] = css.split('\n');
+  // Both weigh the same (one attribute selector each), so which one wins is decided by
+  // the order alone. The account's own color has to come after the one it overrides
+  assert.equal(general, '[data-xpro-compose] { background-image: linear-gradient(#111111, #111111) !important; }');
+  assert.equal(
+    named,
+    '[data-xpro-compose="yuzneri"] { background-image: linear-gradient(#222222, #222222) !important; }'
+  );
+});
+
+test('投稿フォームの色は、X が塗っている色を消さずに上へ重ねる', () => {
+  const css = composeCss([{ account: 'yuzneri', color: '#7856ff26' }]);
+  // `background-color` を書き換えると、半透明の色を選んだとき X の下地ごと消えて
+  // フォームが透けてしまう（実機の x.com の投稿画面で、下のタイムラインが読めた）
+  assert.equal(css.includes('background-color'), false);
+  assert.match(css, /background-image: linear-gradient\(#7856ff26, #7856ff26\) !important;/);
+});
+
+test('全体の指定は、自分で答えを持つ段を名指しで除ける', () => {
+  const css = composeCss([{ account: null, color: '#111111' }], ['off', 'other']);
+  assert.equal(
+    css,
+    '[data-xpro-compose]:not([data-xpro-compose="off"]):not([data-xpro-compose="other"])' +
+      ' { background-image: linear-gradient(#111111, #111111) !important; }'
+  );
+});
+
+test('アカウント名は、セレクタを壊す字を落としてから書く', () => {
+  // A settings file taken in from elsewhere carries whatever keys it likes, and a `"`
+  // would close the selector and let the rest be read as CSS of its own
+  const css = composeCss([{ account: 'a"] * {color:red}', color: '#111111' }]);
+  assert.equal(css.includes('"] * {color:red}"]'), false);
+  assert.match(css, /^\[data-xpro-compose="a\] \* \{color:red\}"\]/);
 });

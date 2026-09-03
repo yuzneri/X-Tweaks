@@ -13,10 +13,9 @@ export const ja: Messages = {
   },
 
   genericAlts: {
-    label: '説明の無い画像に X が入れる文言',
+    label: '説明のない画像にXが入れる文言',
     note:
-      '1行に1つ。見たページから自動で調べて足していきます。手で書いた行はそのまま残りますが、' +
-      '消した行は、ページが同じ文言をまた示せば戻ります。',
+      '1行に1つ。画像説明のテキストを表示しないワードを設定します。'
   },
 
   traits: {
@@ -87,7 +86,7 @@ export const ja: Messages = {
     label: '設定の範囲',
     views: 'ビュー',
     /** サーフェス全体のエントリ。そのサイトに属するが、どのスコープにも属さない設定の置き場 */
-    whole: (name: string) => `${name} 全体`,
+    whole: (name: string) => `${name}全体`,
     /** x.com のビューの名前。記録にはキーだけを持ち、表示名はここで決める（言語を変えれば追従する） */
     viewNames: {
       home: 'ホーム',
@@ -95,33 +94,34 @@ export const ja: Messages = {
       bookmarks: 'ブックマーク',
       list: 'リスト',
     },
-    viewsEmpty: 'ビューがまだありません。x.com を開くと、見たビューがここに並びます。',
-    notDetectingX: 'x.com を開いていないので、最新の情報ではありません。',
+    viewsEmpty: 'ビューがまだありません。x.comを開くと、見たビューがここに並びます。',
+    notDetectingX: 'x.comを開いていないので、最新の情報ではありません。',
     missingView: '（いま見ていないビュー）',
     unknownView: '（まだ見ていないビュー）',
     global: 'グローバル',
     accounts: 'アカウント',
+    accountsOn: (site: string) => `${site}のアカウント`,
     columns: 'カラム',
     unassignedGroup: '未割り当て',
     notDetecting:
-      'pro.x.com を開いていないので、最新の情報ではありません。',
+      'pro.x.comを開いていないので、最新の情報ではありません。',
     accountsEmpty:
-      'まだアカウントが見つかっていません。pro.x.com か x.com を開くと、ここに並びます。',
+      'まだアカウントが見つかっていません。pro.x.comかx.comを開くと、ここに並びます。',
     columnsEmpty:
-      'カラムがまだ1本もありません。pro.x.com を開くと、表示中のデッキのカラムがここに並びます。',
+      'カラムがまだ1本もありません。pro.x.comを開くと、表示中のデッキのカラムがここに並びます。',
     columnMissing: '見つかりません',
     unnamedColumn: '（名前のないカラム）',
-    missingColumn: '（いま見つからないカラム）',
-    unknownColumn: '（まだ見つけていないカラム）',
+    missingColumn: '（見つからないカラム）',
+    unknownColumn: '（見つけていないカラム）',
     // アカウントは両サイトに跨るので、カラムとビューを分けて数える。
     // 片方が 0 のときはその側を出さない
     scopeCount: (columns: number, views: number) =>
-      [columns ? `カラム ${columns} 個` : null, views ? `ビュー ${views} 個` : null]
+      [columns ? `カラム${columns}個` : null, views ? `ビュー${views}個` : null]
         .filter((part) => part !== null)
         .join('・'),
-    nth: (n: number) => `${n} 番目`,
+    nth: (n: number) => `${n}番目`,
     /** What a deck is called when its name is unreadable. Names depend on the UI language, whereas a number never breaks */
-    deckNth: (n: number) => `デッキ ${n}`,
+    deckNth: (n: number) => `デッキ${n}`,
     deckShowing: '表示中',
     columnEntry: 'このカラムの設定',
   },
@@ -140,7 +140,7 @@ export const ja: Messages = {
     version: 'バージョン',
     source: 'ソースコード',
     issues: '不具合の報告',
-    issuesLink: 'GitHub の Issues',
+    issuesLink: 'GitHubのIssues',
     license: 'ライセンス',
     privacy: 'プライバシー',
     privacyNote:
@@ -152,14 +152,22 @@ export const ja: Messages = {
     label: '設定の種類',
     filter: 'フィルタ',
     appearance: '外観',
+    /**
+     * 投稿まわりの設定。タブとしては無くなった（X Pro 全体のページに移った）が、
+     * 投稿フォームに添える切り替えの塊の名前として今も使う（`compose/switches.ts`）
+     */
     compose: '投稿',
     effective: '適用中の設定',
+    /**
+     * サイトのページの4つ目。タイムラインに出る、ポストではないものが入る
+     * （x.com は先頭の投稿ボックスと新着、両サイトは X が差し込むもの）。
+     * 3つ目の「外枠」と対になる
+     */
+    inTimeline: 'タイムラインの中',
   },
 
   compose: {
-    hint:
-      '投稿したあとに投稿フォームがどうなるかの設定です。' +
-      '未設定なら X Pro のまま、フォームが閉じて本文が空になります。',
+    label: '投稿フォーム',
     reopen: {
       label: '投稿フォームを開き直す',
       note: '投稿フォームを開き直して、次を書ける状態にします。',
@@ -171,41 +179,111 @@ export const ja: Messages = {
     },
   },
 
+  injected: {
+    label: 'ポスト以外の差し込み',
+    hint:
+      'Xがタイムラインに差し込む、ポストではないものの設定です。',
+    whoToFollow: {
+      label: 'おすすめユーザー',
+      note:
+        '外すと、タイムライン横のものも一緒に消えます。',
+    },
+    discoverMore: {
+      label: 'もっと見つける',
+      note: '会話そのものは残ります。',
+    },
+  },
+
+  xChrome: {
+    label: '外枠',
+    nav: {
+      label: '左の項目',
+      items: {
+        explore: '話題を検索',
+        follow: 'フォローする',
+        messages: 'チャット',
+        grok: 'Grok',
+        history: '履歴（ブックマーク・いいね）',
+        creatorStudio: 'クリエイタースタジオ',
+        articles: '記事',
+        premium: 'プレミアム',
+        profile: 'プロフィール',
+        postButton: 'ポストボタン',
+      },
+    },
+    menu: {
+      label: '「もっと見る」の中',
+      items: {
+        lists: 'リスト',
+        communities: 'コミュニティ',
+        communityNotes: 'コミュニティノート',
+        business: 'ビジネス',
+        ads: '広告',
+        spaces: 'スペースを作成',
+        mutedKeyword: 'ミュートするキーワードを追加',
+        settings: '設定とプライバシー',
+      },
+    },
+    wideTimeline: {
+      label: 'タイムラインを広げる',
+      note:
+        '検索窓も含めて右の項目を消し、タイムラインを広げます。',
+    },
+    rail: {
+      label: '右の項目',
+      items: {
+        premium: 'プレミアムの勧誘',
+        news: '本日のニュース',
+        trends: 'トレンド',
+        relevantPeople: '関連性の高いユーザー',
+        footer: '利用規約などのリンク',
+      },
+    },
+    drawers: {
+      label: '右下の項目',
+      items: { grok: 'Grok', chat: 'チャット' },
+    },
+    timeline: { label: 'タイムラインの先頭' },
+    composeBox: {
+      label: 'タイムライン上の投稿フォーム',
+      note: '外しても、返信フォームは残ります。',
+    },
+    autoNewPosts: {
+      label: '新着を自動で読み込む',
+    },
+  },
+
   effective: {
     hint:
-      'グローバル・アカウント・カラムの設定をまとめた、このカラムに実際に適用される内容です。',
+      'このカラムに実際に適用される内容です。',
     hintView:
-      'グローバル・アカウント・ビューの設定をまとめた、このビューに実際に適用される内容です。',
-    // `view` は `Tier` に無い段ではなく、`column` を x.com で呼び替えたもの
-    from: { global: 'グローバル', account: 'アカウント', column: 'このカラム', view: 'このビュー' },
+      'このビューに実際に適用される内容です。',
+    from: {
+      global: 'グローバル',
+      account: 'アカウント',
+      surface: 'このサイト',
+      surfaceAccount: 'サイトのアカウント',
+      column: 'このカラム',
+      view: 'このビュー',
+    },
     unset: '指定なし',
-    rules: 'ルール（判定する順）',
+    rules: 'ルール',
     // 英語が 'No rules here' と場所を名指さないのに合わせる。段の呼び名を出さずに済む
-    noRules: 'ここにルールはありません',
+    noRules: 'ルールはありません',
     disabled: '無効',
     filterStopped: 'フィルタを止めているので、下のルールはどれも効きません。',
     appearanceStopped: '外観を止めているので、下の指定はどれも効きません。',
     appearance: '外観',
   },
 
-  /**
-   * Removes one scope from the record of what was detected.
-   * 文ごとサイトで分ける。x.com のビューは「消したかどうか分からない」が当てはまらず
-   * （見ていないだけ）、言い回しを差し替えるだけでは通じない
-   */
   forget: {
     column: {
-      action: 'このカラムを一覧から消す',
-      hint:
-        '消したカラムを片付けます。まだ残っているカラムなら、次に見つけたときまた並びます。' +
-        'X 側で消したかどうかは拡張からは分からないので、この操作でしか消せません。',
-      confirm: 'このカラムの設定も一緒に消えます。元に戻せません。',
+      action: 'このカラムを削除',
+      confirm: '設定も一緒に削除します。元に戻せません。',
     },
     view: {
-      action: 'このビューを一覧から消す',
-      hint:
-        'このビューの記録を片付けます。もう一度そのビューを開けば、また並びます。',
-      confirm: 'このビューの設定も一緒に消えます。元に戻せません。',
+      action: 'このビューを削除',
+      confirm: '設定も一緒に削除します。元に戻せません。',
     },
     confirmYes: '設定ごと消す',
     confirmNo: 'やめる',
@@ -213,25 +291,25 @@ export const ja: Messages = {
   unassigned: {
     badge: '未割り当て',
     configured: '設定あり',
-    chooseTarget: '移す先を選ぶ',
+    chooseTarget: '移動先を選ぶ',
     remove: 'この設定を削除',
     account: {
       notFound: '対応するアカウントが見つかりません',
-      moveTo: 'この設定を、いまあるアカウントに移す',
+      moveTo: 'いまあるアカウントに移す',
       noTargets: '移せるアカウントがありません',
-      skipConfigured: 'すでに設定があるアカウントは、上書きを避けるため移す先に出しません。',
+      skipConfigured: 'すでに設定があるアカウントは、上書きを避けるため選択できません。',
     },
     column: {
       notFound: '対応するカラムが見つかりません',
-      moveTo: 'この設定を、いまあるカラムに移す',
+      moveTo: 'いまあるカラムに移す',
       noTargets: '移せるカラムがありません',
-      skipConfigured: 'すでに設定があるカラムは、上書きを避けるため移す先に出しません。',
+      skipConfigured: 'すでに設定があるカラムは、上書きを避けるため選択できません。',
     },
     view: {
       notFound: '対応するビューが見つかりません',
-      moveTo: 'この設定を、いまあるビューに移す',
+      moveTo: 'いまあるビューに移す',
       noTargets: '移せるビューがありません',
-      skipConfigured: 'すでに設定があるビューは、上書きを避けるため移す先に出しません。',
+      skipConfigured: 'すでに設定があるビューは、上書きを避けるため選択できません。',
     },
   },
 
@@ -246,20 +324,19 @@ export const ja: Messages = {
     on: '適用する',
     off: '適用しない',
     stoppedHint:
-      'ここでは外観を適用していないので、下の指定はどれも効きません。' +
-      '指定はそのまま保存され、「適用する」に戻したときに効きます。',
+      '外観を適用していないので、下の指定は無効です。',
   },
 
   transfer: {
     open: '設定の入出力',
-    legend: '設定の JSON',
+    legend: '設定のJSON',
     hint:
       'アカウント名・カラム名・見たビューが入ります。人に渡す前に中身を確かめてください。' +
       'この欄に貼り付けて読み込むこともできます。',
     save: 'ファイルに保存',
     copy: 'コピー',
     copied: 'コピーしました',
-    copyFailed: 'コピーできませんでした。上の欄を選んでコピーしてください',
+    copyFailed: 'コピーできませんでした。上の欄からコピーしてください',
     close: '閉じる',
     choose: 'ファイルを選ぶ',
     load: 'この内容で設定を置き換える',
@@ -267,15 +344,11 @@ export const ja: Messages = {
     confirmYes: '置き換える',
     confirmNo: 'やめる',
     loaded: '読み込みました',
-    /*
-     * 記録は両サイトぶんが 1 つに入っており、この画面にサイトの区別が無い。
-     * 段の呼び名を出さずに済ませる
-     */
     forget: '見つけたカラムとビューの記録を消す',
-    forgotten: '記録を消しました。pro.x.com や x.com を開き直すと、いま在るものから作り直します',
+    forgotten: '記録を消しました。pro.x.comやx.comを開き直すと、改めて作り直します',
     forgetFailed: '記録を消せませんでした。この画面を開き直してからもう一度お試しください',
     errors: {
-      badJson: (detail: string) => `JSON として読めません（${detail}）`,
+      badJson: (detail: string) => `JSONとして読めません（${detail}）`,
       notOurs: 'この拡張の設定ファイルではありません',
       badVersion: (version: string, supported: number) =>
         `設定の形式（version ${version}）が、この拡張の扱う形式（version ${supported}）と` +
@@ -287,28 +360,19 @@ export const ja: Messages = {
   rules: {
     legend: 'ルール',
     hint:
-      '投稿の種類を選び、絞りたい欄だけを埋めます。' +
-      '種類を選ぶと、その種類に関わる欄が増えます。' +
-      '埋めた内容をすべて満たす投稿に一致します。',
+      '設定内容をすべて満たす投稿に、ルールを適用します。',
     actionHints: {
       collapse: '投稿を1行にまとめます。「表示」を押すと元に戻ります。',
-      hide: '投稿ごと消します。開き直す方法はありません。',
+      hide: '投稿ごと削除します。',
       highlight: '投稿の背景に色を付けます。',
       emphasize: '一致した文字だけに色を付けます。',
       nothing: 'その投稿への指定を、上位の範囲のものまで含めて止めます。',
     },
     empty: 'まだルールがありません',
-    /**
-     * 一番細かい段の呼び名。文中に置くので、見出し用の `tiers.columns` とは別に持つ。
-     * `both`（グローバル・アカウント）は両サイトに効くので両方を挙げる
-     */
     orderScopes: { pro: 'カラム', x: 'ビュー', both: 'カラム・ビュー' },
-    /**
-     * 呼び名だけを差し込む。文ごと複製すると 3 本になり、文を直すときに揃わなくなる
-     */
     orderHint: (scope: string) =>
-      '上から順に見て、最初に一致したルールの動作を使います。' +
-      `範囲をまたぐときは、${scope}設定 → アカウント設定 → グローバル設定の順に見ます。` +
+      '上から順に見て、最初に一致したルールを使います。' +
+      `範囲は狭いほうから順に見ます（${scope} → サイトのアカウント → サイト → アカウント → グローバル）。` +
       '「何もしない」に一致すると、そこで判定が終わります。',
     moveUp: (label: string) => `${label}を上へ`,
     moveDown: (label: string) => `${label}を下へ`,
@@ -333,14 +397,13 @@ export const ja: Messages = {
       contains: '含む',
       exact: '完全に一致',
       regex: '正規表現',
-      /** Compares against that post's own author. It carries no pattern */
       self: '自分自身',
     },
     negate: '条件を反転',
     ageLabel: '投稿の古さ',
     ageUnits: AGE_UNITS,
     ageDirections: { older: 'より古い', newer: 'より新しい' },
-    ageError: '1 以上の整数を入力してください',
+    ageError: '1以上の整数を入力してください',
     enabled: '有効',
     modeLabel: '一致方法',
     traitLabel: '投稿の種類',
@@ -375,15 +438,15 @@ export const ja: Messages = {
     inheritedShort: '上位',
     fallback: (color: string) => `既定（${color}）`,
     inherited: (color: string) => `上位の設定（${color}）`,
-    unset: '未指定（X の標準）',
-    error: 'カラーコードは #rrggbb か、不透明度を含む #rrggbbaa の形式で入力してください',
+    unset: '未指定（Xの標準）',
+    error: 'カラーコードは#rrggbbか、不透明度を含む#rrggbbaaの形式で入力してください',
     picker: {
       clear: '消す',
       close: '閉じる',
       open: 'カラーピッカーを開く',
       closeLabel: 'カラーピッカーを閉じる',
       clearLabel: '選んだ色を消す',
-      marker: (s: string, v: string) => `鮮やかさ ${s}、明るさ ${v}`,
+      marker: (s: string, v: string) => `鮮やかさ${s}、明るさ${v}`,
       hue: '色あい',
       alpha: '不透明度',
       input: 'カラーコード',
@@ -395,23 +458,19 @@ export const ja: Messages = {
 
   appearance: {
     legend: '大きさと表示',
-    hint: '空欄・未指定の項目は、X Pro の表示のままになります。',
-    // x.com には X Pro のカラムに当たるものが無いので、行き先の名前を言い換える
-    hintX: '空欄・未指定の項目は、x.com の表示のままになります。',
+    hint: '空欄・未指定の項目は、X Proの表示のままになります。',
+    hintX: '空欄・未指定の項目は、x.comの表示のままになります。',
     columnWidth: 'カラムの幅',
-    columnOnly: {
-      legend: 'X Pro のみ',
-      hint: 'x.com にはカラムが無いため、ここの指定は X Pro でだけ効きます。',
+    columnGroup: {
+      legend: 'カラム',
+      hint: 'カラムがあるのはX Proだけです。',
     },
-    // What happens to the buttons belongs in the label rather than in the options: the label
-    // wraps, while the widest option decides the select's width and pushes the row past a narrow panel
     compact: 'ポストを詰める',
     compactOn: '詰める',
     compactOff: 'そのまま',
     fontSize: '本文の字の大きさ',
     maxLines: '本文の行数の上限',
     lines: '行',
-    // 拡張が本文に入れる行と画像の下のキャプションに共通。未指定なら80字
     wordsShown: '説明や引用を出す文字数',
     characters: '字',
     collapseNewlines: '本文の改行',
@@ -420,28 +479,25 @@ export const ja: Messages = {
     colors: {
       legend: '配色',
       columnHeader: 'カラム名の帯の背景',
-      background: 'カラムの背景',
-      // x.com では画面の真ん中のタイムラインそのもの
-      backgroundX: 'タイムラインの背景',
+      background: 'タイムラインの中の背景',
+      backgroundNote: 'X Proではカラムの中の背景',
       columnTitle: 'カラム名',
       name: '投稿者の名前',
       text: '本文',
       meta: '薄い文字（時刻・件数・返信先）',
       link: 'リンク',
       border: '投稿と投稿の境目の線',
+      composeBackground: '投稿フォームの背景',
+      pageBackground: 'タイムラインの外側の背景',
+      pageNote: 'x.comだけにあります',
     },
-    autoContrast: 'ハイライトで文字が読めなくなったとき',
-    // ラベルが「読めなくなったとき」と言っているので、選択肢は動作だけでよい（en もそうしている）
+    autoContrast: 'ハイライトで文字が読めないとき',
     autoContrastOn: '文字色を直す',
     autoContrastOff: '何もしない',
     highlightBase: 'ハイライトの色を重ねる先',
-    // 選択肢に説明を入れると、select が幅を取ってラベルを潰す。説明は行の注記に置く
-    highlightBaseNote: '「X の背景」にすると、上で指定した背景色を無視します。',
     highlightBases: {
-      column: 'カラムの背景',
-      // x.com にカラムは無い。同じ設定を、塗る対象の名前で呼ぶ
-      columnX: 'タイムラインの背景',
-      theme: 'X の背景',
+      column: 'タイムラインの中の背景',
+      theme: 'Xの背景',
     },
     timeFormat: '時刻の表示',
     timeFormats: {
@@ -458,15 +514,11 @@ export const ja: Messages = {
       style: '画像と動画の表示',
       styles: {
         show: 'そのまま',
-        // 画像はそのままに、書かれた説明（alt）を下に添える。ツールチップと違い指だけで読める
-        caption: 'そのまま（説明つき）',
-        // 画像に書かれた説明（alt）。説明の無い画像はマークだけになる
-        text: '説明のテキスト',
+        caption: '説明を追加',
+        text: 'テキスト',
         mark: 'マーク',
         hidden: '表示しない',
       },
-      // 画像が複数あるときだけ、どの画像の説明かを示す。X は1つの投稿に動画を1本しか
-      // 載せられないので、複数あるものは必ず画像になる
       captionNth: (nth: number, description: string): string => `${nth}枚目：${description}`,
     },
     cardStyle: 'リンクカードと記事の表示',
@@ -478,24 +530,19 @@ export const ja: Messages = {
       hidden: '表示しない',
     },
     cardParens: { open: '（', close: '）' },
-    hideWhoToFollow: 'おすすめユーザー',
-    hideWhoToFollowOn: '隠す',
-    hideWhoToFollowOff: 'そのまま',
   },
 
   size: {
     unit: 'px',
     unset: '未指定',
     inheritedLabel: (label: string, value: string, unit: string) =>
-      `${label}（未指定。上位の設定の ${value}${unit} が適用されます）`,
+      `${label}（未指定。上位の設定の${value}${unit}が適用されます）`,
     error: '整数のピクセル数を入力するか、空欄にしてください',
   },
 
   status: {
-    // The same wording is used when a save from another screen arrives
     saved: '保存しました',
-    // The state where what is on screen and what is stored disagree
-    saveFailed: '保存できませんでした。この画面に見えている設定はまだ保存されていません',
+    saveFailed: '保存できませんでした',
   },
 
   unreadable: {
@@ -505,42 +552,44 @@ export const ja: Messages = {
       `設定は保存されたまま残っています。拡張を更新してください。`,
     older: (stored, supported) =>
       `保存されている設定の形式（version ${stored}）は、この拡張の形式` +
-      `（version ${supported}）と互換性がないため、初期状態で始めました。` +
-      `以前の設定は保存されたまま残っていて、ここで何かを変えたときに置き換わります。`,
+      `（version ${supported}）と互換性がないため、初期状態で始めました。`,
   },
 
   unset: '未指定',
 
-  title: 'X Tweaks の設定',
+  cleared: {
+    short: 'Xのまま',
+    label: (item: string) => `${item}をXの表示のままにする`,
+    note: '上の範囲で指定された値を使わず、Xの表示のままにします。',
+  },
+
+  title: 'X Tweaksの設定',
 
   panel: {
     close: '設定を閉じる',
   },
 
-  /** The broken markers of X. What stops differs per marker, so each is described separately */
   health: {
     cell: '投稿の見分け方が変わったようです。フィルタも外観も適用されていません。',
     post: '投稿の読み取り方が変わったようです。フィルタが適用されていません。',
     column:
-      'カラムの見分け方が変わったようです。カラムごとの設定が効きません'
-      + '（アカウントとグローバルの設定は効いています）。',
+      'カラムの見分け方が変わったようです。カラムごとの設定が効きません。',
     text:
       '本文の読み取り方が変わったようです。' +
-      '本文を見るルールを止めています（止めないと、打ち消しの条件がすべての投稿に一致します）。',
-    hint: 'X 側の作りが戻れば自動で直ります。pro.x.com を開き直すと確かめ直します。',
+      '本文ルールを止めています。',
+    hint: 'X側の作りが戻れば自動で直ります。pro.x.comを開き直すと確かめ直します。',
   },
   adGuardNotice:
-    '広告と判定される投稿が多すぎたため、すべて消してしまわないように広告のルールを止めました。' +
-    'pro.x.com を再読み込みすると、また判定を試します。',
+    '広告と判定される投稿が多すぎたため、広告ルールを一時的に止めました。',
 
   pausedNotice:
-    '拡張を一時的に止めています。ここでの設定は保存されますが、いまは効きません。' +
+    '拡張機能を一時的に止めています。' +
     'ツールバーのアイコンから再開できます。',
 
   popup: {
     openPanel: 'このページで設定を開く',
     openOptions: '設定のページを開く',
-    running: 'pro.x.com で動いています',
+    running: 'pro.x.comで動いています',
     paused: '一時的に適用をしていません',
     pause: '一時的に止める',
     resume: '再開する',

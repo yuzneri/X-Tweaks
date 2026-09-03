@@ -18,7 +18,7 @@ import {
   type Settings,
   type TraitKey,
 } from '../settings/schema.ts';
-import { resolve } from '../settings/resolve.ts';
+import { resolve, type ColumnScope } from '../settings/resolve.ts';
 import { messagesFor } from '../i18n/index.ts';
 
 /** The dictionary used for judging. Checked in Japanese (the i18n tests cover the difference from English) */
@@ -610,8 +610,9 @@ const tieredSettings = (patch: (s: Settings) => void): Settings => {
 /** A tier's settings only get a consistent order through fillNode, so they are run through it again after being rewritten */
 const normalized = (s: Settings): Settings => fillAll(s);
 
-const verdictOf = (p: Post, s: Settings, scope: { account: string | null; columnId: string | null }) =>
-  decide(p, compileFilter(resolve(normalized(s), scope).filter, m)).decision;
+const verdictOf = (p: Post, s: Settings, scope: Omit<ColumnScope, 'surface'>) =>
+  // Every case here is about the tiers above the site, so no site takes part
+  decide(p, compileFilter(resolve(normalized(s), { ...scope, surface: null }).filter, m)).decision;
 
 test('段をまたぐ順はカラム → アカウント → グローバルで固定', () => {
   const s = tieredSettings((s) => {

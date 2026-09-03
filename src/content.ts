@@ -19,9 +19,11 @@ const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
 import { install as installSurface } from './surface/index.ts';
 import { surfaceFor } from './surface/select.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
+import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
 import { clearAltTitles, stampAltTitles, useGenericAlts } from './appearance/apply.ts';
+import { clearComposeMarks, markComposeForms } from './appearance/compose-mark.ts';
 import { open as openPanel, toggle as togglePanel } from './panel/panel.tsx';
 import { OPEN_PANEL } from './panel/message.ts';
 import { watchTrigger } from './panel/trigger.ts';
@@ -67,6 +69,11 @@ const summarize = (settings: Settings) => ({
   rules: settings.global.filter.rules.length,
   filterEnabled: settings.global.filter.enabled,
   accountSettings: Object.keys(settings.accounts).length,
+  // Counted apart from the accounts: settings can sit here and nowhere else, and a report
+  // saying "no account settings" while a colour is being cancelled would send a reader astray
+  siteAccountSettings:
+    Object.keys(settings.surfaceAccounts.pro).length +
+    Object.keys(settings.surfaceAccounts.x).length,
   columnSettings: Object.keys(settings.columns).length,
 });
 
@@ -133,6 +140,10 @@ const main = async (): Promise<void> => {
    * effect on the next post with nothing to restart.
    */
   startCompose(effectiveSettings(current, paused).compose, { log });
+  startNewPosts({ log });
+  // The same question the taking side asks (`onSettle` below). Without it X Pro says it
+  // is watching for posts it will never go after, this being a setting x.com alone reads
+  updateNewPosts(surface.id === 'x' && effectiveSettings(current, paused).xChrome.autoNewPosts);
 
   /*
    * The words X puts on a picture nobody described, as known so far. Handed over before
@@ -172,6 +183,9 @@ const main = async (): Promise<void> => {
      */
     updateCompose(effectiveSettings(current, paused).compose);
     updateComposeSwitches(effectiveSettings(current, paused).compose);
+    // Told with the compose form and for the same reason: it depends on no column being
+    // resolved, so there is nothing for it to wait for
+    updateNewPosts(surface.id === 'x' && effectiveSettings(current, paused).xChrome.autoNewPosts);
     // Told unconditionally too: which words are X's own is not a setting that pausing
     // stands down, it is what stops a picture's own description being mistaken for one
     useGenericAlts(current.genericAlts);
@@ -247,9 +261,27 @@ const main = async (): Promise<void> => {
         // settings does not stop it the way it stops the rest. It is stopped here instead,
         // this being where the pause is known
         clearAltTitles();
+        // The rules the marks answer go away with the empty settings, so a mark left on
+        // would paint nothing. It is taken off anyway: nothing the extension wrote should
+        // stay in the page while it is stood down
+        clearComposeMarks();
         return;
       }
       insertComposeSwitches(messages);
+      /*
+       * Bringing new posts in. Asked on every settling, since what it goes by is X's own
+       * button appearing rather than anything the extension does. x.com only: X Pro keeps
+       * its columns current on its own, and writes the same mark on the button it uses
+       * for a column, so the site has to be asked here rather than left to the selector
+       */
+      if (surface.id === 'x') takeNewPosts();
+      /*
+       * Which account the form on screen will post as. Asked on every settling because X
+       * opens and closes the form as it is used, and on X Pro the account inside it can
+       * be changed while it stands open. The rules it answers are already written
+       * (`appearance/apply.ts`), so marking is all that is left to do here
+       */
+      markComposeForms();
       /*
        * The tooltip carrying what a picture is of. Set here rather than with the markers
        * driven by the settings, for the same reason it is cleared above.

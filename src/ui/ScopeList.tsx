@@ -2,6 +2,7 @@
  * The list of scopes settings apply to (the left pane). Global, accounts, columns and
  * unassigned are shown in one list, and selecting one switches the right pane.
  */
+import type { SurfaceId } from '../surface/index.ts';
 import { useMessages } from './messages.tsx';
 
 /** Where settings are edited. The tier and the key gathered into one value */
@@ -19,10 +20,19 @@ export type Scope =
   | { tier: 'accounts'; key: string }
   | { tier: 'columns'; key: string }
   /**
-   * One whole site. Not a tier: nothing inherits from it and nothing inherits it.
-   * It is where the settings live that belong to a site rather than to any scope in it.
+   * One whole site. A tier of its own, below the account and above the column
+   * (`tiersFor` in settings/resolve.ts), and also where the settings live that belong to
+   * the site rather than to any scope in it — what X draws around the timeline, and what
+   * the compose form does after a post.
    */
-  | { tier: 'surface'; key: string }
+  | { tier: 'surface'; key: SurfaceId }
+  /**
+   * One account, on one site. The tier below the site and above the column, where an
+   * account's exception on one of the two sites is written.
+   * It carries the site as well as the account: the account alone does not say which of
+   * the two pages it is, and the same account on the two sites is two scopes.
+   */
+  | { tier: 'surfaceAccount'; surface: SurfaceId; key: string }
   /** The extension itself: what it is set to, and what it is. Nothing to do with any site */
   | { tier: 'meta'; key: 'settings' | 'about' };
 
@@ -32,7 +42,11 @@ export type Scope =
  * this file as binary and its diffs unreadable.
  */
 export const scopeKey = (scope: Scope): string =>
-  scope.tier === 'global' ? 'global' : `${scope.tier}\u0000${scope.key}`;
+  scope.tier === 'global'
+    ? 'global'
+    : scope.tier === 'surfaceAccount'
+      ? `${scope.tier}\u0000${scope.surface}\u0000${scope.key}`
+      : `${scope.tier}\u0000${scope.key}`;
 
 export type ScopeEntry = {
   scope: Scope;

@@ -11,6 +11,7 @@ import type { Messages } from '../i18n/index.ts';
 import { parseColorInput } from './color.ts';
 import { parseSizeInput } from './size.ts';
 import { useMessages } from './messages.tsx';
+import type { PaletteKind } from './palettes.ts';
 
 /** An action's name. The dictionary keys match the values of `ACTIONS`, so it can be looked up directly */
 const actionLabel = (m: Messages, action: Action): string => m.actions[action];
@@ -39,6 +40,30 @@ type ColorFieldProps = {
    */
   fallbackInherited?: boolean;
   label?: string;
+  /**
+   * What the field is for, which decides the colours the picker offers (`ui/palettes.ts`).
+   * A tint is the default because that is what the rules' own colours are.
+   */
+  kind?: PaletteKind;
+  /**
+   * Whether this tier puts the item back to how X shows it, cancelling what comes down
+   * from above. Passed together with `onCleared`; without the pair there is no control and
+   * the field behaves as it always did (the rules' own colours have no tier above them).
+   */
+  cleared?: boolean;
+  onCleared?: (cleared: boolean) => void;
+  /**
+   * Whether there is anything above to cancel. Told apart from `fallback`, which is what
+   * gets shown dimmed: on a site's page the two differ, the dimmed value stopping at the
+   * global tier while an account may well be setting the item (`settable` in resolve.ts).
+   */
+  clearable?: boolean;
+  /**
+   * The id of the note written under the field's name in the row.
+   * The box carries its own name (`aria-label`), which shuts out the row's `label` and the
+   * note inside it, so a reader hears the name and never the note unless it is tied on here.
+   */
+  describedBy?: string;
 };
 
 /**
@@ -53,6 +78,11 @@ export const ColorField = ({
   fallback = DEFAULT_HIGHLIGHT_COLOR,
   fallbackInherited,
   label,
+  kind = 'tint',
+  cleared = false,
+  onCleared,
+  clearable = false,
+  describedBy,
 }: ColorFieldProps) => {
   const m = useMessages();
   const [text, setText] = useState(value ?? '');
@@ -71,12 +101,14 @@ export const ColorField = ({
   };
 
   // What applies when the box is empty. The long form goes to `title` and the accessible name, the short one inside the box
-  const note =
-    fallback === null
+  const note = cleared
+    ? m.cleared.note
+    : fallback === null
       ? m.color.unset
       : (fallbackInherited ? m.color.inherited : m.color.fallback)(fallback);
-  const shortNote =
-    fallback === null
+  const shortNote = cleared
+    ? m.cleared.short
+    : fallback === null
       ? m.color.unsetShort
       : fallbackInherited
         ? m.color.inheritedShort
@@ -84,24 +116,102 @@ export const ColorField = ({
 
   return (
     <span class="color-field" hidden={hidden}>
-      {(value ?? fallback) !== null && (
+      {/* While the item is put back to X's own, nothing is coming — so no swatch stands for it */}
+      {!cleared && (value ?? fallback) !== null && (
         <span class="swatch" style={{ backgroundColor: value ?? fallback! }} aria-hidden="true" />
       )}
       <input
         type="text"
-        class="colorcode"
+        class={`colorcode colorcode-${kind}`}
         // The box is narrow, so where the color came from is left to the short dimmed text and the long explanation comes here
         title={note}
         aria-label={label ?? m.color.label}
+        aria-describedby={describedBy}
         placeholder={shortNote}
         // The starting point when the picker is opened from an empty box (read by ui/color-picker.ts).
         // With no stand-in color the attribute is left out entirely (Coloris then starts from black)
         data-fallback={fallback ?? undefined}
+        // Cancelling and setting a colour say opposite things, so only one can be written at a time
+        disabled={cleared}
         value={text}
         onInput={(e) => setText(e.currentTarget.value)}
         onChange={(e) => commit(e.currentTarget.value)}
       />
+      <ClearToggle
+        cleared={cleared}
+        onCleared={onCleared}
+        available={clearable}
+        empty={value === null}
+        label={label ?? m.color.label}
+      />
       {error && <p class="error">{error}</p>}
+    </span>
+  );
+};
+
+/**
+ * The switch that puts one item back to how X shows it, cancelling what an upper tier set.
+ *
+ * It appears only where it does something: something has to be coming down to cancel, and
+ * this tier has to be setting nothing of its own (a value written here wins over the
+ * cancelling, so the switch would read as doing nothing). It stays while it is on, or
+ * there would be no way to turn it off again.
+ *
+ * The visible words are short because it sits at the end of a narrow row; what it means in
+ * full goes to `title` and the accessible name.
+ *
+ * A `span` rather than a `label`, and it comes after the field rather than before it.
+ * Every row is itself a `label` (`Appearance.tsx`), and a `label` inside a `label` is not
+ * allowed — worse, a row's label binds to the first control inside it, so a checkbox put
+ * ahead of the field would make pressing the row's name cancel the item instead of
+ * reaching the field. The box carries its own name (`aria-label`), so nothing is lost by
+ * not wrapping it.
+ *
+ * The words beside the box are made to work by hand for the same reason. A press on them
+ * is a press inside the row's label, which the browser forwards to the field — on a colour
+ * row that opens the picker, so the words appeared to do the wrong thing entirely. They
+ * belong to this switch, so the press is stopped here and toggles the box itself.
+ * A press on the box is left alone: the browser does not forward a press that lands on a
+ * control of its own, and cancelling it here would cancel the box's own toggle with it.
+ */
+const ClearToggle = ({
+  cleared,
+  onCleared,
+  available,
+  empty,
+  label,
+}: {
+  cleared: boolean;
+  onCleared?: (cleared: boolean) => void;
+  available: boolean;
+  empty: boolean;
+  label: string;
+}) => {
+  const m = useMessages();
+  if (!onCleared || !available || (!empty && !cleared)) return null;
+  return (
+    <span
+      class="clear-toggle"
+      title={m.cleared.note}
+      // The gap between the box and the words is inside the row's label too
+      onClick={(event) => event.stopPropagation()}
+    >
+      <input
+        type="checkbox"
+        checked={cleared}
+        aria-label={m.cleared.label(label)}
+        onChange={(e) => onCleared(e.currentTarget.checked)}
+      />
+      <span
+        aria-hidden="true"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onCleared(!cleared);
+        }}
+      >
+        {m.cleared.short}
+      </span>
     </span>
   );
 };
@@ -117,6 +227,11 @@ type SizeFieldProps = {
    * Shown as the dimmed placeholder. Without one it stays "Not set".
    */
   inherited?: number | null;
+  /** Whether this tier puts the item back to how X shows it. Passed together with `onCleared` */
+  cleared?: boolean;
+  onCleared?: (cleared: boolean) => void;
+  /** Whether there is anything above to cancel (see the colour field's) */
+  clearable?: boolean;
 };
 
 /**
@@ -124,7 +239,16 @@ type SizeFieldProps = {
  * `type="number"` is not used because browsers empty the value on invalid input, making
  * "cleared" and "mistyped" impossible to tell apart.
  */
-export const SizeField = ({ value, onChange, label, unit, inherited = null }: SizeFieldProps) => {
+export const SizeField = ({
+  value,
+  onChange,
+  label,
+  unit,
+  inherited = null,
+  cleared = false,
+  onCleared,
+  clearable = false,
+}: SizeFieldProps) => {
   const m = useMessages();
   const [text, setText] = useState(value === null ? '' : String(value));
   const [error, setError] = useState<string | null>(null);
@@ -156,11 +280,15 @@ export const SizeField = ({ value, onChange, label, unit, inherited = null }: Si
           // The inheritance note is only shown for an empty box, so a box with a value is not read out as "not set".
           // `value` rather than `text` (mid-typing) is consulted, to keep the name from changing on every keystroke
           aria-label={
-            value === null && inherited !== null
+            value === null && inherited !== null && !cleared
               ? m.size.inheritedLabel(label, String(inherited), unitLabel)
               : label
           }
-          placeholder={inherited === null ? m.size.unset : String(inherited)}
+          placeholder={
+            cleared ? m.cleared.short : inherited === null ? m.size.unset : String(inherited)
+          }
+          // Cancelling and setting a size say opposite things, so only one can be written at a time
+          disabled={cleared}
           value={text}
           onInput={(e) => setText(e.currentTarget.value)}
           onChange={(e) => commit(e.currentTarget.value)}
@@ -169,6 +297,13 @@ export const SizeField = ({ value, onChange, label, unit, inherited = null }: Si
           {unitLabel}
         </span>
       </span>
+      <ClearToggle
+        cleared={cleared}
+        onCleared={onCleared}
+        available={clearable}
+        empty={value === null}
+        label={label}
+      />
       {error && <p class="error">{error}</p>}
     </span>
   );
@@ -192,6 +327,40 @@ type BoolSelectProps = {
    */
   onFirst?: boolean;
 };
+
+/**
+ * One switch over "is this on the page", as the lists of x.com's own furniture
+ * (`XChrome.tsx`) and of what X slips into a timeline (`Injected.tsx`) are written.
+ *
+ * Ticked means the thing is there, which is also how the value is stored (`schema.ts`).
+ * The rows are names of things on the page, and an empty box beside each name has to read
+ * as "this one is gone" — the other way round, a fresh install would show a list of names
+ * with every box empty, saying the opposite of what the page looks like.
+ */
+export const ShownSwitch = ({
+  label,
+  shown,
+  onShown,
+  describedBy,
+  disabled = false,
+}: {
+  label: string;
+  shown: boolean;
+  onShown: (shown: boolean) => void;
+  describedBy?: string;
+  disabled?: boolean;
+}) => (
+  <label class="row switch">
+    <input
+      type="checkbox"
+      checked={shown}
+      disabled={disabled}
+      aria-describedby={describedBy}
+      onChange={(event) => onShown(event.currentTarget.checked)}
+    />
+    <span>{label}</span>
+  </label>
+);
 
 /**
  * A yes/no choice. "Not set" and "choose the same side as above" have the same result, so no

@@ -33,7 +33,7 @@ type ColumnResponse = {
   error: string | null;
 };
 
-const EMPTY: ColumnScope = { account: null, columnId: null };
+const EMPTY: ColumnScope = { account: null, surface: 'pro', columnId: null };
 
 /**
  * Column element → the scope resolved for it. Kept so the DOM is not walked up again
@@ -199,6 +199,8 @@ const stampIds = async (attempts = 3, waitMs = 400): Promise<void> => {
 const readScope = (column: Element): ColumnScope => ({
   columnId: column.getAttribute(COLUMN_ID_ATTR),
   account: accountOf(column),
+  // This module is X Pro's alone, so the site is not something to work out
+  surface: 'pro',
 });
 
 const scopeOfElement = (column: Element): ColumnScope => {

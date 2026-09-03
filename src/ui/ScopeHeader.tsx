@@ -30,7 +30,11 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, si
    * and a view of x.com are not the same thing, and one sentence cannot cover both
    */
   const scopeWords = site === 'x' ? m.unassigned.view : m.unassigned.column;
-  const words = entry.scope.tier === 'accounts' ? m.unassigned.account : scopeWords;
+  // An account on one site is still an account: what it can be moved to is another account
+  const words =
+    entry.scope.tier === 'accounts' || entry.scope.tier === 'surfaceAccount'
+      ? m.unassigned.account
+      : scopeWords;
   const forgetWords = site === 'x' ? m.forget.view : m.forget.column;
 
   return (
@@ -102,7 +106,6 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, si
           <div class="row add remove-row">
             <button
               type="button"
-              title={forgetWords.hint}
               onClick={() => (entry.configured ? setForgetting(true) : onForget())}
             >
               {forgetWords.action}

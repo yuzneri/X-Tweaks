@@ -1,5 +1,5 @@
 /**
- * What is in effect. Shows the result of merging the three tiers as it is, with the
+ * What is in effect. Shows the result of merging the tiers as it is, with the
  * origin tier attached. Nothing can be changed on this surface; to change something, go to its origin tier.
  */
 import {
@@ -7,12 +7,13 @@ import {
   cardStyleOf,
   collapsesNewlines,
   filterApplies,
-  hidesWhoToFollow,
   isCompact,
   mediaStyleOf,
   quoteStyleOf,
   ruleName,
+  colorItem,
   type AppearanceNode,
+  type ClearableItem,
   type SettingsNode,
   type Settings,
 } from '../settings/schema.ts';
@@ -24,7 +25,7 @@ import {
   type Tier,
 } from '../settings/resolve.ts';
 import type { Messages } from '../i18n/index.ts';
-import { COLOR_ORDER, colorLabel, isColumnColor } from './Appearance.tsx';
+import { COLOR_ORDER, isAccountColor, isColumnColor, isXOnlyColor } from './Appearance.tsx';
 import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
@@ -79,7 +80,13 @@ const appearanceRows = (
   site: Site,
   m: Messages
 ): { label: string; value: string | null; tier: Tier | null }[] => {
-  const of = <T,>(pick: (node: SettingsNode) => T | null) => sourceOf(settings, scope, pick);
+  /*
+   * The item's name goes along with the picker for the items a tier can put back to "as X
+   * shows it": that tier is the origin of the answer even when the answer is "nothing"
+   * (`sourceOf` in settings/resolve.ts).
+   */
+  const of = <T,>(pick: (node: SettingsNode) => T | null, item?: ClearableItem) =>
+    sourceOf(settings, scope, pick, item);
   /*
    * The column-only items are left out where a scope is not a column: the applying side
    * drops them there (`withoutColumnItems`), so listing them would name a value that is
@@ -92,7 +99,7 @@ const appearanceRows = (
           {
             label: m.appearance.columnWidth,
             value: size(effective.columnWidth, m.size.unit),
-            tier: of((n) => n.appearance.columnWidth),
+            tier: of((n) => n.appearance.columnWidth, 'columnWidth'),
           },
         ]
       : []),
@@ -105,17 +112,17 @@ const appearanceRows = (
     {
       label: m.appearance.fontSize,
       value: size(effective.fontSize, m.size.unit),
-      tier: of((n) => n.appearance.fontSize),
+      tier: of((n) => n.appearance.fontSize, 'fontSize'),
     },
     {
       label: m.appearance.maxLines,
       value: size(effective.maxLines, m.appearance.lines),
-      tier: of((n) => n.appearance.maxLines),
+      tier: of((n) => n.appearance.maxLines, 'maxLines'),
     },
     {
       label: m.appearance.wordsShown,
       value: size(effective.wordsShown, m.appearance.characters),
-      tier: of((n) => n.appearance.wordsShown),
+      tier: of((n) => n.appearance.wordsShown, 'wordsShown'),
     },
     {
       label: m.appearance.collapseNewlines,
@@ -133,7 +140,7 @@ const appearanceRows = (
     {
       label: m.appearance.media.maxThumbHeight,
       value: size(effective.media.maxThumbHeight, m.size.unit),
-      tier: of((n) => n.appearance.media.maxThumbHeight),
+      tier: of((n) => n.appearance.media.maxThumbHeight, 'media.maxThumbHeight'),
     },
     {
       label: m.appearance.cardStyle,
@@ -145,19 +152,20 @@ const appearanceRows = (
       value: m.appearance.attachmentStyles[quoteStyleOf(effective.quoteStyle)],
       tier: of((n) => n.appearance.quoteStyle),
     },
-    {
-      label: m.appearance.hideWhoToFollow,
-      // Unset has a default side too (shown). Say which one is in effect
-      value: hidesWhoToFollow(effective.hideWhoToFollow)
-        ? m.appearance.hideWhoToFollowOn
-        : m.appearance.hideWhoToFollowOff,
-      tier: of((n) => n.appearance.hideWhoToFollow),
-    },
-    // Colors are listed in the same order as on the editing surface, so the two can be compared
-    ...COLOR_ORDER.filter((key) => columns || !isColumnColor(key)).map((key) => ({
-      label: colorLabel(key, site, m),
+    /*
+     * Colors are listed in the same order as on the editing surface, so the two can be
+     * compared. Left out are the ones this scope does not decide: a column's on a site
+     * with no columns, the page's on the site that has no page to paint, and the compose
+     * form's, which is answered as far up as the account and would read here as though
+     * the scope on screen had a say in it.
+     */
+    ...COLOR_ORDER.filter(
+      (key) =>
+        (columns || !isColumnColor(key)) && (!columns || !isXOnlyColor(key)) && !isAccountColor(key)
+    ).map((key) => ({
+      label: m.appearance.colors[key],
       value: effective.colors[key],
-      tier: of((n) => n.appearance.colors[key]),
+      tier: of((n) => n.appearance.colors[key], colorItem(key)),
     })),
   ];
 };

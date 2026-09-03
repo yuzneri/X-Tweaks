@@ -44,15 +44,23 @@ const reidentify = (node: SettingsNode): SettingsNode => {
   };
 };
 
+/** The same, for a whole map of tiers. Three of the places settings live are maps */
+const reidentifyMap = (nodes: Record<string, SettingsNode>): Record<string, SettingsNode> =>
+  Object.fromEntries(Object.entries(nodes).map(([key, node]) => [key, reidentify(node)]));
+
 const reidentifyAll = (settings: Settings): Settings => ({
   ...settings,
   global: reidentify(settings.global),
-  accounts: Object.fromEntries(
-    Object.entries(settings.accounts).map(([key, node]) => [key, reidentify(node)])
-  ),
-  columns: Object.fromEntries(
-    Object.entries(settings.columns).map(([key, node]) => [key, reidentify(node)])
-  ),
+  accounts: reidentifyMap(settings.accounts),
+  surfaces: {
+    pro: reidentify(settings.surfaces.pro),
+    x: reidentify(settings.surfaces.x),
+  },
+  surfaceAccounts: {
+    pro: reidentifyMap(settings.surfaceAccounts.pro),
+    x: reidentifyMap(settings.surfaceAccounts.x),
+  },
+  columns: reidentifyMap(settings.columns),
 });
 
 /**

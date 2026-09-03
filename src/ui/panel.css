@@ -671,6 +671,79 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/*
+ * The switch that puts one item back to how X shows it. It stands at the end of the
+ * colour and size rows, and appears only where it does something (`ClearToggle`).
+ * The words are dimmed and small: it is a note on the field beside it rather than a
+ * setting of its own, and the row already carries the item's name.
+ *
+ * It follows the field in the markup rather than preceding it (the reason is in
+ * `ClearToggle`: a control ahead of the field would take the row's own label away from
+ * it), and it is lifted out of the row's flow so that following it costs the field
+ * nothing. In flow it pushed the box of its own row some 70px left of every other row's,
+ * and at a narrow width it wrapped onto a second line and made the row taller.
+ */
+.xpro-ui .clear-toggle {
+  /*
+   * A line of its own under the field, rather than beside it. Beside it, the switch stole
+   * about 70px from its own row and left that row's box out of line with every other
+   * row's; at a narrow width it wrapped anyway. Reserving the width on every row instead
+   * moved the wrapping onto the labels, which is worse — it costs height on rows that have
+   * no switch at all. Under the field, the cost falls only on the rows that carry one, and
+   * the boxes down the panel keep a single right edge at every width.
+   */
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  /* Its own line is a note under the field, so it is kept as short as it can be read at */
+  line-height: 1;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.xpro-ui .clear-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+/* The words toggle the box, so they are pointed at like one (`ClearToggle` in fields.tsx) */
+.xpro-ui .clear-toggle span {
+  cursor: pointer;
+}
+
+/*
+ * The name of a row whose field carries the switch sits on the field's own line, not
+ * halfway down the two. Centred, it floats between the box and the switch and stops
+ * reading as the box's name.
+ *
+ * Selected with `:has()` rather than by a class the row is given. Whether the switch shows
+ * is `ClearToggle`'s to decide (it weighs three things), and a class would mean writing
+ * that decision out a second time where it could drift. The floor the extension declares
+ * is Chrome 111 / Firefox 140, both well past `:has()`.
+ */
+.xpro-ui .row:has(.clear-toggle) {
+  align-items: flex-start;
+}
+
+.xpro-ui .row:has(.clear-toggle) > span:first-child {
+  padding-top: 4px;
+}
+
+/*
+ * Lets the switch take the line under the box. The box keeps the container's width, being
+ * the wider of the two, so the row's right edge does not move.
+ */
+.xpro-ui .color-field,
+.xpro-ui .size-field {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Size input: the box, the unit and the error text */
 .xpro-ui .size-field {
   display: flex;
