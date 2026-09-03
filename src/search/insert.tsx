@@ -10,7 +10,7 @@ import { render } from 'preact';
 import type { Messages } from '../i18n/index.ts';
 import { SearchFormView } from './Form.tsx';
 import { onSearchResults } from './hide.ts';
-import { parseQuery, parseScopes, queryIn } from './parse.ts';
+import { parseQuery, parseScopes, queryAt } from './parse.ts';
 import { placementIn } from './rail.ts';
 import { adoptQuery } from './state.ts';
 
@@ -22,16 +22,6 @@ const COVERED = 'data-xpro-search-covered';
 
 /** The node the form is rendered into, marked so it can be found again to unmount */
 const MOUNT = 'data-xpro-search-mount';
-
-/**
- * Written on the panel while the page being read is a search's results.
- *
- * The group of four that are done to the results is shown only there. Carried as an
- * attribute and answered in the stylesheet rather than as a prop, because the reader moves
- * between views without the form being rebuilt — a prop would need a redraw that nothing
- * asks for, while an attribute set on every settling is already the rhythm this runs at.
- */
-const ON_RESULTS = 'data-xpro-search-on-results';
 
 /**
  * Hides one of X's blocks rather than removing it.
@@ -104,9 +94,13 @@ export const insertInto = (messages: Messages): number => {
    */
   let adopted = false;
   if (onSearchResults()) {
+    // The path is part of the address here, not just the parameters: `/hashtag/a` and
+    // `/hashtag/b` are two different searches carrying the same (empty) parameters
+    const asked = queryAt(location.pathname, location.search);
     adopted = adoptQuery(
-      location.search,
-      parseQuery(queryIn(location.search)),
+      location.pathname + location.search,
+      asked,
+      parseQuery(asked),
       parseScopes(location.search)
     );
     if (adopted) remove();
@@ -130,8 +124,6 @@ export const insertInto = (messages: Messages): number => {
 
   const existing = adopted ? null : placement.holder.querySelector(`:scope > [${MARK}]`);
   if (existing) {
-    // Which page this is changes as the reader moves, and the form is not rebuilt for it
-    existing.toggleAttribute(ON_RESULTS, onSearchResults());
     /*
      * Standing somewhere is not the same as standing in the right place. The form goes
      * under the search box on a timeline and at the head of the rail on the search
@@ -152,7 +144,6 @@ export const insertInto = (messages: Messages): number => {
   }
 
   const box = build(messages);
-  box.toggleAttribute(ON_RESULTS, onSearchResults());
   placement.holder.insertBefore(box, placement.before);
   return 1;
 };

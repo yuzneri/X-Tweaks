@@ -16,6 +16,7 @@ import {
   buildQuery,
   emptyForm,
   emptyScopes,
+  filledGroups,
   searchPath,
   type AccountField,
   type FilterChoice,
@@ -24,7 +25,7 @@ import {
   type SearchForm,
   type SearchScopes,
 } from './query.ts';
-import { noExclusions, type Exclusions } from './exclude.ts';
+import { excludesAnything, noExclusions, type Exclusions } from './exclude.ts';
 import { mirror } from './mirror.ts';
 import {
   clear,
@@ -66,31 +67,51 @@ const Field = ({
 );
 
 /**
- * A group that starts folded.
+ * A group that starts folded, and unfolds itself once it holds something.
  *
  * Folded by default because the rail is 350px wide and the whole form open runs past the
  * height of a window. The five word fields are what a search usually needs; these are what
  * it sometimes needs.
  *
  * Built on `<details>` rather than a button and a hidden div: the browser gives the
- * opening, the keyboard handling and the "this is collapsed" announcement for nothing, and
- * the state lives in the element, so it survives the form being moved between views.
+ * opening, the keyboard handling and the "this is collapsed" announcement for nothing.
+ *
+ * Whether it stands open is held here rather than left to the element, because a query can
+ * be filled in from outside the fields — a search's address, X's own search box — and a
+ * group holding values nobody can see is a search nobody can check. **It is only ever
+ * opened, never shut**: a group that has been emptied is left as it is, since folding it
+ * away as somebody clears a field would take the field they are working in with it.
  */
 const Group = ({
   label,
   children,
   name,
+  filled,
 }: {
   label: string;
   children: ComponentChildren;
   /** An extra class, for a group the stylesheet has something to say about */
   name?: string;
-}) => (
-  <details class={name ? `xpro-search-group ${name}` : 'xpro-search-group'}>
-    <summary class="xpro-search-summary">{label}</summary>
-    <div class="xpro-search-group-body">{children}</div>
-  </details>
-);
+  /** Whether the fields inside hold anything (`filledGroups`) */
+  filled: boolean;
+}) => {
+  const [open, setOpen] = useState(filled);
+  useEffect(() => {
+    if (filled) setOpen(true);
+  }, [filled]);
+  return (
+    <details
+      class={name ? `xpro-search-group ${name}` : 'xpro-search-group'}
+      open={open}
+      // What the reader does to the fold has the last word, and is what the next redraw
+      // is drawn from
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary class="xpro-search-summary">{label}</summary>
+      <div class="xpro-search-group-body">{children}</div>
+    </details>
+  );
+};
 
 /**
  * One account field: the names, and whether they are being excluded rather than asked for.
@@ -167,15 +188,18 @@ const Number_ = ({
  * Two controls rather than one `datetime-local`. That one holds nothing at all until every
  * part of it has been filled, so a reader naming two dates and no times got a search with
  * no span in it and no sign of why (`Moment`).
+ *
+ * Only the day is labelled on screen. The time sits beside it in a control that says what
+ * it is by its own shape, and a second word above it was one word more than the rail can
+ * spare. It is still named for anybody who cannot see that shape: the same word, since the
+ * two controls are two halves of one answer.
  */
 const Span = ({
   label,
-  timeLabel,
   moment,
   onChange,
 }: {
   label: string;
-  timeLabel: string;
   moment: Moment;
   onChange: (part: Partial<Moment>) => void;
 }) => (
@@ -189,17 +213,15 @@ const Span = ({
         onInput={(event) => onChange({ date: event.currentTarget.value })}
       />
     </label>
-    <label class="xpro-search-field">
-      <span class="xpro-search-label">{timeLabel}</span>
-      <input
-        type="time"
-        // Seconds as well, which is as fine as the query can say it (`epochSecondsOf`)
-        step={1}
-        class="xpro-search-input"
-        value={moment.time}
-        onInput={(event) => onChange({ time: event.currentTarget.value })}
-      />
-    </label>
+    <input
+      type="time"
+      // Seconds as well, which is as fine as the query can say it (`epochSecondsOf`)
+      step={1}
+      class="xpro-search-input"
+      aria-label={label}
+      value={moment.time}
+      onInput={(event) => onChange({ time: event.currentTarget.value })}
+    />
   </div>
 );
 
@@ -254,6 +276,9 @@ export const SearchFormView = ({ messages }: Props) => {
    */
   const query = buildQuery(form);
   const path = searchPath(query, scopes);
+
+  /** Which of the folded groups have something in them, and so should stand open */
+  const filled = filledGroups(form, scopes);
   const go = useRef<HTMLAnchorElement>(null);
 
   /*
@@ -298,6 +323,29 @@ export const SearchFormView = ({ messages }: Props) => {
       // this is what stops the page being sent somewhere and reloaded
       onSubmit={(event) => event.preventDefault()}
     >
+      {/*
+        Which of X's own tabs to land on. Not part of the query — it rides in the address
+        (`searchPath`) — but it stands at the head of the form all the same: it is the one
+        control here that changes what a search is for rather than what it matches, and a
+        reader looking for accounts rather than posts should not have to unfold anything to
+        say so.
+      */}
+      <select
+        class="xpro-search-input"
+        // No label above it: the tab names read as what they are, and a word over them was
+        // one line of the rail spent saying what the choices already say. Named for anybody
+        // who cannot see them, the way the time of day is (`Span`).
+        aria-label={m.tab}
+        value={scopes.tab}
+        onChange={(event) => patchScopes({ tab: event.currentTarget.value as ResultTab })}
+      >
+        {TABS.map((tab) => (
+          <option key={tab} value={tab}>
+            {m.tabs[tab]}
+          </option>
+        ))}
+      </select>
+
       <Field label={m.all} value={form.all} onInput={(all) => patch({ all })} />
       <Field label={m.exact} value={form.exact} onInput={(exact) => patch({ exact })} />
       <Field label={m.any} value={form.any} onInput={(any) => patch({ any })} />
@@ -308,7 +356,7 @@ export const SearchFormView = ({ messages }: Props) => {
         onInput={(hashtags) => patch({ hashtags })}
       />
 
-      <Group label={g.accounts}>
+      <Group label={g.accounts} filled={filled.accounts}>
         <Accounts
           label={m.from}
           excludeLabel={m.exclude}
@@ -329,7 +377,25 @@ export const SearchFormView = ({ messages }: Props) => {
         />
       </Group>
 
-      <Group label={g.filters}>
+      <Group label={g.dates} filled={filled.dates}>
+        <Span
+          label={m.since}
+          moment={form.since}
+          onChange={(part) => patch({ since: { ...currentForm().since, ...part } })}
+        />
+        <Span
+          label={m.until}
+          moment={form.until}
+          onChange={(part) => patch({ until: { ...currentForm().until, ...part } })}
+        />
+      </Group>
+
+      {/*
+        `excludesAnything` is asked here rather than inside `filledGroups`: the four are
+        not part of the query, and the module that builds queries has no business knowing
+        about them. Ticked, they are still something this group holds and should show.
+      */}
+      <Group label={g.filters} filled={filled.filters || excludesAnything(exclusions)}>
         {(
           [
             ['verified', m.verified],
@@ -385,64 +451,12 @@ export const SearchFormView = ({ messages }: Props) => {
             ))}
           </select>
         </label>
-      </Group>
-
-      <Group label={g.engagement}>
-        <Number_
-          label={m.minReplies}
-          value={form.minReplies}
-          onInput={(minReplies) => patch({ minReplies })}
-        />
-        <Number_
-          label={m.minFaves}
-          value={form.minFaves}
-          onInput={(minFaves) => patch({ minFaves })}
-        />
-        <Number_
-          label={m.minRetweets}
-          value={form.minRetweets}
-          onInput={(minRetweets) => patch({ minRetweets })}
-        />
-      </Group>
-
-      <Group label={g.dates}>
-        <p class="xpro-search-note">{m.datesNote}</p>
-        <Span
-          label={m.since}
-          timeLabel={m.timeOfDay}
-          moment={form.since}
-          onChange={(part) => patch({ since: { ...currentForm().since, ...part } })}
-        />
-        <Span
-          label={m.until}
-          timeLabel={m.timeOfDay}
-          moment={form.until}
-          onChange={(part) => patch({ until: { ...currentForm().until, ...part } })}
-        />
-      </Group>
-
-      {/*
-        Not part of the query: these three go into the address (`searchPath`). Grouped
-        apart from the fields above for that reason — they say where to look rather than
-        what to look for
-      */}
-      <Group label={g.where}>
-        <label class="xpro-search-field">
-          <span class="xpro-search-label">{m.tab}</span>
-          <select
-            class="xpro-search-input"
-            value={scopes.tab}
-            onChange={(event) =>
-              patchScopes({ tab: event.currentTarget.value as ResultTab })
-            }
-          >
-            {TABS.map((tab) => (
-              <option key={tab} value={tab}>
-                {m.tabs[tab]}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/*
+          These two ride in the address rather than in the query (`searchPath`), which is
+          why they are read from `scopes`. They sit here all the same: to a reader they
+          narrow the results by the same kind of question as the fields above, and which
+          half of the address a narrowing travels in is not the reader's concern.
+        */}
         <label class="xpro-search-check">
           <input
             type="checkbox"
@@ -459,31 +473,51 @@ export const SearchFormView = ({ messages }: Props) => {
           />
           <span>{m.nearbyOnly}</span>
         </label>
+        {/*
+          The four X has no operator for. They ask the same kind of question as the rest of
+          this group, which is why they stand in it, but they are answered here rather than
+          by X — so they are marked off by the note, and by being the only part of the form
+          that comes and goes: off a search's results there is nothing for them to act on,
+          and the stylesheet takes the whole block away (`styles.css`).
+        */}
+        <div class="xpro-search-leave-out">
+          <p class="xpro-search-note">{m.leaveOutNote}</p>
+          {(
+            [
+              ['reposts', m.excludeReposts],
+              ['hashtags', m.excludeHashtags],
+              ['nameOnly', m.excludeNameOnly],
+              ['handleOnly', m.excludeHandleOnly],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} class="xpro-search-check">
+              <input
+                type="checkbox"
+                checked={exclusions[key]}
+                onChange={(event) => patchExclusions({ [key]: event.currentTarget.checked })}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       </Group>
 
-      {/*
-        Not part of the query. X has no operator for any of these, so they are done to the
-        results after they arrive, and they last no longer than this visit to the page
-      */}
-      <Group label={g.leaveOut} name="xpro-search-leave-out">
-        <p class="xpro-search-note">{m.leaveOutNote}</p>
-        {(
-          [
-            ['reposts', m.excludeReposts],
-            ['hashtags', m.excludeHashtags],
-            ['nameOnly', m.excludeNameOnly],
-            ['handleOnly', m.excludeHandleOnly],
-          ] as const
-        ).map(([key, label]) => (
-          <label key={key} class="xpro-search-check">
-            <input
-              type="checkbox"
-              checked={exclusions[key]}
-              onChange={(event) => patchExclusions({ [key]: event.currentTarget.checked })}
-            />
-            <span>{label}</span>
-          </label>
-        ))}
+      <Group label={g.engagement} filled={filled.engagement}>
+        <Number_
+          label={m.minReplies}
+          value={form.minReplies}
+          onInput={(minReplies) => patch({ minReplies })}
+        />
+        <Number_
+          label={m.minFaves}
+          value={form.minFaves}
+          onInput={(minFaves) => patch({ minFaves })}
+        />
+        <Number_
+          label={m.minRetweets}
+          value={form.minRetweets}
+          onInput={(minRetweets) => patch({ minRetweets })}
+        />
       </Group>
 
       <div class="xpro-search-actions">

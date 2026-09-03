@@ -168,15 +168,21 @@
 }
 
 /*
- * The four that are done to the results, shown only where there are results.
+ * The four stand together inside the filter group, so the block lays itself out the way
+ * that group does. It is one item of the group's column, and without this its own children
+ * would fall together with nothing between them.
  *
- * The form stands in the rail on every view, but these do nothing off a search — so
- * rather than offer a control that would not answer, the whole group goes. Whether the
- * page is a search's results is written on the panel by `insert.tsx`, from the same
- * `onSearchResults` the applying side reads, so the two cannot come to disagree.
+ * The rule above it is what says where the note stops reaching. The note speaks for the
+ * four below it and for nothing above them, and with no line there it read as a remark on
+ * the whole group. Drawn the way the groups themselves are divided, that being what a line
+ * in this form already means.
  */
-.xpro-search:not([data-xpro-search-on-results]) .xpro-search-leave-out {
-  display: none;
+.xpro-search-leave-out {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--color-border, rgb(47, 51, 54));
+  padding-top: 8px;
 }
 
 /*
@@ -194,12 +200,11 @@
 
 .xpro-search-span > label {
   min-width: 0;
-}
-
-.xpro-search-span > label:first-child {
   flex: 3 1 0;
 }
 
-.xpro-search-span > label:last-child {
+/* The time stands on its own, the day's label naming both of them (`Span`) */
+.xpro-search-span > .xpro-search-input {
+  min-width: 0;
   flex: 2 1 0;
 }

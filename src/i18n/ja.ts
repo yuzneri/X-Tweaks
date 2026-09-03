@@ -259,22 +259,22 @@ export const ja: Messages = {
       label: '右に詳細検索フォームを出す',
       note:
         '検索窓の下に出ます。検索窓はそのまま残ります。'
-        + '検索結果のページでは、X 自身の検索フィルターと入れ替わります（同じ指定を含んでいるため）。',
+        + '検索結果のページでは、X自身の検索フィルターと入れ替わります。',
       noteWide:
         '右の項目を消しているあいだは出せません。置く場所がありません。',
     },
 
     fields: {
-      all: 'すべての語を含む',
-      exact: 'この語順のとおりに含む',
-      any: 'いずれかの語を含む',
-      none: 'これらの語を含まない',
-      hashtags: 'ハッシュタグ',
+      all: 'すべてのキーワードを含む',
+      exact: 'キーワード全体を含む',
+      any: 'いずれかのキーワードを含む',
+      none: 'キーワードを含まない',
+      hashtags: 'ハッシュタグを含む',
 
       from: 'このアカウントの投稿',
       to: 'このアカウントへの返信',
       mentioning: 'このアカウントに言及',
-      exclude: '含めるのではなく除く',
+      exclude: '除く',
 
       verified: '認証済みアカウント',
       links: 'リンク',
@@ -296,9 +296,6 @@ export const ja: Messages = {
 
       since: 'この日から',
       until: 'この日まで',
-      timeOfDay: '時刻',
-      datesNote:
-        '時刻を空にすると、その日を丸ごと（始まりから終わりまで）扱います。',
 
       tab: '表示',
       tabs: { top: '話題のポスト', live: '最新', user: 'アカウント', media: 'メディア', list: 'リスト' },
@@ -309,21 +306,18 @@ export const ja: Messages = {
       reset: 'クリア',
 
       leaveOutNote:
-        'X に指定するのではなく、表示された結果に対して行います。'
-        + 'このページを開いているあいだだけ効きます。',
+        '表示された結果に対して行います。',
       excludeReposts: 'リポスト',
       excludeHashtags: 'ハッシュタグを含む投稿',
-      excludeNameOnly: '表示名にだけ当たった投稿',
-      excludeHandleOnly: '@名にだけ当たった投稿',
+      excludeNameOnly: '表示名のみに引っかかった投稿',
+      excludeHandleOnly: 'ユーザーIDのみに引っかかった投稿',
     },
 
     groups: {
       accounts: 'アカウント',
-      filters: '投稿に含まれるもの',
+      filters: 'フィルター',
       engagement: '反応の数',
       dates: '期間',
-      where: 'どこを探すか',
-      leaveOut: '結果から除く',
     },
   },
 

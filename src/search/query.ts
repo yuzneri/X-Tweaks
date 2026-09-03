@@ -123,10 +123,63 @@ export const emptyForm = (): SearchForm => ({
   until: emptyMoment(),
 });
 
+/**
+ * What the form starts on, and what "Clear" puts it back to.
+ *
+ * The tab starts on `live` rather than on X's own `top`. A form built to say exactly what
+ * is wanted sits badly with a tab that answers by picking; somebody who has named a span
+ * of days or a minimum of likes has already said what matters to them, and Top would then
+ * decide which of the answers they see. `top` is still there to be chosen.
+ *
+ * This is not what an address means. An address with no `f` on it is X's `top`, and
+ * `parseScopes` reads it as `top` — the starting value of a fresh form and the reading of
+ * a search somebody arrived at are two different questions.
+ */
 export const emptyScopes = (): SearchScopes => ({
-  tab: 'top',
+  tab: 'live',
   followedOnly: false,
   nearbyOnly: false,
+});
+
+/**
+ * Whether each of the form's folded groups holds anything.
+ *
+ * The groups start shut, because the whole form open runs past the height of a window. A
+ * query can arrive from somewhere other than the fields, though — a search's address, X's
+ * own search box — and what it fills in lands inside those shut groups. This is what tells
+ * the form which ones to open (`Group` in `Form.tsx`).
+ *
+ * Holding something is not the same as building a term. A time of day with no date beside
+ * it puts nothing in the query, but it is still something a reader typed, and folding it
+ * out of sight would hide the reason the search is not the one they asked for.
+ */
+export type FilledGroups = {
+  accounts: boolean;
+  filters: boolean;
+  engagement: boolean;
+  dates: boolean;
+};
+
+const holdsMoment = (moment: Moment): boolean => moment.date !== '' || moment.time !== '';
+
+/**
+ * `scopes` is asked about as well as `form`, because two of the things that ride in the
+ * address are shown among the filters. Which half of the address a narrowing travels in is
+ * the query builder's concern, not the reader's. The tab is not asked about at all: it
+ * stands outside every group, where nothing has to be unfolded to see it.
+ */
+export const filledGroups = (form: SearchForm, scopes: SearchScopes): FilledGroups => ({
+  accounts: [form.from, form.to, form.mentioning].some((field) => field.names.trim() !== ''),
+  filters:
+    [form.verified, form.links, form.images, form.videos].some((choice) => choice !== 'any') ||
+    form.replies !== 'any' ||
+    form.lang !== '' ||
+    scopes.followedOnly ||
+    scopes.nearbyOnly,
+  engagement: [form.minReplies, form.minFaves, form.minRetweets].some(
+    (count) => count.trim() !== ''
+  ),
+  dates: holdsMoment(form.since) || holdsMoment(form.until),
 });
 
 /**

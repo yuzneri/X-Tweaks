@@ -21,6 +21,7 @@ import {
   type SearchScopes,
   tokenize,
 } from './query.ts';
+import { VIEW_PREFIX, viewKeyOf } from '../surface/view.ts';
 
 /** A term of a query, with the pieces the assembly put on it taken back off */
 type Term = {
@@ -213,5 +214,19 @@ export const parseScopes = (search: string): SearchScopes => {
   };
 };
 
-/** The query in a search's address, or an empty string where there is none */
-export const queryIn = (search: string): string => new URLSearchParams(search).get('q') ?? '';
+/**
+ * The query a search's address asks for, whichever of the two shapes X writes it in.
+ *
+ * A search is `?q=…`, but a tag pressed inside a post is `/hashtag/<tag>` and carries no
+ * `q` at all. Reading only the parameters left the form empty on every hashtag page, with
+ * the page plainly showing a search (measured 2026-09-04).
+ *
+ * Both shapes are read off `viewKeyOf`, which already knows them — it is what decides
+ * whether this page is a search's results in the first place, so the query and the
+ * judgement that there is one cannot come to disagree.
+ */
+export const queryAt = (pathname: string, search: string): string => {
+  const key = viewKeyOf(pathname, search);
+  const prefix = `${VIEW_PREFIX}search:`;
+  return key?.startsWith(prefix) ? key.slice(prefix.length) : '';
+};

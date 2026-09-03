@@ -5,10 +5,12 @@
  * that only matched somebody's name". These are decided here, after the results arrive,
  * by looking at what is on screen.
  *
- * **None of this is stored.** It holds while the page is open and no longer: reload and
- * the four are off again. That is what was asked for, and it is also what keeps this from
- * turning into a second filter feature — the extension already has one of those, held per
- * column and per view, for what is meant to last.
+ * **None of this is saved.** The four are carried no further than the tab they were ticked
+ * in (`state.ts`): running a search takes the reader to a new page, and arriving there with
+ * the ticks gone would mean ticking them again after every search. Close the tab and they
+ * are off again. That is what keeps this from turning into a second filter feature — the
+ * extension already has one of those, held per column and per view, for what is meant to
+ * last.
  */
 
 /** What the reader asked to leave out. All four start off */
@@ -32,6 +34,36 @@ export const noExclusions = (): Exclusions => ({
 
 export const excludesAnything = (exclusions: Exclusions): boolean =>
   exclusions.reposts || exclusions.hashtags || exclusions.nameOnly || exclusions.handleOnly;
+
+/** The four, named. The names are what is written down and read back (`namedExclusions`) */
+const NAMES = ['reposts', 'hashtags', 'nameOnly', 'handleOnly'] as const;
+
+/**
+ * The ticked ones, written as their names.
+ *
+ * Written as names rather than as JSON because of what reads it back: the text is kept
+ * where the page itself can reach it (`state.ts`), so whatever comes back is not to be
+ * trusted. A list of names has nothing to go wrong with — a word that is not one of the
+ * four is simply not one of the four.
+ */
+export const namedExclusions = (exclusions: Exclusions): string =>
+  NAMES.filter((name) => exclusions[name]).join(' ');
+
+/**
+ * Reads back what `namedExclusions` wrote, and refuses everything else.
+ *
+ * Nothing here can throw and nothing here can be surprised: anything that is not one of
+ * the four names leaves that one off, and text of any shape at all — empty, absent,
+ * something else's — gives the four turned off.
+ */
+export const exclusionsFrom = (text: string | null): Exclusions => {
+  const named = new Set((text ?? '').split(/\s+/));
+  const exclusions = noExclusions();
+  for (const name of NAMES) {
+    if (named.has(name)) exclusions[name] = true;
+  }
+  return exclusions;
+};
 
 /**
  * One post, as this judgement sees it. Reading it off the page is `apply.ts`'s work; what
@@ -79,9 +111,13 @@ const norm = (value: string): string => value.trim().toLowerCase();
  * also catch `C#`, a `#1` counting something, and the fragment on the end of an address —
  * none of which a reader asking for no hashtags means.
  *
- * Read off the words rather than off X's own tag links. A tag typed in a way that did not
- * become a link is still a tag to the reader who wants none of them, and the words are
- * what has already been read (`hide.ts`).
+ * **The boundary is X's own, not this extension's.** A `#` written tight against something
+ * else, as in `【#C106 …】`, is not a tag to X either: X neither links it nor finds it by
+ * searching for the tag. Leaving such a post in is agreeing with the site rather than
+ * missing one (checked against X's own search, 2026-09-04).
+ *
+ * Read off the post's words rather than off X's tag links, those being what has already
+ * been read for the filter (`hide.ts`).
  */
 const hasHashtag = (post: Result): boolean => /(^|\s)#\S/u.test(post.text);
 

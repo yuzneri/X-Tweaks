@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  exclusionsFrom,
   excludesAnything,
+  namedExclusions,
   isExcluded,
   noExclusions,
   noTerms,
@@ -128,4 +130,37 @@ test('演算子の欄は検索語に入れない', () => {
 test('名指しされたアカウントを集め、@ を外す', () => {
   const t = termsOf(formOf({ from: { names: '@alice bob' }, mentioning: { names: 'carol' } }));
   assert.deepEqual(t.named, ['alice', 'bob', 'carol']);
+});
+
+test('印を書き出して読み戻すと、同じものになる', () => {
+  const cases: Exclusions[] = [
+    noExclusions(),
+    off({ reposts: true }),
+    off({ nameOnly: true, handleOnly: true }),
+    off({ reposts: true, hashtags: true, nameOnly: true, handleOnly: true }),
+  ];
+  for (const exclusions of cases) {
+    assert.deepEqual(exclusionsFrom(namedExclusions(exclusions)), exclusions);
+  }
+});
+
+test('何も入っていない印は、空の文字列になる', () => {
+  assert.equal(namedExclusions(noExclusions()), '');
+});
+
+test('書かれていないものは読み戻さない', () => {
+  // ページ自身が書ける置き場から読むので、知らない文字列は「何も無い」として扱う
+  for (const text of [null, '', '   ', 'reposts,hashtags', 'true', '{"reposts":true}', '__proto__']) {
+    assert.deepEqual(exclusionsFrom(text), noExclusions(), JSON.stringify(text));
+  }
+});
+
+test('知っている名前だけを拾い、残りは捨てる', () => {
+  assert.deepEqual(exclusionsFrom('reposts nonsense handleOnly'), off({ reposts: true, handleOnly: true }));
+});
+
+test('印はすべて書き出せる', () => {
+  // 印を足して namedExclusions の名前に足し忘れると、その印が引き継がれない
+  const all = off({ reposts: true, hashtags: true, nameOnly: true, handleOnly: true });
+  assert.deepEqual(namedExclusions(all).split(' ').sort(), Object.keys(noExclusions()).sort());
 });

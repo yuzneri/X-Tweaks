@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseQuery, parseScopes, queryIn } from './parse.ts';
+import { parseQuery, parseScopes, queryAt } from './parse.ts';
 import { buildQuery, emptyForm, type SearchForm } from './query.ts';
 
 const form = (fields: Partial<SearchForm>): SearchForm => ({ ...emptyForm(), ...fields });
@@ -113,8 +113,8 @@ test('フレーズが2つあるときは、どちらも「全ての語」に残�
 // --- アドレスの側 ---
 
 test('アドレスからクエリを取り出す', () => {
-  assert.equal(queryIn('?q=rust+lang&src=typd'), 'rust lang');
-  assert.equal(queryIn('?src=typd'), '');
+  assert.equal(queryAt('/search', '?q=rust+lang&src=typd'), 'rust lang');
+  assert.equal(queryAt('/search', '?src=typd'), '');
 });
 
 test('アドレスから f・pf・lf を読む', () => {
@@ -133,4 +133,25 @@ test('f が無ければ top、知らない値でも top', () => {
 test('pf・lf は on のときだけ立つ', () => {
   assert.equal(parseScopes('?q=a&pf=off').followedOnly, false);
   assert.equal(parseScopes('?q=a').nearbyOnly, false);
+});
+
+
+test('ハッシュタグのページは、アドレスにクエリを持たない', () => {
+  // X はタグを押すと /hashtag/… へ送る。?q= を読むだけでは、
+  // 検索結果を前にしてフォームが空のままになる
+  assert.equal(queryAt('/hashtag/rust', ''), '#rust');
+  assert.equal(queryAt('/hashtag/rust', '?src=hashtag_click'), '#rust');
+  assert.equal(queryAt('/hashtag/%E6%97%A5%E6%9C%AC%E8%AA%9E', ''), '#日本語');
+});
+
+test('ハッシュタグのページを読み込んで組み直すと、同じクエリになる', () => {
+  const asked = queryAt('/hashtag/rust', '?src=hashtag_click');
+  assert.equal(buildQuery(parseQuery(asked)), '#rust');
+});
+
+test('検索でないページは、クエリを持たない', () => {
+  assert.equal(queryAt('/home', ''), '');
+  assert.equal(queryAt('/alice', ''), '');
+  // 空の検索は検索結果のビューではない（viewKeyOf の判断と揃える）
+  assert.equal(queryAt('/search', '?q='), '');
 });

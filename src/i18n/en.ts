@@ -329,17 +329,17 @@ export const en = {
      * the point of the rest is to be usable without knowing any of them.
      */
     fields: {
-      all: 'All of these words',
-      exact: 'This exact phrase',
-      any: 'Any of these words',
-      none: 'None of these words',
+      all: 'All of these keywords',
+      exact: 'This keyword as a whole',
+      any: 'Any of these keywords',
+      none: 'None of these keywords',
       hashtags: 'These hashtags',
 
       from: 'From these accounts',
       to: 'Replying to these accounts',
       mentioning: 'Mentioning these accounts',
       /** The one word shared by the three account fields, each having the same switch */
-      exclude: 'Leave these out instead',
+      exclude: 'Exclude',
 
       verified: 'Verified accounts',
       links: 'Links',
@@ -360,15 +360,12 @@ export const en = {
       minFaves: 'Likes, at least',
       minRetweets: 'Reposts, at least',
 
+      /**
+       * Each names both of the controls beside it, the day and the time within it: the
+       * time carries no label of its own (`Span`).
+       */
       since: 'From',
       until: 'Until',
-      /** The time of day within the day named beside it. One word, used for both ends */
-      timeOfDay: 'Time',
-      /**
-       * What an empty time means. Said outright because it is the rule that decides what
-       * naming two dates and no times asks for — the whole of both days.
-       */
-      datesNote: 'Leave a time empty and the day is taken whole, from its start to its end.',
 
       tab: 'Show',
       /** X's own tabs, worded as X words them */
@@ -384,23 +381,19 @@ export const en = {
        * which is what the note says — a reader who does not know that would take them for
        * part of the search and wonder why they are gone on the next visit.
        */
-      leaveOutNote:
-        'Done to the results on screen rather than asked of X, and kept only while this ' +
-        'page is open.',
+      leaveOutNote: 'Done to the results on screen.',
       excludeReposts: 'Reposts',
       excludeHashtags: 'Posts with a hashtag',
-      excludeNameOnly: 'Matched only in the display name',
-      excludeHandleOnly: 'Matched only in the @name',
+      excludeNameOnly: 'Posts that matched the display name only',
+      excludeHandleOnly: 'Posts that matched the user ID only',
     },
 
     /** The folded groups. Folded because the rail is narrow and the open form is tall */
     groups: {
       accounts: 'Accounts',
-      filters: 'What the post has',
+      filters: 'Filters',
       engagement: 'How much it got',
       dates: 'When',
-      where: 'Where to look',
-      leaveOut: 'Leave out of the results',
     },
   },
 

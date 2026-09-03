@@ -4,11 +4,13 @@ import {
   buildQuery,
   emptyForm,
   emptyScopes,
+  filledGroups,
   quoted,
   epochSecondsOf,
   searchPath,
   tokenize,
   type SearchForm,
+  type SearchScopes,
 } from './query.ts';
 
 /** The form with only the named fields filled in */
@@ -292,17 +294,26 @@ test('時刻が空なら、端によって日の始まりと終わりに落ち�
 
 // --- searchPath ---
 
+/** アドレスとして何も足さない指定。フォームの初期値（`emptyScopes`）とは別物 */
+const plain = (): SearchScopes => ({ tab: 'top', followedOnly: false, nearbyOnly: false });
+
 test('クエリは q に入り、src が付く', () => {
-  assert.equal(searchPath('rust', emptyScopes()), '/search?q=rust&src=typd');
+  assert.equal(searchPath('rust', plain()), '/search?q=rust&src=typd');
+});
+
+test('フォームは最新のタブから始まる', () => {
+  // 上の `plain` と違い、これは「何も選んでいないときに何を探すか」の既定
+  assert.equal(emptyScopes().tab, 'live');
+  assert.equal(searchPath('rust', emptyScopes()), '/search?q=rust&src=typd&f=live');
 });
 
 test('top は書かない', () => {
   // X が何も言われずに出すタブ。X 自身のリンクも省いている
-  assert.equal(searchPath('rust', { ...emptyScopes(), tab: 'top' }), '/search?q=rust&src=typd');
+  assert.equal(searchPath('rust', { ...plain(), tab: 'top' }), '/search?q=rust&src=typd');
 });
 
 test('top 以外のタブは f になる', () => {
-  assert.equal(searchPath('rust', { ...emptyScopes(), tab: 'live' }), '/search?q=rust&src=typd&f=live');
+  assert.equal(searchPath('rust', { ...plain(), tab: 'live' }), '/search?q=rust&src=typd&f=live');
 });
 
 test('フォロー中のみと近くは pf/lf になる', () => {
@@ -314,7 +325,7 @@ test('フォロー中のみと近くは pf/lf になる', () => {
 
 test('指定されていない絞り込みは書かない', () => {
   assert.equal(
-    searchPath('rust', { ...emptyScopes(), followedOnly: false, nearbyOnly: false }),
+    searchPath('rust', { ...plain(), followedOnly: false, nearbyOnly: false }),
     '/search?q=rust&src=typd'
   );
 });
@@ -322,7 +333,7 @@ test('指定されていない絞り込みは書かない', () => {
 test('クエリはここで1度だけエンコードされる', () => {
   // buildQuery が素のまま返すのは、二重に掛けて # や " を壊さないため
   assert.equal(
-    searchPath('#rust "hello world" -filter:links', emptyScopes()),
+    searchPath('#rust "hello world" -filter:links', plain()),
     '/search?q=%23rust+%22hello+world%22+-filter%3Alinks&src=typd'
   );
 });
@@ -377,6 +388,101 @@ test('ハッシュタグ欄に # だけを打っても何も出ない', () => {
 
 test('空のクエリでもアドレスは組み立てられる', () => {
   // 空のときに検索へ行かせないのは呼ぶ側の役目。ここは形を固定するだけ
-  assert.equal(searchPath('', emptyScopes()), '/search?q=&src=typd');
+  assert.equal(searchPath('', plain()), '/search?q=&src=typd');
 });
 
+
+/** The groups that stand open with these fields filled in and nothing else */
+const openGroups = (
+  fields: Partial<SearchForm>,
+  scopes: Partial<SearchScopes> = {}
+): string[] =>
+  Object.entries(filledGroups(form(fields), { ...emptyScopes(), ...scopes }))
+    .filter(([, filled]) => filled)
+    .map(([group]) => group);
+
+/**
+ * One filled field, and the group it should open. The field's name is carried along so
+ * that the test below can check the list against the form itself.
+ */
+const FILLED: [keyof SearchForm, Partial<SearchForm>, string][] = [
+  ['from', { from: { names: 'alice', exclude: false } }, 'accounts'],
+  ['to', { to: { names: 'alice', exclude: false } }, 'accounts'],
+  ['mentioning', { mentioning: { names: 'alice', exclude: false } }, 'accounts'],
+  ['verified', { verified: 'include' }, 'filters'],
+  ['links', { links: 'exclude' }, 'filters'],
+  ['images', { images: 'include' }, 'filters'],
+  ['videos', { videos: 'include' }, 'filters'],
+  ['replies', { replies: 'only' }, 'filters'],
+  ['lang', { lang: 'ja' }, 'filters'],
+  ['minReplies', { minReplies: '1' }, 'engagement'],
+  ['minFaves', { minFaves: '1' }, 'engagement'],
+  ['minRetweets', { minRetweets: '1' }, 'engagement'],
+  ['since', { since: { date: '2026-09-03', time: '' } }, 'dates'],
+  ['until', { until: { date: '2026-09-03', time: '' } }, 'dates'],
+];
+
+/** The five word fields stand outside every group, so nothing they hold opens one */
+const UNGROUPED: (keyof SearchForm)[] = ['all', 'exact', 'any', 'none', 'hashtags'];
+
+test('空のフォームでは畳みが1つも開かない', () => {
+  assert.deepEqual(openGroups({}), []);
+});
+
+test('欄を1つ埋めると、その欄の入っている畳みだけが開く', () => {
+  for (const [name, fields, group] of FILLED) {
+    assert.deepEqual(openGroups(fields), [group], name);
+  }
+});
+
+test('畳みの外にある語の欄は、どの畳みも開かない', () => {
+  for (const name of UNGROUPED) {
+    assert.deepEqual(openGroups({ [name]: 'rust' }), [], name);
+  }
+});
+
+test('フォームの欄はすべて、どこかの畳みか畳みの外に振り分けられている', () => {
+  // 欄を足して filledGroups に足し忘れると、その欄が開かないまま埋まる
+  const sorted = (names: string[]): string[] => [...names].sort();
+  assert.deepEqual(
+    sorted(Object.keys(emptyForm())),
+    sorted([...UNGROUPED, ...FILLED.map(([name]) => name)])
+  );
+});
+
+test('時刻だけでも「いつ」は開く', () => {
+  // クエリには何も出ない（日付が無い）が、打った人には見えていなければならない
+  assert.equal(buildQuery(form({ since: { date: '', time: '09:00' } })), '');
+  assert.deepEqual(openGroups({ since: { date: '', time: '09:00' } }), ['dates']);
+});
+
+test('名前の無い「除く」だけでは畳みは開かない', () => {
+  assert.deepEqual(openGroups({ from: { names: '', exclude: true } }), []);
+});
+
+test('空白だけの欄では畳みは開かない', () => {
+  assert.deepEqual(openGroups({ from: { names: '  ', exclude: false } }), []);
+  assert.deepEqual(openGroups({ minFaves: ' ' }), []);
+});
+
+/**
+ * アドレスに載る欄と、それが出ている畳み。表示するタブだけは畳みの外にあるので、
+ * 何を選んでもどの畳みも開かない（`null`）
+ */
+const SCOPES: [keyof SearchScopes, Partial<SearchScopes>, string | null][] = [
+  ['tab', { tab: 'live' }, null],
+  ['followedOnly', { followedOnly: true }, 'filters'],
+  ['nearbyOnly', { nearbyOnly: true }, 'filters'],
+];
+
+test('アドレスに載る欄が埋まると、それが出ている畳みが開く', () => {
+  for (const [name, scopes, group] of SCOPES) {
+    assert.deepEqual(openGroups({}, scopes), group === null ? [] : [group], name);
+  }
+});
+
+test('アドレスに載る欄はすべて、どこかの畳みか畳みの外に振り分けられている', () => {
+  // 欄を足して filledGroups に足し忘れると、その欄が開かないまま埋まる
+  const sorted = (names: string[]): string[] => [...names].sort();
+  assert.deepEqual(sorted(Object.keys(emptyScopes())), sorted(SCOPES.map(([name]) => name)));
+});
