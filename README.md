@@ -109,6 +109,49 @@ Both start off, and left off X Pro behaves as it always has.
 
 Replies and quotes are left alone, and a post that fails to go out changes nothing.
 
+## Detailed search
+
+A form for building an X search out of fields, so that the operators do not have to be remembered.
+**x.com only** — X Pro has no search results page — and **off until asked for**.
+
+It stands in the rail on the right, and where it goes depends on what X puts there:
+
+- **On a timeline**: under X's own search box, which stays as it is. The box keeps its suggestions and the `/` key keeps working
+- **On a search's results**: in place of X's own search filters. What those offer — from anyone or people you follow, anywhere or near you, and a link to X's advanced search — is a part of what this form asks, so leaving both would put the same questions on screen twice
+- **On Explore**: at the head of the rail
+
+Five fields are always on show: all of these words, this exact phrase, any of these words, none of these words, and hashtags.
+The rest sit in groups that start folded: “From these accounts”, “Replying to these accounts” and “Mentioning these accounts” (each of which can be left out instead); whether it has a link, a photo, a video, or a verified author; whether it is a reply; the language; how many replies, likes and reposts it must have at least; a span of days; and which of X's tabs to land on, with "only accounts you follow" and "only near you".
+
+A span is a date and a time, side by side.
+**Leave a time empty and the day is taken whole**, from its start to its end — so naming two dates means the whole of both.
+
+The first field is passed to X untouched, so anybody who knows the operators can write one there and have it reach X as written.
+
+### Leaving posts out of the results
+
+Four things X's search cannot be asked for are done to the results after they arrive, on a search's results and nowhere else.
+They are shown on a search's results and nowhere else: offering a control that would not answer is worse than not offering it.
+**They are not saved**: they last as long as the page is open and no longer.
+
+- Reposts
+- Posts with a hashtag
+- Posts that matched only in the display name
+- Posts that matched only in the @name
+
+The last two need to know what was searched for, and do nothing without it.
+An account the query names outright is never left out — a search for somebody's posts that hid them would answer nothing.
+
+### The form and X's search box
+
+The two are kept in step.
+Opening a search's results fills the form from the address, so a search reached from a trend or a shared link can be taken up and narrowed down rather than retyped.
+Typing in X's box fills the form, on any page.
+The other way round happens on a search's results only, and never into the box in the rail: writing there sets X redrawing the rail, taking the form down with it.
+
+Reading a query into the form and building it again gives the same query.
+Which field each word came from cannot always be told, so the fields do not always come back the way somebody left them — an operator this extension does not offer still survives, and reaches X as it arrived.
+
 ## The page around the timeline
 
 What x.com draws around the timeline can be taken away. These apply to x.com, and are one setting for the whole site rather than being held per view: the same furniture stands in the same place whichever view you are on.
@@ -123,6 +166,8 @@ What x.com draws around the timeline can be taken away. These apply to x.com, an
 
 A ticked box means the thing is on the page. Everything starts ticked, and what you untick goes away.
 “Widen the timeline” and “Bring new posts in by itself” read the other way round: ticked means do it.
+
+Taking the rail away also takes the detailed search form with it: the form stands in the rail, and with no rail there is nowhere to put it. The settings screen shows that switch held shut while the timeline is widened.
 
 ## Opening the settings
 
