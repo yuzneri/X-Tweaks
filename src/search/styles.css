@@ -149,3 +149,57 @@
   background: transparent;
   color: inherit;
 }
+
+/* The note above the four that are done to the results rather than asked of X */
+.xpro-search-note {
+  margin: 0 0 4px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/*
+ * A post left out by the search form.
+ *
+ * A mark of this feature's own, not the filter's. A post gone from the screen should be
+ * traceable to whichever took it: a rule the reader saved, or a box ticked here.
+ */
+[data-xpro-search-hidden] {
+  display: none !important;
+}
+
+/*
+ * The four that are done to the results, shown only where there are results.
+ *
+ * The form stands in the rail on every view, but these do nothing off a search — so
+ * rather than offer a control that would not answer, the whole group goes. Whether the
+ * page is a search's results is written on the panel by `insert.tsx`, from the same
+ * `onSearchResults` the applying side reads, so the two cannot come to disagree.
+ */
+.xpro-search:not([data-xpro-search-on-results]) .xpro-search-leave-out {
+  display: none;
+}
+
+/*
+ * One end of the span: the day and the time of day, side by side.
+ *
+ * A row rather than the column the other fields are in. The two belong to one answer, and
+ * stacking them makes a span take four rows in a rail that is 350px wide — the day carries
+ * the more text, so it takes the larger share.
+ */
+.xpro-search-span {
+  flex-direction: row;
+  gap: 8px;
+  align-items: end;
+}
+
+.xpro-search-span > label {
+  min-width: 0;
+}
+
+.xpro-search-span > label:first-child {
+  flex: 3 1 0;
+}
+
+.xpro-search-span > label:last-child {
+  flex: 2 1 0;
+}

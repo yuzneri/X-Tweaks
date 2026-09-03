@@ -362,6 +362,13 @@ export const en = {
 
       since: 'From',
       until: 'Until',
+      /** The time of day within the day named beside it. One word, used for both ends */
+      timeOfDay: 'Time',
+      /**
+       * What an empty time means. Said outright because it is the rule that decides what
+       * naming two dates and no times asks for — the whole of both days.
+       */
+      datesNote: 'Leave a time empty and the day is taken whole, from its start to its end.',
 
       tab: 'Show',
       /** X's own tabs, worded as X words them */
@@ -371,6 +378,19 @@ export const en = {
 
       go: 'Search',
       reset: 'Clear',
+
+      /**
+       * The four X has no operator for. They are done to the results after they arrive,
+       * which is what the note says — a reader who does not know that would take them for
+       * part of the search and wonder why they are gone on the next visit.
+       */
+      leaveOutNote:
+        'Done to the results on screen rather than asked of X, and kept only while this ' +
+        'page is open.',
+      excludeReposts: 'Reposts',
+      excludeHashtags: 'Posts with a hashtag',
+      excludeNameOnly: 'Matched only in the display name',
+      excludeHandleOnly: 'Matched only in the @name',
     },
 
     /** The folded groups. Folded because the rail is narrow and the open form is tall */
@@ -380,6 +400,7 @@ export const en = {
       engagement: 'How much it got',
       dates: 'When',
       where: 'Where to look',
+      leaveOut: 'Leave out of the results',
     },
   },
 

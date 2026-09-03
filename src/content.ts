@@ -47,6 +47,13 @@ import {
   remove as removeSearchForm,
 } from './search/insert.tsx';
 import { injectStyles as injectSearchStyles } from './search/styles.ts';
+import {
+  apply as applySearchExclusions,
+  clear as clearSearchExclusions,
+  onSearchResults,
+} from './search/hide.ts';
+import { excludesAnything, termsOf } from './search/exclude.ts';
+import { currentExclusions, currentForm } from './search/state.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
 const log = (...args: unknown[]) => console.log('%c[X Tweaks]', PREFIX_STYLE, ...args);
@@ -265,8 +272,9 @@ const main = async (): Promise<void> => {
       if (paused) {
         removeComposeSwitches();
         // Takes X's own search filters back with it, `/search` being left short of a part
-        // of X's page otherwise
+        // of X's page otherwise. The posts it put away come back for the same reason
         removeSearchForm();
+        clearSearchExclusions();
         // Reading a picture's description is no setting of anyone's, so applying the empty
         // settings does not stop it the way it stops the rest. It is stopped here instead,
         // this being where the pause is known
@@ -285,8 +293,26 @@ const main = async (): Promise<void> => {
        * standing — and what it covered is uncovered with it.
        */
       if (surface.id === 'x') {
-        if (effectiveSettings(current, paused).search.form) insertSearchForm(messages);
-        else removeSearchForm();
+        if (effectiveSettings(current, paused).search.form) {
+          insertSearchForm(messages);
+          /*
+           * The four the form ticks that X has no operator for. Asked on every settling
+           * because the results arrive as the reader scrolls, and the answer changes as
+           * the boxes are ticked. Nothing ticked means nothing to do — and the marks are
+           * let go of, so a post put away under an older answer comes back.
+           */
+          const exclusions = currentExclusions();
+          if (onSearchResults() && excludesAnything(exclusions)) {
+            applySearchExclusions(exclusions, termsOf(currentForm()));
+          } else {
+            // Off the results, and with nothing ticked, every mark is let go of — so the
+            // posts put away on a search come back the moment the reader leaves it
+            clearSearchExclusions();
+          }
+        } else {
+          removeSearchForm();
+          clearSearchExclusions();
+        }
       }
       /*
        * Bringing new posts in. Asked on every settling, since what it goes by is X's own

@@ -20,10 +20,20 @@ import {
   type AccountField,
   type FilterChoice,
   type ResultTab,
+  type Moment,
   type SearchForm,
   type SearchScopes,
 } from './query.ts';
-import { clear, currentForm, currentScopes, updateForm, updateScopes } from './state.ts';
+import { noExclusions, type Exclusions } from './exclude.ts';
+import {
+  clear,
+  currentExclusions,
+  currentForm,
+  currentScopes,
+  updateExclusions,
+  updateForm,
+  updateScopes,
+} from './state.ts';
 
 type Props = { messages: Messages };
 
@@ -64,8 +74,17 @@ const Field = ({
  * opening, the keyboard handling and the "this is collapsed" announcement for nothing, and
  * the state lives in the element, so it survives the form being moved between views.
  */
-const Group = ({ label, children }: { label: string; children: ComponentChildren }) => (
-  <details class="xpro-search-group">
+const Group = ({
+  label,
+  children,
+  name,
+}: {
+  label: string;
+  children: ComponentChildren;
+  /** An extra class, for a group the stylesheet has something to say about */
+  name?: string;
+}) => (
+  <details class={name ? `xpro-search-group ${name}` : 'xpro-search-group'}>
     <summary class="xpro-search-summary">{label}</summary>
     <div class="xpro-search-group-body">{children}</div>
   </details>
@@ -140,6 +159,48 @@ const Number_ = ({
   </label>
 );
 
+/**
+ * One end of the span: a day, and a time of day within it.
+ *
+ * Two controls rather than one `datetime-local`. That one holds nothing at all until every
+ * part of it has been filled, so a reader naming two dates and no times got a search with
+ * no span in it and no sign of why (`Moment`).
+ */
+const Span = ({
+  label,
+  timeLabel,
+  moment,
+  onChange,
+}: {
+  label: string;
+  timeLabel: string;
+  moment: Moment;
+  onChange: (part: Partial<Moment>) => void;
+}) => (
+  <div class="xpro-search-field xpro-search-span">
+    <label class="xpro-search-field">
+      <span class="xpro-search-label">{label}</span>
+      <input
+        type="date"
+        class="xpro-search-input"
+        value={moment.date}
+        onInput={(event) => onChange({ date: event.currentTarget.value })}
+      />
+    </label>
+    <label class="xpro-search-field">
+      <span class="xpro-search-label">{timeLabel}</span>
+      <input
+        type="time"
+        // Seconds as well, which is as fine as the query can say it (`epochSecondsOf`)
+        step={1}
+        class="xpro-search-input"
+        value={moment.time}
+        onInput={(event) => onChange({ time: event.currentTarget.value })}
+      />
+    </label>
+  </div>
+);
+
 export const SearchFormView = ({ messages }: Props) => {
   /*
    * The component holds a copy so that typing redraws. The module is the one that outlives
@@ -165,6 +226,17 @@ export const SearchFormView = ({ messages }: Props) => {
     setScopes(next);
   };
 
+  /*
+   * The four X has no operator for. They change nothing about the query: what they do is
+   * done to the results already on screen, by `hide.ts`, and only while this page is open
+   */
+  const [exclusions, setExclusions] = useState<Exclusions>(currentExclusions);
+  const patchExclusions = (part: Partial<Exclusions>): void => {
+    const next = { ...currentExclusions(), ...part };
+    updateExclusions(next);
+    setExclusions(next);
+  };
+
   const m = messages.search.fields;
   const g = messages.search.groups;
 
@@ -187,6 +259,7 @@ export const SearchFormView = ({ messages }: Props) => {
     clear();
     setForm(emptyForm());
     setScopes(emptyScopes());
+    setExclusions(noExclusions());
   };
 
   return (
@@ -318,30 +391,19 @@ export const SearchFormView = ({ messages }: Props) => {
       </Group>
 
       <Group label={g.dates}>
-        <label class="xpro-search-field">
-          <span class="xpro-search-label">{m.since}</span>
-          <input
-            type="datetime-local"
-            // Seconds as well as the time of day: what the query carries is an instant
-            // (`epochSecondsOf`), so there is no reason to round it off in the field
-            step={1}
-            class="xpro-search-input"
-            value={form.since}
-            onInput={(event) => patch({ since: event.currentTarget.value })}
-          />
-        </label>
-        <label class="xpro-search-field">
-          <span class="xpro-search-label">{m.until}</span>
-          <input
-            type="datetime-local"
-            // Seconds as well as the time of day: what the query carries is an instant
-            // (`epochSecondsOf`), so there is no reason to round it off in the field
-            step={1}
-            class="xpro-search-input"
-            value={form.until}
-            onInput={(event) => patch({ until: event.currentTarget.value })}
-          />
-        </label>
+        <p class="xpro-search-note">{m.datesNote}</p>
+        <Span
+          label={m.since}
+          timeLabel={m.timeOfDay}
+          moment={form.since}
+          onChange={(part) => patch({ since: { ...currentForm().since, ...part } })}
+        />
+        <Span
+          label={m.until}
+          timeLabel={m.timeOfDay}
+          moment={form.until}
+          onChange={(part) => patch({ until: { ...currentForm().until, ...part } })}
+        />
       </Group>
 
       {/*
@@ -382,6 +444,31 @@ export const SearchFormView = ({ messages }: Props) => {
           />
           <span>{m.nearbyOnly}</span>
         </label>
+      </Group>
+
+      {/*
+        Not part of the query. X has no operator for any of these, so they are done to the
+        results after they arrive, and they last no longer than this visit to the page
+      */}
+      <Group label={g.leaveOut} name="xpro-search-leave-out">
+        <p class="xpro-search-note">{m.leaveOutNote}</p>
+        {(
+          [
+            ['reposts', m.excludeReposts],
+            ['hashtags', m.excludeHashtags],
+            ['nameOnly', m.excludeNameOnly],
+            ['handleOnly', m.excludeHandleOnly],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} class="xpro-search-check">
+            <input
+              type="checkbox"
+              checked={exclusions[key]}
+              onChange={(event) => patchExclusions({ [key]: event.currentTarget.checked })}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
       </Group>
 
       <div class="xpro-search-actions">

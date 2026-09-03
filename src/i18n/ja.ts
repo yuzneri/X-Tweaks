@@ -294,8 +294,11 @@ export const ja: Messages = {
       minFaves: 'いいね数の下限',
       minRetweets: 'リポスト数の下限',
 
-      since: 'この日時から',
-      until: 'この日時まで',
+      since: 'この日から',
+      until: 'この日まで',
+      timeOfDay: '時刻',
+      datesNote:
+        '時刻を空にすると、その日を丸ごと（始まりから終わりまで）扱います。',
 
       tab: '表示',
       tabs: { top: '話題のポスト', live: '最新', user: 'アカウント', media: 'メディア', list: 'リスト' },
@@ -304,6 +307,14 @@ export const ja: Messages = {
 
       go: '検索',
       reset: 'クリア',
+
+      leaveOutNote:
+        'X に指定するのではなく、表示された結果に対して行います。'
+        + 'このページを開いているあいだだけ効きます。',
+      excludeReposts: 'リポスト',
+      excludeHashtags: 'ハッシュタグを含む投稿',
+      excludeNameOnly: '表示名にだけ当たった投稿',
+      excludeHandleOnly: '@名にだけ当たった投稿',
     },
 
     groups: {
@@ -312,6 +323,7 @@ export const ja: Messages = {
       engagement: '反応の数',
       dates: '期間',
       where: 'どこを探すか',
+      leaveOut: '結果から除く',
     },
   },
 

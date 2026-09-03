@@ -192,13 +192,36 @@ test('反応数の 0 は指定として通る', () => {
   assert.equal(buildQuery(form({ minFaves: '0' })), 'min_faves:0');
 });
 
-test('日時は since_time: と until_time: の秒になる', () => {
-  // since:/until: は日付までしか言えない。時刻を言えるのはこの形だけ
-  const q = buildQuery(form({ since: '2026-01-01T00:00:00', until: '2026-01-01T01:00:00' }));
+test('日付だけを両端に入れても、両方がクエリに入る', () => {
+  // datetime-local の1欄にしていたときは、時刻まで埋めない端が黙って消えていた
+  const q = buildQuery(
+    form({ since: { date: '2026-01-01', time: '' }, until: { date: '2026-01-01', time: '' } })
+  );
   assert.match(q, /^since_time:\d+ until_time:\d+$/);
   const [since, until] = q.split(' ').map((term) => Number(term.split(':')[1]));
-  // 1時間の差はちょうど 3600 秒。読み手の時間帯に依らず成り立つ
+  // 空の時刻は日の端。同じ日なら 00:00:00 から 23:59:59 で、差は 86399 秒
+  assert.equal(until! - since!, 86399);
+});
+
+test('時刻を入れればその時刻になる', () => {
+  const q = buildQuery(
+    form({
+      since: { date: '2026-01-01', time: '09:30:00' },
+      until: { date: '2026-01-01', time: '10:30:00' },
+    })
+  );
+  const [since, until] = q.split(' ').map((term) => Number(term.split(':')[1]));
   assert.equal(until! - since!, 3600);
+});
+
+test('片方だけ日付を入れても、その片方は入る', () => {
+  assert.match(buildQuery(form({ since: { date: '2026-01-01', time: '' } })), /^since_time:\d+$/);
+  assert.match(buildQuery(form({ until: { date: '2026-01-01', time: '' } })), /^until_time:\d+$/);
+});
+
+test('時刻だけで日付が無ければ、その端は入らない', () => {
+  // 日付がその端を「指定した」ことにする
+  assert.equal(buildQuery(form({ since: { date: '', time: '09:30' } })), '');
 });
 
 test('全部埋めたときの並び', () => {
@@ -218,12 +241,12 @@ test('全部埋めたときの並び', () => {
         links: 'exclude',
         replies: 'exclude',
         minFaves: '100',
-        since: '2026-01-01T00:00:00',
+        since: { date: '2026-01-01', time: '' },
       })
     ),
     'rust "hello world" (go OR zig) -crab #rustlang lang:ja from:alice -to:bob @carol ' +
       'filter:verified -filter:links -filter:replies min_faves:100 ' +
-      `since_time:${epochSecondsOf('2026-01-01T00:00:00')}`
+      `since_time:${epochSecondsOf({ date: '2026-01-01', time: '' }, 'start')}`
   );
 });
 
@@ -233,30 +256,38 @@ test('全部埋めたときの並び', () => {
 // a local moment and X is told the instant. So the assertions here pin the shape and the
 // arithmetic rather than a number that would only hold in one place.
 
-test('空の欄からは秒が出ない', () => {
-  assert.equal(epochSecondsOf(''), null);
-  assert.equal(epochSecondsOf('   '), null);
+test('日付が無ければ秒は出ない', () => {
+  assert.equal(epochSecondsOf({ date: '', time: '' }, 'start'), null);
+  assert.equal(epochSecondsOf({ date: '   ', time: '09:30' }, 'start'), null);
 });
 
 test('日付として読めないものからは秒が出ない', () => {
-  assert.equal(epochSecondsOf('きのう'), null);
-  assert.equal(epochSecondsOf('2026-13-45T99:99:99'), null);
+  assert.equal(epochSecondsOf({ date: 'きのう', time: '' }, 'start'), null);
+  assert.equal(epochSecondsOf({ date: '2026-13-45', time: '' }, 'start'), null);
 });
 
 test('秒は整数で、端数を持たない', () => {
-  const seconds = epochSecondsOf('2026-01-01T09:30:15');
+  const seconds = epochSecondsOf({ date: '2026-01-01', time: '09:30:15' }, 'start');
   assert.ok(seconds !== null && Number.isInteger(seconds));
 });
 
 test('秒まで指定すると、その分だけ差が出る', () => {
-  const a = epochSecondsOf('2026-01-01T09:30:00');
-  const b = epochSecondsOf('2026-01-01T09:30:45');
+  const a = epochSecondsOf({ date: '2026-01-01', time: '09:30:00' }, 'start');
+  const b = epochSecondsOf({ date: '2026-01-01', time: '09:30:45' }, 'start');
   assert.equal(b! - a!, 45);
 });
 
-test('時刻を省いた日付も読める', () => {
-  // The field always fills a time in, but a value arriving from elsewhere may not
-  assert.notEqual(epochSecondsOf('2026-01-01'), null);
+test('秒を省いた時刻も読める', () => {
+  // 秒を求めない欄が返すのは HH:MM。それも受ける
+  const a = epochSecondsOf({ date: '2026-01-01', time: '09:30' }, 'start');
+  const b = epochSecondsOf({ date: '2026-01-01', time: '09:30:00' }, 'start');
+  assert.equal(a, b);
+});
+
+test('時刻が空なら、端によって日の始まりと終わりに落ちる', () => {
+  const 始まり = epochSecondsOf({ date: '2026-01-01', time: '' }, 'start');
+  const 終わり = epochSecondsOf({ date: '2026-01-01', time: '' }, 'end');
+  assert.equal(終わり! - 始まり!, 86399);
 });
 
 // --- searchPath ---

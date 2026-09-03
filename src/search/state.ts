@@ -12,9 +12,15 @@
  * feature deliberately does not do.
  */
 import { emptyForm, emptyScopes, type SearchForm, type SearchScopes } from './query.ts';
+import { noExclusions, type Exclusions } from './exclude.ts';
 
 let form: SearchForm = emptyForm();
 let scopes: SearchScopes = emptyScopes();
+/**
+ * The four X has no operator for. Held here with the rest, and stored no more than the
+ * rest is: they are for the search being read now.
+ */
+let exclusions: Exclusions = noExclusions();
 
 export const currentForm = (): SearchForm => form;
 export const currentScopes = (): SearchScopes => scopes;
@@ -34,7 +40,14 @@ export const updateScopes = (next: SearchScopes): void => {
  * On its own this would leave the fields showing what they showed before: the component
  * reads this module when it mounts and not again.
  */
+export const currentExclusions = (): Exclusions => exclusions;
+
+export const updateExclusions = (next: Exclusions): void => {
+  exclusions = next;
+};
+
 export const clear = (): void => {
   form = emptyForm();
   scopes = emptyScopes();
+  exclusions = noExclusions();
 };

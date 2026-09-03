@@ -65,18 +65,30 @@ export type SearchForm = {
   minReplies: string;
   minFaves: string;
   minRetweets: string;
-  /**
-   * A moment, as `input[type=datetime-local]` holds it: `YYYY-MM-DDTHH:MM:SS`, read in
-   * the reader's own time zone. Empty means "not asked".
-   *
-   * Carried to X as `since_time:` / `until_time:` in whole seconds since the epoch, which
-   * is the only form that can say a time of day at all — `since:` takes a date and
-   * nothing finer. Being an absolute instant, it also settles a question the date form
-   * leaves open: which time zone X reads `since:2026-01-01` in.
-   */
-  since: string;
-  until: string;
+  since: Moment;
+  until: Moment;
 };
+
+/**
+ * One end of a span: a day, and optionally a time of day within it.
+ *
+ * Two fields rather than one `datetime-local`, which was tried and taken out again. That
+ * control holds **nothing at all** until every part of it is filled — a reader who names
+ * two dates and no times gets two empty strings and a search with no span in it, with
+ * nothing on screen to say why (measured, 2026-09-03).
+ *
+ * The date is what makes the end count. The time is what it says: empty, the end falls at
+ * the edge of the day, `startOfDay` for the one and `endOfDay` for the other, so naming
+ * two dates means the whole of both.
+ */
+export type Moment = {
+  /** `YYYY-MM-DD`, as `input[type=date]` holds it. Empty means this end is not asked */
+  date: string;
+  /** `HH:MM` or `HH:MM:SS`, as `input[type=time]` holds it. Empty means the day's edge */
+  time: string;
+};
+
+export const emptyMoment = (): Moment => ({ date: '', time: '' });
 
 /** What goes into the address beside the query itself */
 export type SearchScopes = {
@@ -107,8 +119,8 @@ export const emptyForm = (): SearchForm => ({
   minReplies: '',
   minFaves: '',
   minRetweets: '',
-  since: '',
-  until: '',
+  since: emptyMoment(),
+  until: emptyMoment(),
 });
 
 export const emptyScopes = (): SearchScopes => ({
@@ -243,24 +255,34 @@ const valueTerm = (name: string, value: string): string[] => {
   return trimmed === '' ? [] : [`${name}:${trimmed}`];
 };
 
+/** Where an end of the span falls when no time of day was named */
+export type DayEdge = 'start' | 'end';
+
+const EDGE_TIME: Record<DayEdge, string> = { start: '00:00:00', end: '23:59:59' };
+
 /**
- * Whole seconds since the epoch for a `datetime-local` value, or null where the field is
- * empty or holds something no date can be made of.
+ * Whole seconds since the epoch for one end of the span, or null where no date was named.
  *
- * `YYYY-MM-DDTHH:MM:SS` with no zone on the end is read as the reader's own time, which is
- * what the field means and what the reader typed. Seconds are floored: X counts in whole
- * seconds, and a fraction would reach it as a decimal it has no use for.
+ * The date and the time are joined and read as the reader's own time — no zone is put on
+ * the end, which is what makes it local, and local is what the fields mean. Seconds are
+ * floored: X counts in whole seconds and has no use for a fraction.
+ *
+ * A time with no seconds in it (`18:45`, which is what the field gives unless seconds were
+ * asked for) is filled out to `18:45:00`. Left as it is, it would still parse — this is
+ * only so that what is sent can be read back and recognised.
  */
-export const epochSecondsOf = (value: string): number | null => {
-  const trimmed = value.trim();
-  if (trimmed === '') return null;
-  const at = new Date(trimmed).getTime();
+export const epochSecondsOf = (moment: Moment, edge: DayEdge): number | null => {
+  const date = moment.date.trim();
+  if (date === '') return null;
+  const time = moment.time.trim() || EDGE_TIME[edge];
+  const full = time.length === 5 ? `${time}:00` : time;
+  const at = new Date(`${date}T${full}`).getTime();
   return Number.isNaN(at) ? null : Math.floor(at / 1000);
 };
 
-/** A `since_time:` / `until_time:` term, or nothing where the field was left empty */
-const momentTerm = (name: string, value: string): string[] => {
-  const seconds = epochSecondsOf(value);
+/** A `since_time:` / `until_time:` term, or nothing where no date was named */
+const momentTerm = (name: string, moment: Moment, edge: DayEdge): string[] => {
+  const seconds = epochSecondsOf(moment, edge);
   return seconds === null ? [] : [`${name}:${seconds}`];
 };
 
@@ -328,8 +350,8 @@ export const buildQuery = (form: SearchForm): string => {
    * about these two — they are known from use rather than from X's own writing — so if a
    * search comes back wrong these are the first thing to doubt.
    */
-  parts.push(...momentTerm('since_time', form.since));
-  parts.push(...momentTerm('until_time', form.until));
+  parts.push(...momentTerm('since_time', form.since, 'start'));
+  parts.push(...momentTerm('until_time', form.until, 'end'));
 
   return parts.join(' ');
 };

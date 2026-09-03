@@ -9,6 +9,7 @@
 import { render } from 'preact';
 import type { Messages } from '../i18n/index.ts';
 import { SearchFormView } from './Form.tsx';
+import { onSearchResults } from './hide.ts';
 import { placementIn } from './rail.ts';
 
 /** The mark on what was inserted, so nothing is inserted twice */
@@ -19,6 +20,16 @@ const COVERED = 'data-xpro-search-covered';
 
 /** The node the form is rendered into, marked so it can be found again to unmount */
 const MOUNT = 'data-xpro-search-mount';
+
+/**
+ * Written on the panel while the page being read is a search's results.
+ *
+ * The group of four that are done to the results is shown only there. Carried as an
+ * attribute and answered in the stylesheet rather than as a prop, because the reader moves
+ * between views without the form being rebuilt — a prop would need a redraw that nothing
+ * asks for, while an attribute set on every settling is already the rhythm this runs at.
+ */
+const ON_RESULTS = 'data-xpro-search-on-results';
 
 /**
  * Hides one of X's blocks rather than removing it.
@@ -100,15 +111,16 @@ export const insertInto = (messages: Messages): number => {
 
   const existing = placement.holder.querySelector(`:scope > [${MARK}]`);
   if (existing) {
+    // Which page this is changes as the reader moves, and the form is not rebuilt for it
+    existing.toggleAttribute(ON_RESULTS, onSearchResults());
     /*
      * Standing somewhere is not the same as standing in the right place. The form goes
      * under the search box on a timeline and at the head of the rail on the search
      * results, so a move between the two leaves it where the previous view wanted it.
      * Moved rather than rebuilt: `insertBefore` takes a node already in the document, so
      * whatever has been typed into the form survives the move.
-     */
-    /*
-     * `existing !== placement.before` as well as the position check. Moving a node is
+     *
+     * `existing !== placement.before` is checked as well as the position. Moving a node is
      * taking it out of the document and putting it back, which drops the caret out of
      * whatever field was being typed in — so this must not run on a form already standing
      * where it belongs. `rail.ts` no longer answers with the panel itself (`withoutOurs`);
@@ -120,7 +132,9 @@ export const insertInto = (messages: Messages): number => {
     return 0;
   }
 
-  placement.holder.insertBefore(build(messages), placement.before);
+  const box = build(messages);
+  box.toggleAttribute(ON_RESULTS, onSearchResults());
+  placement.holder.insertBefore(box, placement.before);
   return 1;
 };
 
