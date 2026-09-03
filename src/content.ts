@@ -47,6 +47,9 @@ import {
   remove as removeSearchForm,
 } from './search/insert.tsx';
 import { injectStyles as injectSearchStyles } from './search/styles.ts';
+import { watchSearchBox } from './search/mirror.ts';
+import { parseQuery } from './search/parse.ts';
+import { adoptFromSearchBox } from './search/state.ts';
 import {
   apply as applySearchExclusions,
   clear as clearSearchExclusions,
@@ -173,7 +176,16 @@ const main = async (): Promise<void> => {
    */
   injectComposeStyles();
   // x.com alone: X Pro has no rail for the form to stand in
-  if (surface.id === 'x') injectSearchStyles();
+  if (surface.id === 'x') {
+    injectSearchStyles();
+    /*
+     * What the reader types into X's own search box goes into the form, so a search begun
+     * there can be narrowed down here. Started once and left running whether or not the
+     * form is switched on: it only writes to this feature's own values, which nobody reads
+     * while the form is off.
+     */
+    watchSearchBox((query) => adoptFromSearchBox(parseQuery(query)));
+  }
   startComposeSwitches(effectiveSettings(current, paused).compose, (compose) => {
     save({ ...current, compose }).catch(warnSaveFailed('the posting settings'));
   });

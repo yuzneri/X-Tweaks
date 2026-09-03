@@ -9,7 +9,7 @@
  * moves about, and a query half typed should survive that.
  */
 import type { ComponentChildren } from 'preact';
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Messages } from '../i18n/index.ts';
 import { LANGUAGE_CODES } from './languages.ts';
 import {
@@ -25,11 +25,13 @@ import {
   type SearchScopes,
 } from './query.ts';
 import { noExclusions, type Exclusions } from './exclude.ts';
+import { mirror } from './mirror.ts';
 import {
   clear,
   currentExclusions,
   currentForm,
   currentScopes,
+  onChangedOutside,
   updateExclusions,
   updateForm,
   updateScopes,
@@ -253,6 +255,19 @@ export const SearchFormView = ({ messages }: Props) => {
   const query = buildQuery(form);
   const path = searchPath(query, scopes);
   const go = useRef<HTMLAnchorElement>(null);
+
+  /*
+   * The same query, shown in X's own search box. An effect rather than a call in the
+   * handlers: it should follow whatever the form says, however the form came to say it —
+   * typed, cleared, or filled in from the address (`adoptQuery`).
+   */
+  useEffect(() => mirror(query), [query]);
+
+  /*
+   * The values can also be changed from outside this component — the reader typing into
+   * X's own search box. The module is told first and tells this, which reads it again.
+   */
+  useEffect(() => onChangedOutside(() => setForm(currentForm())), []);
 
   /** Empties the form, and what this component is showing along with it */
   const reset = (): void => {

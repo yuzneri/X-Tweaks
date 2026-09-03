@@ -10,7 +10,9 @@ import { render } from 'preact';
 import type { Messages } from '../i18n/index.ts';
 import { SearchFormView } from './Form.tsx';
 import { onSearchResults } from './hide.ts';
+import { parseQuery, parseScopes, queryIn } from './parse.ts';
 import { placementIn } from './rail.ts';
+import { adoptQuery } from './state.ts';
 
 /** The mark on what was inserted, so nothing is inserted twice */
 const MARK = 'data-xpro-search';
@@ -94,6 +96,23 @@ export const insertInto = (messages: Messages): number => {
   if (!placement) return 0;
 
   /*
+   * A search arrived at without this form — a trend pressed, a link somebody shared, a
+   * page reloaded — is taken up so that it can be refined rather than retyped. Only an
+   * untouched form is filled in (`adoptQuery`), so this cannot take away what is being
+   * typed. Where it does fill something in, the form is rebuilt: what it shows comes from
+   * the module when it mounts, and it does not read it again.
+   */
+  let adopted = false;
+  if (onSearchResults()) {
+    adopted = adoptQuery(
+      location.search,
+      parseQuery(queryIn(location.search)),
+      parseScopes(location.search)
+    );
+    if (adopted) remove();
+  }
+
+  /*
    * What the form stands in for changes with the rail. x.com moves between views without
    * reloading, and the rail has three shapes: what was covered on the search results is
    * not covered on a timeline. A block left hidden across that move would be a part of X's
@@ -109,7 +128,7 @@ export const insertInto = (messages: Messages): number => {
    */
   for (const block of placement.covers) cover(block);
 
-  const existing = placement.holder.querySelector(`:scope > [${MARK}]`);
+  const existing = adopted ? null : placement.holder.querySelector(`:scope > [${MARK}]`);
   if (existing) {
     // Which page this is changes as the reader moves, and the form is not rebuilt for it
     existing.toggleAttribute(ON_RESULTS, onSearchResults());
