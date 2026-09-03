@@ -42,6 +42,11 @@ import {
   updateSettings as updateComposeSwitches,
 } from './compose/switches.ts';
 import { injectStyles as injectComposeStyles } from './compose/styles.ts';
+import {
+  insertInto as insertSearchForm,
+  remove as removeSearchForm,
+} from './search/insert.ts';
+import { injectStyles as injectSearchStyles } from './search/styles.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
 const log = (...args: unknown[]) => console.log('%c[X Tweaks]', PREFIX_STYLE, ...args);
@@ -160,6 +165,8 @@ const main = async (): Promise<void> => {
    * what was chosen.
    */
   injectComposeStyles();
+  // x.com alone: X Pro has no rail for the form to stand in
+  if (surface.id === 'x') injectSearchStyles();
   startComposeSwitches(effectiveSettings(current, paused).compose, (compose) => {
     save({ ...current, compose }).catch(warnSaveFailed('the posting settings'));
   });
@@ -257,6 +264,9 @@ const main = async (): Promise<void> => {
       // rather than left showing values that would not take effect
       if (paused) {
         removeComposeSwitches();
+        // Takes X's own search filters back with it, `/search` being left short of a part
+        // of X's page otherwise
+        removeSearchForm();
         // Reading a picture's description is no setting of anyone's, so applying the empty
         // settings does not stop it the way it stops the rest. It is stopped here instead,
         // this being where the pause is known
@@ -268,6 +278,16 @@ const main = async (): Promise<void> => {
         return;
       }
       insertComposeSwitches(messages);
+      /*
+       * The search form. Asked on every settling for the reason the compose switches are:
+       * X redraws the rail as the page is used, and moving between views changes which of
+       * the rail's three shapes is on screen. Off, the form is taken out rather than left
+       * standing — and what it covered is uncovered with it.
+       */
+      if (surface.id === 'x') {
+        if (effectiveSettings(current, paused).search.form) insertSearchForm(messages);
+        else removeSearchForm();
+      }
       /*
        * Bringing new posts in. Asked on every settling, since what it goes by is X's own
        * button appearing rather than anything the extension does. x.com only: X Pro keeps
