@@ -108,3 +108,44 @@
   gap: 8px;
   padding-top: 8px;
 }
+
+.xpro-search-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Both are pills, the way X shapes its own buttons */
+.xpro-search-go,
+.xpro-search-reset {
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.xpro-search-go {
+  /* X's own blue, the colour it puts on the button that does the thing */
+  background: rgb(29, 155, 240);
+  color: rgb(255, 255, 255);
+}
+
+/*
+ * With nothing typed there is no address, so the anchor carries no href. It is dimmed and
+ * takes no pointer, which is what an anchor with nowhere to go should look like.
+ */
+.xpro-search-go:not([href]) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.xpro-search-reset {
+  border: 1px solid var(--color-border, rgb(47, 51, 54));
+  background: transparent;
+  color: inherit;
+}

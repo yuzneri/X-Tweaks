@@ -26,3 +26,15 @@ export const updateForm = (next: SearchForm): void => {
 export const updateScopes = (next: SearchScopes): void => {
   scopes = next;
 };
+
+/**
+ * Empties both.
+ *
+ * Only ever called from the form, which empties what it is showing in the same breath.
+ * On its own this would leave the fields showing what they showed before: the component
+ * reads this module when it mounts and not again.
+ */
+export const clear = (): void => {
+  form = emptyForm();
+  scopes = emptyScopes();
+};

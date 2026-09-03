@@ -107,7 +107,14 @@ export const insertInto = (messages: Messages): number => {
      * Moved rather than rebuilt: `insertBefore` takes a node already in the document, so
      * whatever has been typed into the form survives the move.
      */
-    if (existing.nextElementSibling !== placement.before) {
+    /*
+     * `existing !== placement.before` as well as the position check. Moving a node is
+     * taking it out of the document and putting it back, which drops the caret out of
+     * whatever field was being typed in — so this must not run on a form already standing
+     * where it belongs. `rail.ts` no longer answers with the panel itself (`withoutOurs`);
+     * this is the second lock on a fault whose only symptom is a caret quietly going away.
+     */
+    if (existing !== placement.before && existing.nextElementSibling !== placement.before) {
       placement.holder.insertBefore(existing, placement.before);
     }
     return 0;

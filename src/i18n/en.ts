@@ -368,6 +368,9 @@ export const en = {
       tabs: { top: 'Top', live: 'Latest', user: 'People', media: 'Media', list: 'Lists' },
       followedOnly: 'Only accounts you follow',
       nearbyOnly: 'Only near you',
+
+      go: 'Search',
+      reset: 'Clear',
     },
 
     /** The folded groups. Folded because the rail is narrow and the open form is tall */

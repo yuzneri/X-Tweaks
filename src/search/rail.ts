@@ -18,6 +18,14 @@
 
 const RAIL = '[data-testid="sidebarColumn"]';
 
+/**
+ * The mark on the panel this feature puts in the rail.
+ *
+ * Named here rather than only where the panel is built, because deciding where the panel
+ * goes means being able to tell it apart from X's own blocks — see `withoutOurs`.
+ */
+export const PANEL = 'data-xpro-search';
+
 /** X's search box. Present in the rail on a timeline, and nowhere near it on /search */
 const SEARCH_FORM = 'form[role="search"]';
 
@@ -104,6 +112,19 @@ const isSpacer = (element: Element): boolean =>
  */
 const isFilterHeading = (element: Element): boolean => element.querySelector('a') === null;
 
+/**
+ * The same element, or the one after it where it is the panel already standing there.
+ *
+ * Where the form goes must not depend on whether the form is already there. Without this,
+ * a panel standing in exactly the right place makes the answer come back as "put it before
+ * itself": on a timeline the step past the spacer lands on the panel, and at the head of
+ * the rail the first child *is* the panel. The insertion then sees a place it does not
+ * match, moves it — and a node moved is a node taken out of the document and put back,
+ * which drops the caret out of whatever field was being typed in.
+ */
+const withoutOurs = (element: Element | null): Element | null =>
+  element?.hasAttribute(PANEL) ? element.nextElementSibling : element;
+
 /** Where the form goes, and what of X's is covered over to make room for it */
 export type Placement = {
   /** The container to insert into */
@@ -141,7 +162,7 @@ export const placementIn = (root: ParentNode = document): Placement | null => {
     // Past the spacer as well, so the form starts where the rail's contents actually start
     const next = block.nextElementSibling;
     const after = next && isSpacer(next) ? next : block;
-    return { holder, before: after.nextElementSibling, covers: [] };
+    return { holder, before: withoutOurs(after.nextElementSibling), covers: [] };
   }
 
   if (shape === 'replace-filters' && advancedSearch) {
@@ -152,5 +173,5 @@ export const placementIn = (root: ParentNode = document): Placement | null => {
     return { holder, before: covers[0] ?? block, covers };
   }
 
-  return { holder, before: holder.firstElementChild, covers: [] };
+  return { holder, before: withoutOurs(holder.firstElementChild), covers: [] };
 };

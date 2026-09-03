@@ -9,11 +9,21 @@
  * moves about, and a query half typed should survive that.
  */
 import type { ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import type { Messages } from '../i18n/index.ts';
 import { LANGUAGE_CODES } from './languages.ts';
-import type { AccountField, FilterChoice, ResultTab, SearchForm, SearchScopes } from './query.ts';
-import { currentForm, currentScopes, updateForm, updateScopes } from './state.ts';
+import {
+  buildQuery,
+  emptyForm,
+  emptyScopes,
+  searchPath,
+  type AccountField,
+  type FilterChoice,
+  type ResultTab,
+  type SearchForm,
+  type SearchScopes,
+} from './query.ts';
+import { clear, currentForm, currentScopes, updateForm, updateScopes } from './state.ts';
 
 type Props = { messages: Messages };
 
@@ -158,11 +168,46 @@ export const SearchFormView = ({ messages }: Props) => {
   const m = messages.search.fields;
   const g = messages.search.groups;
 
+  /*
+   * Where this form would take the reader, worked out afresh on every redraw so the link
+   * always carries what the fields say now.
+   *
+   * The search is a plain link, not a script that navigates. x.com writes its own trend
+   * links the same way, so X's router picks this up as it picks those up and moves without
+   * reloading. Where it does not, the browser follows the link itself and the reader still
+   * lands on the right page — slower, but never wrong. That is why there is no fallback
+   * here to write: an anchor already has one.
+   */
+  const query = buildQuery(form);
+  const path = searchPath(query, scopes);
+  const go = useRef<HTMLAnchorElement>(null);
+
+  /** Empties the form, and what this component is showing along with it */
+  const reset = (): void => {
+    clear();
+    setForm(emptyForm());
+    setScopes(emptyScopes());
+  };
+
   return (
     <form
       class="xpro-search-form"
-      // Nothing is sent anywhere: the search is a move to another address, made by the
-      // button. Left alone, a press of Enter would reload the page instead
+      /*
+       * Enter is caught here rather than left to the form's own submission. A form with no
+       * submit button submits on Enter only where it holds exactly one field that blocks
+       * implicit submission, and this one holds thirteen — left to the browser, Enter would
+       * do nothing at all (measured).
+       */
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter') return;
+        // Inside a select or a details summary, Enter is theirs. Only a text-like field
+        // means "I have finished typing"
+        if (!(event.target instanceof HTMLInputElement)) return;
+        event.preventDefault();
+        if (query !== '') go.current?.click();
+      }}
+      // Kept even though nothing submits today: the day a submit button is added here,
+      // this is what stops the page being sent somewhere and reloaded
       onSubmit={(event) => event.preventDefault()}
     >
       <Field label={m.all} value={form.all} onInput={(all) => patch({ all })} />
@@ -338,6 +383,25 @@ export const SearchFormView = ({ messages }: Props) => {
           <span>{m.nearbyOnly}</span>
         </label>
       </Group>
+
+      <div class="xpro-search-actions">
+        <button type="button" class="xpro-search-reset" onClick={reset}>
+          {m.reset}
+        </button>
+        {/*
+          An anchor without an href is not a link: it cannot be focused or followed, which
+          is exactly what an empty form should offer. Written this way rather than as a
+          disabled button so that the one control is a link whenever it leads anywhere.
+        */}
+        <a
+          ref={go}
+          class="xpro-search-go"
+          href={query === '' ? undefined : path}
+          aria-disabled={query === '' ? 'true' : undefined}
+        >
+          {m.go}
+        </a>
+      </div>
     </form>
   );
 };

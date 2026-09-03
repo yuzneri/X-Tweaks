@@ -301,6 +301,9 @@ export const ja: Messages = {
       tabs: { top: '話題のポスト', live: '最新', user: 'アカウント', media: 'メディア', list: 'リスト' },
       followedOnly: 'フォローしているアカウントだけ',
       nearbyOnly: '近くの場所だけ',
+
+      go: '検索',
+      reset: 'クリア',
     },
 
     groups: {
