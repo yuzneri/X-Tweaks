@@ -21,7 +21,7 @@ X Tweaks
 
 ## Short description
 
-Filters the X Pro and x.com timelines: collapse, hide or highlight posts, and change the text size, colors and time display.
+Filters the X Pro and x.com timelines: collapse, hide or highlight posts, read picture descriptions, search, and tidy the page.
 
 ## Full description
 
@@ -47,12 +47,34 @@ Rules can be reordered, and the first one that matches from the top decides what
 - Fold the line breaks in a post into spaces, so each one takes less room
 - Show photos, videos, link cards and quoted posts as they are, as a mark, as text, or not at all
 - Text size, largest thumbnail height, column width (X Pro only)
-- Eight colors: the background, the author name, the post text, the secondary text, links, the line between posts, and more
+- Ten colors: the background, the author name, the post text, the secondary text, links, the line between posts, and more
+- Colour the compose form by the account it will post as, so you can see at a glance who you are posting as
 - Show the date and time instead of "2h"
 
-■ Settings live in three scopes
+■ Read the description written for a picture
 
-Global, per account, and the column you are looking at on X Pro or the view you are on at x.com (home, notifications, bookmarks, a list, a profile, a search).
+What an author wrote for a picture can be written out under it. X Pro shows it nowhere itself.
+It is there even when the pictures themselves are hidden, and it is on hover as well.
+
+■ Detailed search (x.com)
+
+A form beside the timeline for building an X search out of fields, so the operators do not have to be remembered.
+
+- Keywords, accounts, a span of days, the language, whether it has a link or a photo, the least it must have in replies or likes
+- On a search's results it takes the place of X's own search filters
+- A search reached from a trend or a hashtag fills the form, so it can be narrowed down rather than retyped
+- Things X's search cannot be asked for, such as leaving reposts out, or posts that matched only somebody's name
+
+■ Tidy the page around the timeline (x.com)
+
+- Take the whole rail away and let the timeline widen
+- Take away what is in the rail, the items down the left, and the entries in the "More" menu, one at a time
+- Take away what X slips in: the accounts it suggests, and "Discover more" under a post
+- Bring new posts in by itself
+
+■ Settings live in five scopes
+
+Global, per account, per site (X Pro / x.com), per account on one site, and the column you are looking at on X Pro or the view you are on at x.com (home, notifications, bookmarks, a list, a profile, a search).
 The narrower scope wins. "What applies" on the settings screen shows which scope each value came from.
 
 ■ The compose form (X Pro)
