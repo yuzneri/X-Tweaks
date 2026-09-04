@@ -16,10 +16,12 @@ import {
   type Tally,
 } from './health.ts';
 import { apply, isExpandedByUser, reset, type Look } from './apply.ts';
+import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
+import { handledChanges } from '../appearance/changed.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
@@ -29,14 +31,6 @@ import { saveAdGuard, saveHealth } from '../settings/storage.ts';
  * detached from the DOM disappears along with the reference.
  */
 let judged = new WeakSet<Element>();
-
-/**
- * How long to wait while changes keep coming, batching them together. It turns
- * directly into the delay before a new post is collapsed.
- * One round of settling work takes about 4ms, so even at this interval the share of
- * time held stays within 8%.
- */
-const SETTLE_MS = 50;
 
 let current: Settings | null = null;
 
@@ -321,46 +315,69 @@ const guard = (name: string, step: () => void): void => {
 };
 
 /**
+ * One settling, start to finish.
+ *
+ * However the work below leaves off, the round is closed: what the passes were told to
+ * look at has been looked at. What they wrote themselves is reported to the watch after
+ * this task rather than during it, so it lands on the next round instead of being
+ * cleared here unlooked-at (`appearance/changed.ts`).
+ */
+const settle = (): void => {
+  try {
+    settleWork();
+  } finally {
+    handledChanges();
+  }
+};
+
+/**
+ * The work itself: everything that has to be looked at again once the DOM has stopped
+ * changing. The jobs are independent, so a failure in one lets the rest proceed. An
+ * exception escaping upward would leave neither the markers nor the judging running, and
+ * the whole extension would look dead.
+ */
+const settleWork = (): void => {
+  guard('onSettle', () => hooks?.onSettle?.());
+  // Discard the emphasis ranges attached to posts that left the screen
+  guard('sweep', sweep);
+  // A redraw by X wipes the column markers and the media frame markers, so they are set again on every settling
+  guard('stampColumns', stampColumns);
+  guard('stampMediaFrames', stampMediaFrames);
+  // When the arrangement of columns changes, resolve the columnIds and accounts again
+  if (surface().signature() !== knownSignature) {
+    refreshColumns().catch((error: unknown) => {
+      hooks?.logStyled(`xpro-tweaks: column refresh failed: ${String(error)}`, 'color:#f59e0b');
+    });
+    // Columns arrive one at a time over tens of seconds, so waiting for all of them
+    // would leave new posts untouched. Cells inside a column with no marker are
+    // skipped: a result reached without the column tier gets overturned later and flickers
+    guard('judge', () => judgeNew(document, true));
+    return;
+  }
+  // Even when the set of columns is the same, the names arrive late
+  guard('detect', () => report(surface().detect()));
+  guard('judge', () => judgeNew(document));
+};
+
+/**
  * A single Observer for the whole deck.
  * Not being per column, it needs no re-attaching as columns are created and destroyed.
  */
 const observe = (): void => {
   // Rather than judging on every change, wait a little and pick up the unjudged cells
   // together. X inserts in bulk while scrolling, and handling them one at a time cannot
-  // keep up.
-  //
-  // requestAnimationFrame is not used because it is not called in a background tab, and
-  // the accumulated changes would keep growing unprocessed until the tab comes back.
+  // keep up. How long to wait is `pace.ts`'s to answer, from what the last round cost
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let wait = SETTLE_MS;
 
   const observer = new MutationObserver(() => {
     if (timer !== null) return;
     timer = setTimeout(() => {
       timer = null;
-      // The settling jobs are independent, so a failure in one lets the rest proceed.
-      // An exception escaping upward would leave neither the markers nor the judging
-      // running, and the whole extension would look dead
-      guard('onSettle', () => hooks?.onSettle?.());
-      // Discard the emphasis ranges attached to posts that left the screen
-      guard('sweep', sweep);
-      // A redraw by X wipes the column markers and the media frame markers, so they are set again on every settling
-      guard('stampColumns', stampColumns);
-      guard('stampMediaFrames', stampMediaFrames);
-      // When the arrangement of columns changes, resolve the columnIds and accounts again
-      if (surface().signature() !== knownSignature) {
-        refreshColumns().catch((error: unknown) => {
-          hooks?.logStyled(`xpro-tweaks: column refresh failed: ${String(error)}`, 'color:#f59e0b');
-        });
-        // Columns arrive one at a time over tens of seconds, so waiting for all of them
-        // would leave new posts untouched. Cells inside a column with no marker are
-        // skipped: a result reached without the column tier gets overturned later and flickers
-        guard('judge', () => judgeNew(document, true));
-        return;
-      }
-      // Even when the set of columns is the same, the names arrive late
-      guard('detect', () => report(surface().detect()));
-      guard('judge', () => judgeNew(document));
-    }, SETTLE_MS);
+      const started = performance.now();
+      settle();
+      wait = nextWait(performance.now() - started);
+    }, wait);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
