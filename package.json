@@ -1,6 +1,6 @@
 {
   "name": "xpro-tweaks",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "license": "Apache-2.0",
   "description": "X Pro（pro.x.com）のタイムラインをカラム単位で絞り込み、見た目を調整するブラウザ拡張",
