@@ -47,9 +47,34 @@ const resultOf = (post: {
 });
 
 /**
+ * What was read out of each cell.
+ *
+ * The judging has to happen again on every settling — the answer changes as the boxes are
+ * ticked — but the reading does not: `readPost` searches a cell a couple of dozen times
+ * over, and a page of results holds hundreds of them (measured at ~20ms a settling on a
+ * long page, spent reading the same posts over and over). What a post says does not change
+ * while it is on screen, and a post X redraws arrives in a new element, which is not this
+ * one.
+ *
+ * A cell that could not be read is not remembered: it may be one X is still building, and
+ * the next settling has to look again.
+ */
+const read = new WeakMap<Element, Result>();
+
+const resultFor = (cell: Element): Result | null => {
+  const known = read.get(cell);
+  if (known) return known;
+  const post = readPost(cell);
+  if (post === null) return null;
+  const result = resultOf(post);
+  read.set(cell, result);
+  return result;
+};
+
+/**
  * Goes over the results and marks what should not be seen, returning how many were marked.
  *
- * Every cell is looked at each time and the mark brought into line, rather than only the
+ * Every cell is judged each time and the mark brought into line, rather than only the
  * new ones being marked: the answer changes as the reader ticks and unticks the boxes, and
  * a cell marked under the previous answer has to be let go of.
  */
@@ -60,9 +85,9 @@ export const apply = (
 ): number => {
   let hidden = 0;
   for (const cell of root.querySelectorAll(CELL_SELECTOR)) {
-    const post = readPost(cell);
+    const result = resultFor(cell);
     // A cell with no post in it — X's own notices, the box at the head — is left alone
-    const out = post !== null && isExcluded(resultOf(post), exclusions, terms);
+    const out = result !== null && isExcluded(result, exclusions, terms);
     if (out) hidden += 1;
     if (out === cell.hasAttribute(HIDDEN)) continue;
     if (out) cell.setAttribute(HIDDEN, '');
