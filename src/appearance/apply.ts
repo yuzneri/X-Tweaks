@@ -25,6 +25,7 @@ import {
   X_SHOW_MORE,
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
+import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
@@ -60,7 +61,6 @@ import type { Messages } from '../i18n/index.ts';
 import { composeColors, pageColor } from './compose-colors.ts';
 import {
   buildCss,
-  captionTargets,
   chromeCss,
   columnKey,
   composeCss,
@@ -117,6 +117,11 @@ export const stampColumns = (): void => {
     if (opened !== scope.hasAttribute(OPENED_ATTR)) {
       if (opened) scope.setAttribute(OPENED_ATTR, '');
       else scope.removeAttribute(OPENED_ATTR);
+      /*
+       * Everything the passes decide inside this scope turns on it, and the scope is not
+       * a post, so nothing about this reaches the watch on the posts (`changed.ts`)
+       */
+      changeEverything();
     }
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
@@ -133,9 +138,6 @@ export const stampColumns = (): void => {
     if (!live.some((scope) => scope.contains(el))) el.removeAttribute(HEADER_ATTR);
   });
 };
-
-/** Picks up only the media inside columns. Markers are set per column, so there is no need to look outside */
-const MEDIA_IN_COLUMN = MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}] ${target}`).join(', ');
 
 /** The media anywhere on the page. What a picture says for itself is not a per-column matter */
 const MEDIA_ANYWHERE = MEDIA_TARGETS.join(', ');
@@ -182,15 +184,178 @@ const frameOf = (media: Element, limit: number): Element | null => {
   return decider ?? wrapper;
 };
 
-/** Takes the marking threshold from the appearance of the column this media sits in. null when none is needed */
-const limitOf = (media: Element, columns: ColumnAppearance[]): number | null => {
-  const key = media.closest(`[${COLUMN_ATTR}]`)?.getAttribute(COLUMN_ATTR);
-  const appearance = columns.find((column) => column.key === key)?.appearance;
-  return appearance ? limitFor(appearance) : null;
+/** One scope on screen, with the appearance that applies inside it */
+type MarkedColumn = { element: Element; appearance: AppearanceNode };
+
+/**
+ * The scopes on screen, each with its appearance.
+ *
+ * Every pass that marks something walks these rather than the whole page, and asks each
+ * scope for what is inside it. Going the other way — every picture, every body, every
+ * cell on the page, each walking back up to find its scope and then searching the list
+ * for that scope's appearance — costs a walk and a search per element, and there are
+ * hundreds of them on a timeline.
+ */
+const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
+  const byKey = new Map(columns.map((column) => [column.key, column.appearance]));
+  const found: MarkedColumn[] = [];
+  document.querySelectorAll(`[${COLUMN_ATTR}]`).forEach((element) => {
+    const appearance = byKey.get(element.getAttribute(COLUMN_ATTR) ?? '');
+    if (!appearance) return;
+    // Its width is what everything inside it wraps at, so a change to it is what makes
+    // the measurements taken inside it worth taking again
+    watchSize(element);
+    found.push({ element, appearance });
+  });
+  return found;
 };
 
 const clearMediaFrames = (): void =>
   document.querySelectorAll(`[${MEDIA_FRAME_ATTR}]`).forEach((el) => el.removeAttribute(MEDIA_FRAME_ATTR));
+
+/**
+ * The posts in one scope that this round has to look at, and where to search for what
+ * they hold.
+ *
+ * A round that was told which posts changed searches those posts; one that was told
+ * nothing — the settings moved, or the safety round came due — searches the whole scope.
+ * Which it is comes from `changed.ts`, and is the same answer for every pass in a settling.
+ */
+const cellsIn = (element: Element, changed: Set<Element> | null): Element[] =>
+  changed === null
+    ? [...element.querySelectorAll(CELL_SELECTOR)]
+    : [...changed].filter((cell) => element.contains(cell));
+
+/** The same, as places to search rather than posts to work on */
+const rootsIn = (element: Element, changed: Set<Element> | null): Element[] =>
+  changed === null ? [element] : cellsIn(element, changed);
+
+/**
+ * Where to take a mark off again.
+ *
+ * A round working from the changed posts must only tidy up inside them: a sweep of the
+ * whole page would take the marks off every post it did not look at this time.
+ */
+const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
+  changed === null ? [document] : [...changed];
+
+/*
+ * ---- What was measured, and when it stops being true --------------------------------
+ *
+ * Two of the passes below have to measure the page: the media frames walk up asking how
+ * tall each box is drawn, and the "Show more" asks whether a body has more text than its
+ * limit shows. Both force the browser to lay the page out then and there, and both used
+ * to ask again for every picture and every body on every settling — which on a timeline
+ * of several hundred posts is what made the page stop responding (measured: ~860ms of a
+ * settling, over 90% of it in `getBoundingClientRect`, `clientHeight` and
+ * `getComputedStyle`).
+ *
+ * So what was measured is remembered per element. The element itself is the key: X
+ * builds a post anew when it redraws one, and a new element has nothing remembered
+ * about it, which is the same answer as measuring it again.
+ *
+ * What the memory cannot see is the page changing around an element that stayed put.
+ * Three things do that, and each has its own answer:
+ *   - the settings changed, or the columns did: `remeasureEverything` (from
+ *     `applyAppearance`), because the limits themselves moved
+ *   - a scope changed size: the same, because everything in it wraps differently at
+ *     another width. Watched on the scopes themselves rather than on the window, so that
+ *     a column widened where it stands — by our own setting, by X Pro's, or by the window
+ *     — is caught the same way
+ *   - a picture finished loading: that one picture is forgotten, not the page — pictures
+ *     arrive one at a time while the reader scrolls, and forgetting everything each time
+ *     one did would leave nothing remembered at all
+ */
+
+/** What was measured for one medium, and the state of the page it was measured in */
+const frames = new WeakMap<Element, { generation: number; limit: number; frame: Element | null }>();
+
+/** What was measured for one body, and the state of the page it was measured in */
+const overflows = new WeakMap<Element, { generation: number; key: string; over: boolean }>();
+
+/**
+ * Which round of measurements is current. Everything measured under an earlier one is
+ * measured again the next time it is asked for.
+ */
+let generation = 0;
+
+const remeasureEverything = (): void => {
+  generation++;
+};
+
+/** How wide each watched scope was when it was last looked at */
+const widths = new WeakMap<Element, number>();
+
+/**
+ * Watches the scopes for a change of *width*.
+ *
+ * The height is ignored on purpose. A timeline grows taller with every batch of posts
+ * that arrives — on x.com the scope itself is what grows — and treating that as a reason
+ * to measure the page again would throw the memory away exactly while scrolling, which is
+ * the one time it is worth having. Nothing measured here follows the height: what a body
+ * wraps at and how tall a picture is drawn both follow the width.
+ *
+ * The first answer for a scope arrives as soon as it is watched, and costs one round of
+ * measuring.
+ */
+const sizes = new ResizeObserver((entries) => {
+  let changed = false;
+  for (const entry of entries) {
+    const width = entry.contentRect.width;
+    if (widths.get(entry.target) === width) continue;
+    widths.set(entry.target, width);
+    changed = true;
+  }
+  if (changed) remeasureEverything();
+});
+
+/**
+ * The scopes being watched. Held to be let go of: an Observer keeps what it watches
+ * alive, so a column X has taken off the page would stay in memory — with every post in
+ * it — for as long as the tab is open.
+ */
+const watching = new Set<Element>();
+
+const watchSize = (element: Element): void => {
+  if (watching.has(element)) return;
+  watching.add(element);
+  sizes.observe(element);
+};
+
+/** Lets go of the scopes that have left the page. Cheap: a deck holds a handful of them */
+const forgetGoneScopes = (): void => {
+  for (const element of watching) {
+    if (element.isConnected) continue;
+    sizes.unobserve(element);
+    watching.delete(element);
+  }
+};
+
+let watchingLoads = false;
+
+/** Subscribes to what makes a measurement stale. Called before the first one is taken */
+const watchMeasurements = (): void => {
+  if (watchingLoads) return;
+  watchingLoads = true;
+  /*
+   * A picture's height is only known once it has loaded, and until then it measures as
+   * "not drawn yet". Caught on the way down because `load` does not bubble: a listener
+   * on `document` still sees it in the capture phase, which is one listener for every
+   * picture on the page rather than one apiece.
+   */
+  document.addEventListener(
+    'load',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      frames.delete(target.closest(MEDIA_ANYWHERE) ?? target);
+      // Forgetting what was measured is not enough on its own: the post it is in has to
+      // be looked at again for anyone to ask (`changed.ts`)
+      noticeChange(target);
+    },
+    true
+  );
+};
 
 /**
  * X's own words for a picture nobody described (`appearance/alt.ts` says how they are
@@ -244,17 +409,21 @@ export const stampAltTitles = (): readonly string[] | null => {
   /** Every picture and what it says. Read once: walking the page is the whole cost here */
   const read: [Element, string | null][] = [];
   const unknown: PhotoAlt[] = [];
-  document.querySelectorAll(MEDIA_ANYWHERE).forEach((picture) => {
-    const alt = altTextOf(picture);
-    read.push([picture, alt]);
-    /*
-     * Whose post a picture is on is only ever asked to prove a word is X's, so a word
-     * already known to be one is not chased any further. That leaves the chasing to the
-     * few pictures somebody described, and to the rounds before the words are known.
-     */
-    if (alt !== null && !genericAlts.has(alt))
-      unknown.push({ alt, account: accountOfPicture(picture) });
-  });
+  // A round told which posts changed reads the pictures in those; a full round reads the
+  // page, which is also where a picture standing outside any post is picked up
+  for (const where of sweepIn(changedCells())) {
+    where.querySelectorAll(MEDIA_ANYWHERE).forEach((picture) => {
+      const alt = altTextOf(picture);
+      read.push([picture, alt]);
+      /*
+       * Whose post a picture is on is only ever asked to prove a word is X's, so a word
+       * already known to be one is not chased any further. That leaves the chasing to the
+       * few pictures somebody described, and to the rounds before the words are known.
+       */
+      if (alt !== null && !genericAlts.has(alt))
+        unknown.push({ alt, account: accountOfPicture(picture) });
+    });
+  }
 
   const before = genericAlts.size;
   genericAlts = learnGenericAlts(unknown, genericAlts);
@@ -263,8 +432,11 @@ export const stampAltTitles = (): readonly string[] | null => {
   for (const [picture, alt] of read) {
     const description = descriptionOf(alt, genericAlts);
     if (description !== null) {
-      picture.setAttribute(ALT_ATTR, '');
-      picture.setAttribute('title', description);
+      // Written only where it would say something else: the same description goes back on
+      // the same picture on every settling, and X keeps a picture for as long as the post
+      // it is on stays on screen
+      if (!picture.hasAttribute(ALT_ATTR)) picture.setAttribute(ALT_ATTR, '');
+      if (picture.getAttribute('title') !== description) picture.setAttribute('title', description);
     } else if (picture.hasAttribute(ALT_ATTR)) {
       picture.removeAttribute(ALT_ATTR);
       picture.removeAttribute('title');
@@ -294,45 +466,164 @@ const clearTimes = (): void =>
  * Only the marker is set; X's own text is untouched and CSS decides how it is shown.
  * A redraw by X takes the marker with it, but this runs on every settling, so it is set again.
  */
-const restampTimes = (columns: ColumnAppearance[], messages: Messages): void => {
-  clearTimes();
+const restampTimes = (
+  columns: ColumnAppearance[],
+  messages: Messages,
+  changed: Set<Element> | null
+): void => {
   const now = new Date();
-  document.querySelectorAll(`[${COLUMN_ATTR}] time`).forEach((time) => {
-    const key = time.closest(`[${COLUMN_ATTR}]`)?.getAttribute(COLUMN_ATTR);
-    const appearance = columns.find((column) => column.key === key)?.appearance;
-    const format = appearance ? timeFormatOf(appearance.timeFormat) : 'relative';
-    if (format === 'relative') return;
+  /** The times marked this round. What carries a marker outside them has it taken off */
+  const marked = new Set<Element>();
+
+  for (const { element, appearance } of columnsOnScreen(columns)) {
     // Under "both" only the clock time is added. X already shows either a relative
     // time or a month and day, so the clock time is what is missing; adding the date
     // as well steals width from the ID and hides it in narrow columns
-    const shown = timeTextFrom(time.getAttribute('datetime'), now, messages);
-    // An unreadable time gets no marker. Marking it produces an empty `::after`,
-    // which reads as the timestamp having vanished
-    if (!shown) return;
-    const parent = time.parentElement;
-    if (!parent) return;
-    parent.setAttribute(TIME_ATTR, shown.text);
-    if (shown.today) parent.setAttribute(TODAY_ATTR, '');
+    if (timeFormatOf(appearance.timeFormat) === 'relative') continue;
+    for (const root of rootsIn(element, changed)) {
+      root.querySelectorAll('time').forEach((time) => {
+        const shown = timeTextFrom(time.getAttribute('datetime'), now, messages);
+        // An unreadable time gets no marker. Marking it produces an empty `::after`,
+        // which reads as the timestamp having vanished
+        if (!shown) return;
+        const parent = time.parentElement;
+        if (!parent) return;
+        marked.add(parent);
+        /*
+         * Written only where it would say something else. The marker is what the CSS
+         * draws, so writing the same value again costs a style recalculation over that
+         * post for nothing — and a post's time only changes when the minute does.
+         */
+        if (parent.getAttribute(TIME_ATTR) !== shown.text) parent.setAttribute(TIME_ATTR, shown.text);
+        if (shown.today !== parent.hasAttribute(TODAY_ATTR)) {
+          if (shown.today) parent.setAttribute(TODAY_ATTR, '');
+          else parent.removeAttribute(TODAY_ATTR);
+        }
   });
+    }
+  }
+
+  // What was marked under a setting that no longer asks for it, or in a scope that is no
+  // longer one, is stripped. Everything else is left exactly as it was
+  for (const where of sweepIn(changed)) {
+    where.querySelectorAll(`[${TIME_ATTR}]`).forEach((el) => {
+      if (marked.has(el)) return;
+      el.removeAttribute(TIME_ATTR);
+      el.removeAttribute(TODAY_ATTR);
+    });
+  }
 };
 
 /**
  * Sets the media frame markers again. They are redone because a stale marker left
  * over from a tighter limit would keep that frame shrunk.
  */
-const restampMediaFrames = (columns: ColumnAppearance[]): void => {
-  clearMediaFrames();
-  document.querySelectorAll(MEDIA_IN_COLUMN).forEach((media) => {
-    const limit = limitOf(media, columns);
-    if (limit === null) return;
-    frameOf(media, limit)?.setAttribute(MEDIA_FRAME_ATTR, '');
-  });
-};
+const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> | null): void => {
+  /** The frames that should carry the marker at the end of this round */
+  const wanted = new Set<Element>();
+  /** The media nothing is remembered about. Measured together, and only if there are any */
+  const unmeasured: { media: Element; limit: number }[] = [];
 
-/** The appearance applied in that column. null when the column is not one of them */
-const appearanceOf = (column: Element, columns: ColumnAppearance[]): AppearanceNode | null => {
-  const key = column.getAttribute(COLUMN_ATTR);
-  return columns.find((marked) => marked.key === key)?.appearance ?? null;
+  for (const { element, appearance } of columnsOnScreen(columns)) {
+    // How the limit is derived lives in `limitFor` alone. null means this scope wants no marker
+    const limit = limitFor(appearance);
+    if (limit === null) continue;
+    for (const root of rootsIn(element, changed)) {
+      root.querySelectorAll(MEDIA_ANYWHERE).forEach((media) => {
+        const known = frames.get(media);
+        if (known && known.generation === generation && known.limit === limit) {
+          if (known.frame) wanted.add(known.frame);
+          return;
+        }
+        unmeasured.push({ media, limit });
+      });
+    }
+  }
+
+  /**
+   * Measures one and remembers it.
+   *
+   * A box drawn at no height is not remembered. It is not "short enough to leave alone",
+   * it is a post folded away by a rule or not drawn yet, and remembering it would leave
+   * the picture uncapped when the post is opened again ("Show").
+   */
+  const measure = ({ media, limit }: { media: Element; limit: number }): void => {
+    if (media.getBoundingClientRect().height === 0) return;
+    const frame = frameOf(media, limit);
+    frames.set(media, { generation, limit, frame });
+    if (frame) wanted.add(frame);
+  };
+
+  /*
+   * What our own rules are doing to the box has to be out of the way while it is measured,
+   * or the height read back is the one we imposed rather than the one X would draw.
+   *
+   * Where the rules cap the height, taking the cap off the few boxes about to be measured
+   * is enough, and it is done inline so that only those boxes are affected: switching the
+   * whole stylesheet off and on again costs the browser a pass over every element on the
+   * page — hundreds of milliseconds on a deck of several hundred posts, and a reader
+   * scrolling brings new pictures in on every settling.
+   *
+   * Where the rules take the media off the timeline altogether there is nothing to
+   * uncap — the box is not drawn at all — so those are measured with the stylesheet off,
+   * as they always were.
+   */
+  const capped: { media: Element; limit: number }[] = [];
+  const hidden: { media: Element; limit: number }[] = [];
+  for (const one of unmeasured) (one.limit === 0 ? hidden : capped).push(one);
+
+  if (capped.length > 0) {
+    /*
+     * Two things of ours stand between the box and its own height, and both come off
+     * before any of it is read — all of them first, so the browser lays the page out
+     * twice over rather than once per picture.
+     *
+     * The cap on the box itself is taken off inline, which reaches that box alone. The
+     * marker on the frame around it has to go altogether: the frame's rule replaces its
+     * height with the one we chose, and a picture measured under it reads back as exactly
+     * the limit, which is not "too tall" — so it would lose the frame it needs. What is
+     * still wanted is marked again below, out of what this round measures.
+     */
+    for (const { media } of capped) {
+      for (
+        let frame = media.closest(`[${MEDIA_FRAME_ATTR}]`);
+        frame !== null;
+        frame = frame.parentElement?.closest(`[${MEDIA_FRAME_ATTR}]`) ?? null
+      ) {
+        frame.removeAttribute(MEDIA_FRAME_ATTR);
+      }
+    }
+    const inline = capped.map(({ media }) => {
+      const el = media as HTMLElement;
+      const had = el.style.getPropertyValue('max-height');
+      const priority = el.style.getPropertyPriority('max-height');
+      el.style.setProperty('max-height', 'none', 'important');
+      return { el, had, priority };
+    });
+    for (const one of capped) measure(one);
+    for (const { el, had, priority } of inline) {
+      if (had === '') el.style.removeProperty('max-height');
+      else el.style.setProperty('max-height', had, priority);
+    }
+  }
+
+  if (hidden.length > 0) {
+    const style = styleElement();
+    style.disabled = true;
+    for (const one of hidden) measure(one);
+    style.disabled = false;
+  }
+
+  // Written after everything has been measured, and only where the marker is not already
+  // as it should be: a write between two measurements costs another pass over the page
+  for (const where of sweepIn(changed)) {
+    where.querySelectorAll(`[${MEDIA_FRAME_ATTR}]`).forEach((marked) => {
+      if (!wanted.has(marked)) marked.removeAttribute(MEDIA_FRAME_ATTR);
+    });
+  }
+  for (const frame of wanted) {
+    if (!frame.hasAttribute(MEDIA_FRAME_ATTR)) frame.setAttribute(MEDIA_FRAME_ATTR, '');
+  }
 };
 
 /**
@@ -857,129 +1148,137 @@ const restampAttachments = (
   columns: ColumnAppearance[],
   messages: Messages,
   readLinkColor: () => string | null,
-  generic: ReadonlySet<string>
+  generic: ReadonlySet<string>,
+  changed: Set<Element> | null
 ): void => {
   /** The lines and the sources that belong to this round. Anything else is left over */
   const live = new Set<Element>();
-  /*
-   * The scopes with a post opened stand down, as they do in the CSS (`OPENED_ATTR`):
-   * that post is there to be read, and its card stays on screen. Putting a line in as
-   * well would say the same thing twice.
-   * Gathered up front, so the search is not repeated for every post in the scope
-   */
-  const opened = new Set(document.querySelectorAll(`[${COLUMN_ATTR}][${OPENED_ATTR}]`));
 
-  document.querySelectorAll(`[${COLUMN_ATTR}] ${CELL_SELECTOR}`).forEach((cell) => {
-    const column = cell.closest(`[${COLUMN_ATTR}]`);
-    const appearance = column && appearanceOf(column, columns);
-    if (!appearance || opened.has(column)) return;
+  for (const { element, appearance } of columnsOnScreen(columns)) {
+    /*
+     * The scopes with a post opened stand down, as they do in the CSS (`OPENED_ATTR`):
+     * that post is there to be read, and its card stays on screen. Putting a line in as
+     * well would say the same thing twice.
+     */
+    if (element.hasAttribute(OPENED_ATTR)) continue;
     const cardStyle = cardStyleOf(appearance.cardStyle);
     const quoteStyle = quoteStyleOf(appearance.quoteStyle);
     const mediaStyle = mediaStyleOf(appearance.media.style);
-    if (!movesCards(cardStyle) && quoteStyle === 'show' && !movesMedia(mediaStyle)) return;
-
-    // Found once for the cell: the line for it, and the taking away of it, both need it
-    const tweet = cell.querySelector(TWEET_SELECTOR);
-    const quote = tweet && quoteFrameOf(tweet);
-    /*
-     * A quote set to not show is taken away without a line. It cannot be done in the CSS
-     * as the cards are: a quote frame is told apart by the avatar inside it not being the
-     * author's, and no selector can say that
-     */
-    if (quote && quoteStyle === 'hidden') {
-      quote.setAttribute(CARD_MOVED_ATTR, '');
-      live.add(quote);
-    }
-
-    const lines = linesIn(cell, quote, appearance, messages, generic);
-    if (lines.length === 0) return;
-
-    /** The lines that go into a body, gathered per body: a quoted card goes into the quoted body */
-    const inBodies = new Map<Element, Line[]>();
-    /** The rest, which stand where what they came from was */
-    const onTheirOwn: Line[] = [];
-    for (const line of lines) {
-      const body = bodyBefore(line.anchor, cell);
-      if (body) inBodies.set(body, [...(inBodies.get(body) ?? []), line]);
-      else onTheirOwn.push(line);
-    }
-
-    for (const [body, wanted] of inBodies) {
-      // Decided per body: the body inside a quote is outside our limit altogether
-      const where = placementFor(body, cell, appearance);
-      // Wherever they were put last time. The limit coming or going moves them, and the
-      // ones left at the other place have to be found to be taken away
-      const existing = linesOf(body);
+    if (!movesCards(cardStyle) && quoteStyle === 'show' && !movesMedia(mediaStyle)) continue;
+    for (const cell of cellsIn(element, changed)) {
+      // Found once for the cell: the line for it, and the taking away of it, both need it
+      const tweet = cell.querySelector(TWEET_SELECTOR);
+      const quote = tweet && quoteFrameOf(tweet);
       /*
-       * Left as they are while they still say the same thing. Rebuilding them on every
-       * settling would take the text away from under a selection or a click.
-       * Compared as a whole rather than one by one: with the count or the order changed,
-       * which of them to keep is not worth working out.
+       * A quote set to not show is taken away without a line. It cannot be done in the CSS
+       * as the cards are: a quote frame is told apart by the avatar inside it not being the
+       * author's, and no selector can say that
        */
-      const same =
-        existing.length === wanted.length &&
-        existing.every((el, i) => matches(el, wanted[i]!, where));
-      if (!same) existing.forEach((el) => el.remove());
-      const put = wanted.map((line, i) => {
-        const el = same ? (existing[i] as HTMLElement) : lineElement(line, where);
+      if (quote && quoteStyle === 'hidden') {
+        quote.setAttribute(CARD_MOVED_ATTR, '');
+        live.add(quote);
+      }
+
+      const lines = linesIn(cell, quote, appearance, messages, generic);
+      if (lines.length === 0) continue;
+
+      /** The lines that go into a body, gathered per body: a quoted card goes into the quoted body */
+      const inBodies = new Map<Element, Line[]>();
+      /** The rest, which stand where what they came from was */
+      const onTheirOwn: Line[] = [];
+      for (const line of lines) {
+        const body = bodyBefore(line.anchor, cell);
+        if (body) inBodies.set(body, [...(inBodies.get(body) ?? []), line]);
+        else onTheirOwn.push(line);
+      }
+
+      for (const [body, wanted] of inBodies) {
+        // Decided per body: the body inside a quote is outside our limit altogether
+        const where = placementFor(body, cell, appearance);
+        // Wherever they were put last time. The limit coming or going moves them, and the
+        // ones left at the other place have to be found to be taken away
+        const existing = linesOf(body);
+        /*
+         * Left as they are while they still say the same thing. Rebuilding them on every
+         * settling would take the text away from under a selection or a click.
+         * Compared as a whole rather than one by one: with the count or the order changed,
+         * which of them to keep is not worth working out.
+         */
+        const same =
+          existing.length === wanted.length &&
+          existing.every((el, i) => matches(el, wanted[i]!, where));
+        if (!same) existing.forEach((el) => el.remove());
+        const put = wanted.map((line, i) => {
+          const el = same ? (existing[i] as HTMLElement) : lineElement(line, where);
+          paintLine(el, line, readLinkColor);
+          live.add(el);
+          return el;
+        });
+        // Outside they go straight after the body, in the order they were built; inside they
+        // go at its end. Either way the "Show more" is put under them (`addShowMore`)
+        if (!same) {
+          if (where.outside) body.after(...put);
+          else put.forEach((el) => body.append(el));
+        }
+      }
+
+      for (const line of onTheirOwn) {
+        const point = insertionPoint(line, cell);
+        // The one that would already be in that place, kept for the same reason as above
+        const before = point.previousElementSibling;
+        const standing =
+          before instanceof HTMLElement &&
+          before.classList.contains(ATTACHMENT_CLASS) &&
+          matches(before, line, ON_ITS_OWN);
+        const el = standing ? (before as HTMLElement) : lineElement(line, ON_ITS_OWN);
+        if (!standing) point.before(el);
         paintLine(el, line, readLinkColor);
         live.add(el);
-        return el;
-      });
-      // Outside they go straight after the body, in the order they were built; inside they
-      // go at its end. Either way the "Show more" is put under them (`addShowMore`)
-      if (!same) {
-        if (where.outside) body.after(...put);
-        else put.forEach((el) => body.append(el));
+      }
+
+      for (const line of lines) {
+        if (!line.source) continue;
+        line.source.setAttribute(CARD_MOVED_ATTR, '');
+        live.add(line.source);
+      }
+      /*
+       * The media has no one element to take away — a post can hold four photos — so the
+       * post is marked instead and the rule hides what is inside it
+       */
+      if (lines.some((line) => line.media)) {
+        cell.setAttribute(MEDIA_MARKED_ATTR, '');
+        live.add(cell);
       }
     }
+  }
 
-    for (const line of onTheirOwn) {
-      const point = insertionPoint(line, cell);
-      // The one that would already be in that place, kept for the same reason as above
-      const before = point.previousElementSibling;
-      const standing =
-        before instanceof HTMLElement &&
-        before.classList.contains(ATTACHMENT_CLASS) &&
-        matches(before, line, ON_ITS_OWN);
-      const el = standing ? (before as HTMLElement) : lineElement(line, ON_ITS_OWN);
-      if (!standing) point.before(el);
-      paintLine(el, line, readLinkColor);
-      live.add(el);
-    }
-
-    for (const line of lines) {
-      if (!line.source) continue;
-      line.source.setAttribute(CARD_MOVED_ATTR, '');
-      live.add(line.source);
-    }
-    /*
-     * The media has no one element to take away — a post can hold four photos — so the
-     * post is marked instead and the rule hides what is inside it
-     */
-    if (lines.some((line) => line.media)) {
-      cell.setAttribute(MEDIA_MARKED_ATTR, '');
-      live.add(cell);
-    }
-  });
-
-  clearAttachments(live);
+  clearAttachments(live, sweepIn(changed));
 };
 
 /**
  * Takes away the lines and the markers that no longer belong to something being moved.
  * Left in place, a post would keep a line while what it stood for is back on screen.
  */
-const clearAttachments = (live: Set<Element> = new Set()): void => {
-  document.querySelectorAll(`.${ATTACHMENT_CLASS}`).forEach((line) => {
-    if (!live.has(line)) line.remove();
-  });
-  document.querySelectorAll(`[${CARD_MOVED_ATTR}]`).forEach((source) => {
-    if (!live.has(source)) source.removeAttribute(CARD_MOVED_ATTR);
-  });
-  document.querySelectorAll(`[${MEDIA_MARKED_ATTR}]`).forEach((cell) => {
-    if (!live.has(cell)) cell.removeAttribute(MEDIA_MARKED_ATTR);
-  });
+const clearAttachments = (
+  live: Set<Element> = new Set(),
+  where: (Element | Document)[] = [document]
+): void => {
+  for (const root of where) {
+    root.querySelectorAll(`.${ATTACHMENT_CLASS}`).forEach((line) => {
+      if (!live.has(line)) line.remove();
+    });
+    root.querySelectorAll(`[${CARD_MOVED_ATTR}]`).forEach((source) => {
+      if (!live.has(source)) source.removeAttribute(CARD_MOVED_ATTR);
+    });
+    root.querySelectorAll(`[${MEDIA_MARKED_ATTR}]`).forEach((cell) => {
+      if (!live.has(cell)) cell.removeAttribute(MEDIA_MARKED_ATTR);
+    });
+    /*
+     * A post working from the changed ones is itself one of the places to tidy, and the
+     * marker it carries is on the post rather than inside it
+     */
+    if (root instanceof Element && !live.has(root)) root.removeAttribute(MEDIA_MARKED_ATTR);
+  }
 };
 
 /**
@@ -1007,7 +1306,8 @@ const clearAttachments = (live: Set<Element> = new Set()): void => {
 const restampCaptions = (
   columns: ColumnAppearance[],
   messages: Messages,
-  readLinkColor: () => string | null
+  readLinkColor: () => string | null,
+  changed: Set<Element> | null
 ): void => {
   /**
    * The quote frame of a cell, asked at most once for each.
@@ -1039,39 +1339,40 @@ const restampCaptions = (
    * column's own setting (`wordsShown`). Gathering every column's pictures in one sweep
    * would leave each of them to be traced back to a column afterwards.
    */
-  for (const column of columns) {
-    const wanted = captionTargets(column);
-    if (wanted === '') continue;
-    document.querySelectorAll(wanted).forEach((picture) => {
-      // A video answers to both of X's markers; counted twice it would write its
-      // description out twice under the one picture
-      if (!isOutermostMedia(picture)) return;
-      const cell = picture.closest(CELL_SELECTOR);
-      if (!cell) return;
-      /*
-       * A quoted post's picture is left alone. The words written for it are the quoted
-       * author's, and set down in the quoting post they read as the quoting author's — the
-       * one place a description can say the wrong thing about who said it.
-       */
-      if (quotedIn(cell)?.contains(picture)) return;
-      const block = mediaBlockOf(picture, cell);
-      /*
-       * Counted before the description is looked at, so the number says which picture this
-       * is among all of them. Counting only the described ones would call the third
-       * picture of four "the first" whenever the two before it carried nothing.
-       */
-      const nth = (counts.get(block) ?? 0) + 1;
-      counts.set(block, nth);
-      // A picture nobody described has nothing to say, and takes no caption. X's own word
-      // for one is not a description (`appearance/alt.ts`)
-      const description = descriptionOf(altTextOf(picture), genericAlts);
-      if (description === null) return;
-      const said: LineParts = { words: description, source: null };
-      const short = shortLineFrom(said, messages, column.appearance.wordsShown);
-      const full = lineTextFrom(said, messages);
-      if (short === null || full === null) return;
-      blocks.set(block, [...(blocks.get(block) ?? []), { nth, short, full }]);
-    });
+  for (const { element, appearance } of columnsOnScreen(columns)) {
+    if (mediaStyleOf(appearance.media.style) !== 'caption') continue;
+    for (const root of rootsIn(element, changed)) {
+      root.querySelectorAll(MEDIA_ANYWHERE).forEach((picture) => {
+        // A video answers to both of X's markers; counted twice it would write its
+        // description out twice under the one picture
+        if (!isOutermostMedia(picture)) return;
+        const cell = picture.closest(CELL_SELECTOR);
+        if (!cell) return;
+        /*
+         * A quoted post's picture is left alone. The words written for it are the quoted
+         * author's, and set down in the quoting post they read as the quoting author's — the
+         * one place a description can say the wrong thing about who said it.
+         */
+        if (quotedIn(cell)?.contains(picture)) return;
+        const block = mediaBlockOf(picture, cell);
+        /*
+         * Counted before the description is looked at, so the number says which picture this
+         * is among all of them. Counting only the described ones would call the third
+         * picture of four "the first" whenever the two before it carried nothing.
+         */
+        const nth = (counts.get(block) ?? 0) + 1;
+        counts.set(block, nth);
+        // A picture nobody described has nothing to say, and takes no caption. X's own word
+        // for one is not a description (`appearance/alt.ts`)
+        const description = descriptionOf(altTextOf(picture), genericAlts);
+        if (description === null) return;
+        const said: LineParts = { words: description, source: null };
+        const short = shortLineFrom(said, messages, appearance.wordsShown);
+        const full = lineTextFrom(said, messages);
+        if (short === null || full === null) return;
+        blocks.set(block, [...(blocks.get(block) ?? []), { nth, short, full }]);
+      });
+    }
   }
 
   /** The captions this round put in or kept. The rest stand under a picture that no longer says anything */
@@ -1120,7 +1421,7 @@ const restampCaptions = (
       words.textContent = full;
     });
   }
-  clearCaptions(live);
+  clearCaptions(live, sweepIn(changed));
 };
 
 /** A caption, empty. The words go in a box of their own so the fold cannot reach the button */
@@ -1200,10 +1501,16 @@ const showMore = (
  * Takes away the captions that no longer belong under a picture. Left in place, one would
  * describe whatever X reused that box for.
  */
-const clearCaptions = (live: Set<Element> = new Set()): void =>
-  document.querySelectorAll(`.${CAPTION_CLASS}`).forEach((caption) => {
-    if (!live.has(caption)) caption.remove();
-  });
+const clearCaptions = (
+  live: Set<Element> = new Set(),
+  where: (Element | Document)[] = [document]
+): void => {
+  for (const root of where) {
+    root.querySelectorAll(`.${CAPTION_CLASS}`).forEach((caption) => {
+      if (!live.has(caption)) caption.remove();
+    });
+  }
+};
 
 /** The height of one line. Estimated from the font size when `line-height` is `normal` */
 const lineHeightOf = (text: Element): number => {
@@ -1221,27 +1528,17 @@ const lineHeightOf = (text: Element): number => {
  * stops being cut off — the column has a post opened in it, the posts get packed, the
  * limit is lifted — arrive long after the button was put in.
  */
-const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
-  // Body text inside a quote, and scopes with a post opened, are outside the limit
-  // (matching the targets in css.ts)
+const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
+  // Body text inside a quote is outside the limit (matching the targets in css.ts).
+  // A scope with a post opened is too, and is turned away by the caller, which knows
+  // the scope without having to walk up from the body to find it
   if (text.closest(QUOTE_SELECTOR)) return false;
-  if (text.closest(`[${COLUMN_ATTR}]`)?.hasAttribute(OPENED_ATTR)) return false;
   const cell = text.closest(CELL_SELECTOR);
   if (!cell || cell.classList.contains(OPENED_CLASS)) return false;
   // Nothing is added to a cell that has X's own "Show more". Two side by side would
   // mean pressing both to get the full text. X sometimes brings one out later, so in
   // that case the added button is withdrawn
   if (cell.querySelector(X_SHOW_MORE)) return false;
-
-  const column = cell.closest(`[${COLUMN_ATTR}]`);
-  const appearance = column && appearanceOf(column, columns);
-  if (!appearance) return false;
-  /*
-   * With the posts packed there is no button. Packing is for fitting more posts on
-   * screen, and a line of its own under every cut-off post works against that; what is
-   * cut off is still read by opening the post
-   */
-  if (isCompact(appearance.compact)) return false;
 
   /*
    * A line of ours holding something back wants the button too, and wants it whether or
@@ -1256,16 +1553,35 @@ const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
   if (linesOf(text).some((line) => line.classList.contains(ATTACHMENT_CUT_CLASS))) return true;
 
   if (appearance.maxLines === null) return false;
-  /*
-   * Being cut off is not enough; the text must also have reached the limit.
-   * Where X itself truncates the body, the text is "overflowing" as well, and a
-   * 5-line limit would collapse it at 2. This also guards against the height
-   * wobbling mid-render.
-   * Measured last: it costs a layout, and everything above is a lookup
-   */
-  const lineHeight = lineHeightOf(text);
-  const reachesLimit = text.clientHeight >= (appearance.maxLines - 0.5) * lineHeight;
-  return reachesLimit && text.clientHeight > 0 && text.scrollHeight > text.clientHeight + 2;
+  // Measured last: it costs a layout, and everything above is a lookup
+  return overflowsLimit(text, appearance.maxLines);
+};
+
+/**
+ * Whether that body holds more than the limit shows.
+ *
+ * Being cut off is not enough; the text must also have reached the limit. Where X itself
+ * truncates the body, the text is "overflowing" as well, and a 5-line limit would
+ * collapse it at 2. This also guards against the height wobbling mid-render.
+ *
+ * Measured once and remembered (see "What was measured"). What is remembered alongside is
+ * how long the words were and what limit they were measured against: X puts another
+ * post's words in a body it has finished with, and the answer for those is not this one.
+ *
+ * A body drawn at no height is not remembered. It is not short, it is not on screen yet,
+ * and remembering "it fits" would leave the button off once it appears.
+ */
+const overflowsLimit = (text: Element, maxLines: number): boolean => {
+  const key = `${maxLines} ${text.textContent?.length ?? 0}`;
+  const known = overflows.get(text);
+  if (known && known.generation === generation && known.key === key) return known.over;
+
+  const height = text.clientHeight;
+  if (height === 0) return false;
+  const reachesLimit = height >= (maxLines - 0.5) * lineHeightOf(text);
+  const over = reachesLimit && text.scrollHeight > height + 2;
+  overflows.set(text, { generation, key, over });
+  return over;
 };
 
 /**
@@ -1278,35 +1594,59 @@ const wantsShowMore = (text: Element, columns: ColumnAppearance[]): boolean => {
 const addShowMore = (
   columns: ColumnAppearance[],
   messages: Messages,
-  readLinkColor: () => string | null
+  readLinkColor: () => string | null,
+  changed: Set<Element> | null
 ): void => {
-  document.querySelectorAll(`[${COLUMN_ATTR}] ${TWEET_TEXT_SELECTOR}`).forEach((text) => {
-    /*
-     * The button belongs under everything the extension put after the body, not directly
-     * under the body: with the marks standing out there too, the order to read is the
-     * post's words, then the mark, then the way to open the rest.
-     */
-    const under = lastLineAfter(text);
-    const next = under.nextElementSibling;
-    const existing =
-      next instanceof HTMLElement && next.classList.contains(MORE_CLASS) ? next : null;
+  /*
+   * Every body is decided before any of them is written to. Deciding costs a measurement
+   * (`overflowsLimit`), and a write in between makes the next measurement wait for the
+   * page to be laid out again — with a body decided and written one after the other, a
+   * timeline of several hundred posts pays that hundreds of times over.
+   */
+  const decided: { text: Element; under: Element; existing: HTMLElement | null; wanted: boolean }[] =
+    [];
+  for (const { element, appearance } of columnsOnScreen(columns)) {
+    // A scope with a post opened has no limit to open out of, and neither has one with
+    // the posts packed (see `wantsShowMore`). Asked once here rather than per body
+    const wants = !element.hasAttribute(OPENED_ATTR) && !isCompact(appearance.compact);
+    for (const root of rootsIn(element, changed)) {
+      root.querySelectorAll(TWEET_TEXT_SELECTOR).forEach((text) => {
+        /*
+         * The button belongs under everything the extension put after the body, not directly
+         * under the body: with the marks standing out there too, the order to read is the
+         * post's words, then the mark, then the way to open the rest.
+         */
+        const under = lastLineAfter(text);
+        const next = under.nextElementSibling;
+        const existing =
+          next instanceof HTMLElement && next.classList.contains(MORE_CLASS) ? next : null;
+        decided.push({
+          text,
+          under,
+          existing,
+          wanted: wants && wantsShowMore(text, appearance),
+        });
+      });
+    }
+  }
 
-    if (!wantsShowMore(text, columns)) {
+  for (const { text, under, existing, wanted } of decided) {
+    if (!wanted) {
       // A button put in before the marks were is not where it belongs any more, so it is
       // looked for past them as well as under them
       (existing ?? strayShowMore(text))?.remove();
-      return;
+      continue;
     }
     // Already there: only the color is looked at again, in case X's was changed
     if (existing) {
       paintLikeLink(existing, readLinkColor);
-      return;
+      continue;
     }
     // One left above the marks from an earlier round is moved down rather than doubled
     strayShowMore(text)?.remove();
 
     const cell = text.closest(CELL_SELECTOR);
-    if (!cell) return;
+    if (!cell) continue;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = MORE_CLASS;
@@ -1315,10 +1655,13 @@ const addShowMore = (
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       cell.classList.add(OPENED_CLASS);
+      // The words come back in and the marks move back inside the body, which is this
+      // post's line being built again — the class alone is not something the watch sees
+      noticeChange(cell);
       button.remove();
     });
     under.after(button);
-  });
+  }
 };
 
 /**
@@ -1346,7 +1689,10 @@ const listenToXShowMore = (): void => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const cell = target.closest(X_SHOW_MORE)?.closest(CELL_SELECTOR);
-      cell?.classList.add(OPENED_CLASS);
+      if (!cell) return;
+      cell.classList.add(OPENED_CLASS);
+      // The same as our own button: what the post shows changed, its content did not
+      noticeChange(cell);
     },
     true
   );
@@ -1358,11 +1704,17 @@ let lastMessages: Messages | null = null;
 
 /**
  * Sets the media frame markers again (called on every settling of the DOM).
- * It measures sizes, so it only measures when some tier sets a height limit.
- * Our own rules are switched off while measuring (with the limit still in effect,
- * only the box shrinks and its height no longer matches the frame).
+ * It measures sizes, so it only measures when some tier sets a height limit, and only
+ * what has not been measured already (see "What was measured").
  */
 export const stampMediaFrames = (): void => {
+  watchMeasurements();
+  forgetGoneScopes();
+  /*
+   * Which posts this round has to look at. Asked once and handed to every pass: they must
+   * agree about it, or one of them would tidy up after a post another never looked at
+   */
+  const changed = changedCells();
   // The time markers are set again on the same occasion. When every tier says
   // "as X shows it", they are stripped so that no marker of ours is left in X's DOM
   // even though no rule targets them
@@ -1370,17 +1722,14 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => timeFormatOf(column.appearance.timeFormat) !== 'relative')
   ) {
-    restampTimes(lastColumns, lastMessages);
+    restampTimes(lastColumns, lastMessages, changed);
   } else {
     clearTimes();
   }
   // Whether even one column needs markers. How the limit is derived lives in `limitFor` alone
   const needsFrames = lastColumns.some((column) => limitFor(column.appearance) !== null);
   if (needsFrames) {
-    const style = styleElement();
-    style.disabled = true;
-    restampMediaFrames(lastColumns);
-    style.disabled = false;
+    restampMediaFrames(lastColumns, changed);
   } else {
     // Once every tier drops the limit, strip the markers set earlier too.
     // Turning the extension off replaces the settings with empty ones, which arrives here
@@ -1410,7 +1759,7 @@ export const stampMediaFrames = (): void => {
      * press into the mark being opened out.
      */
     listenToXShowMore();
-    restampAttachments(lastColumns, lastMessages, readLinkColor, genericAlts);
+    restampAttachments(lastColumns, lastMessages, readLinkColor, genericAlts, changed);
   } else {
     clearAttachments();
   }
@@ -1425,7 +1774,7 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
   ) {
-    restampCaptions(lastColumns, lastMessages, readLinkColor);
+    restampCaptions(lastColumns, lastMessages, readLinkColor, changed);
   } else {
     clearCaptions();
   }
@@ -1439,7 +1788,7 @@ export const stampMediaFrames = (): void => {
     (stampsLines || lastColumns.some((column) => column.appearance.maxLines !== null))
   ) {
     listenToXShowMore();
-    addShowMore(lastColumns, lastMessages, readLinkColor);
+    addShowMore(lastColumns, lastMessages, readLinkColor, changed);
   } else {
     // Once every tier drops the limit, remove the buttons added earlier too
     document.querySelectorAll(`.${MORE_CLASS}`).forEach((button) => button.remove());
@@ -1465,6 +1814,14 @@ export const applyAppearance = (
   scopes: ColumnScope[],
   messages: Messages
 ): void => {
+  /*
+   * The limits themselves may have moved, so nothing measured under the previous ones
+   * stands, and nothing marked under them does either. What that means is written out
+   * where the measurements are kept and in `changed.ts`.
+   */
+  watchChanges();
+  remeasureEverything();
+  changeEverything();
   stampColumns();
 
   // Columns sharing a key share their rules, so they are folded into one.
