@@ -12,8 +12,14 @@
  * x.com's timeline each hold the signed-in account's avatar — so which site is being
  * looked at never has to be asked.
  */
-import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
-import { COMPOSE_ATTR, COMPOSE_FORM_SELECTOR, safeInSelector } from './css.ts';
+import { AVATAR_NAME, avatarNameOf, CELL_SELECTOR } from '../filter/post.ts';
+import {
+  COMPOSE_ATTR,
+  COMPOSE_HEAD_BLOCK,
+  COMPOSE_LABEL,
+  COMPOSE_SHAPES,
+  safeInSelector,
+} from './css.ts';
 
 /**
  * The value X writes on an avatar it has no user for. The chat and Grok drawers carry
@@ -99,6 +105,32 @@ const surfacesOf = (form: Element): Element[] => {
 };
 
 /**
+ * The forms on screen, found from the box being typed into.
+ *
+ * Each shape is walked up to from that box rather than asked for by what it holds. The
+ * two are the same set — every shape holds exactly one box, and the box is in exactly one
+ * shape — but the cost is not: naming a shape by what it holds needs `:has()`, and asking
+ * the page for that means a subtree search on every element that might match. Measured at
+ * ~10ms on a deck of several hundred posts, on every settling, with no form open at all;
+ * the walk up from the box is a handful of steps and only happens while one is.
+ */
+const formsOnScreen = (): Element[] => {
+  const forms: Element[] = [];
+  for (const label of document.querySelectorAll(COMPOSE_LABEL)) {
+    const form = label.closest(COMPOSE_SHAPES);
+    if (form === null) continue;
+    /*
+     * x.com draws the box for writing a reply out of the same elements, in the same kind
+     * of block, and the only thing telling them apart is that a reply stands inside the
+     * cell of the post it answers (`COMPOSE_BOX` says the same in CSS).
+     */
+    if (form.matches(COMPOSE_HEAD_BLOCK) && form.querySelector(CELL_SELECTOR)) continue;
+    forms.push(form);
+  }
+  return forms;
+};
+
+/**
  * Puts the mark on every form on screen, and takes it off one whose account cannot be
  * read any more.
  *
@@ -108,7 +140,7 @@ const surfacesOf = (form: Element): Element[] => {
  */
 export const markComposeForms = (): void => {
   const wanted = new Map<Element, string>();
-  for (const form of document.querySelectorAll(COMPOSE_FORM_SELECTOR)) {
+  for (const form of formsOnScreen()) {
     const account = accountOf(form);
     if (account === null) continue;
     for (const surface of surfacesOf(form)) wanted.set(surface, account);

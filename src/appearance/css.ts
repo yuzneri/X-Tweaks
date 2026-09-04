@@ -94,28 +94,6 @@ export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
 export const MEDIA_FRAME_ATTR = 'data-xpro-media';
 
 /**
- * The media in one column, for a column asking for a caption under its pictures. Empty
- * where it asked for no such thing.
- *
- * Named per column rather than gathered across all of them, because what each caption says
- * follows that column's own settings — how much of a description goes on screen, above all.
- * It also keeps the walk off the columns that asked for nothing: a deck is mostly those,
- * and each of their pictures would cost a walk up to its column only to be turned away.
- *
- * Scopes with a post opened are *not* left out, unlike in the rules that take things off a
- * timeline. X puts its own ALT button on the opened post's pictures, but on those alone —
- * the replies under it carry none — so which pictures to leave to X is asked of each
- * picture rather than of the scope (`showsOwnAltButton`).
- *
- * An empty selector matches nothing, but `querySelectorAll` refuses it outright, so the
- * caller has to answer for it.
- */
-export const captionTargets = (column: ColumnAppearance): string =>
-  mediaStyleOf(column.appearance.media.style) === 'caption'
-    ? MEDIA_TARGETS.map((target) => `[${COLUMN_ATTR}="${column.key}"] ${target}`).join(', ')
-    : '';
-
-/**
  * The marker holding a post's time in absolute form. It goes on the parent of the
  * `time`, not the `time` itself: on the parent, `::after` inherits the parent's
  * font size and color as they are, so nothing has to be measured.
@@ -916,6 +894,39 @@ const MENU_ITEMS: Record<XMenuKey, string> = {
 };
 
 /**
+ * The box being typed into, which every shape a post is written in holds exactly one of.
+ * It is what the shapes are told apart by, and — being a plain marker of X's own — what
+ * anything looking for a form starts from (`appearance/compose-mark.ts`).
+ */
+export const COMPOSE_LABEL = '[data-testid="tweetTextarea_0_label"]';
+
+/**
+ * The block at the head of x.com's timeline. The box for writing stands in one, and so
+ * does a post being read with its reply box; which is which is `COMPOSE_BOX`'s to say.
+ */
+export const COMPOSE_HEAD_BLOCK = '[data-testid="primaryColumn"] > div > div';
+
+/** X Pro's drawer, and x.com's window over the page. Both hold nothing but the form */
+const COMPOSE_DRAWER = '[data-testid="drawerAnimatedDiv"]';
+const COMPOSE_MODAL = '[role="dialog"][aria-modal="true"]';
+
+/**
+ * The three shapes, named without asking what they hold.
+ *
+ * Written apart from `COMPOSE_BOX` because of what each is for. That one carries `:has()`
+ * and is a CSS selector, matched by the browser against the page it is styling. This one
+ * is walked up to from the box being typed in, and a walk of a few steps costs nothing —
+ * where asking the page for the `:has()` form costs a subtree search on every element it
+ * might match: measured at ~10ms on a deck of several hundred posts, on every settling,
+ * with no form open at all.
+ *
+ * On X Pro the drawer is also where a reply is written, so a reply there is marked as
+ * well. There is nothing on the drawer saying which it is, and what the mark answers —
+ * which account this is going out as — is the same question either way.
+ */
+export const COMPOSE_SHAPES = [COMPOSE_DRAWER, COMPOSE_MODAL, COMPOSE_HEAD_BLOCK].join(', ');
+
+/**
  * The box for writing a post at the head of the timeline.
  *
  * x.com draws it with the same elements as the box for writing a reply, so the two cannot
@@ -930,9 +941,7 @@ const MENU_ITEMS: Record<XMenuKey, string> = {
  * divs holding no cell, and a selector without the two steps hides the reply box —
  * measured on a post's page: 23 matches, the reply among them, against none with them.
  */
-const COMPOSE_BOX =
-  `[data-testid="primaryColumn"] > div > div:has([data-testid="tweetTextarea_0_label"])` +
-  `:not(:has([data-testid="cellInnerDiv"]))`;
+const COMPOSE_BOX = `${COMPOSE_HEAD_BLOCK}:has(${COMPOSE_LABEL}):not(:has(${CELL_SELECTOR}))`;
 
 /**
  * The two bars X floats in the bottom-right corner, collapsed until pressed. They are
@@ -1021,32 +1030,6 @@ export const chromeCss = (chrome: XChromeSettings): string => {
 };
 
 // --- the form a new post is written in ---
-
-/**
- * Where a new post is written, in the three shapes the two sites draw it.
- *
- * Each is one element that paints itself and holds nothing painted inside it, so coloring
- * the one element colors the whole form — measured on the saved pages: the drawer at
- * 331x328 and the modal at 552x287 are opaque, and every element from the words up to
- * them is transparent.
- *
- * The box at the head of x.com's timeline is `COMPOSE_BOX`, which already keeps itself
- * off the box for writing a reply. The other two are named by what X marks them with:
- * the drawer by its own mark, the modal by being the dialog that a post is written in.
- *
- * On X Pro the drawer is also where a reply is written, so a reply there takes the color
- * as well. There is nothing on the drawer saying which it is, and the color is worth more
- * than the distinction: what it answers — which account this is going out as — is the
- * same question either way.
- */
-const COMPOSE_FORMS = [
-  `[data-testid="drawerAnimatedDiv"]:has([data-testid="tweetTextarea_0_label"])`,
-  `[role="dialog"][aria-modal="true"]:has([data-testid="tweetTextarea_0_label"])`,
-  COMPOSE_BOX,
-];
-
-/** The forms to put the account's marker on, for `appearance/compose-mark.ts` to find */
-export const COMPOSE_FORM_SELECTOR = COMPOSE_FORMS.join(', ');
 
 /**
  * The background of the form a new post is written in.

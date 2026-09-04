@@ -12,12 +12,13 @@ import {
 } from '../settings/schema.ts';
 import {
   buildCss,
-  captionTargets,
   chromeCss,
   columnKey,
   COLUMN_ATTR,
   composeCss,
-  COMPOSE_FORM_SELECTOR,
+  COMPOSE_HEAD_BLOCK,
+  COMPOSE_LABEL,
+  COMPOSE_SHAPES,
   injectedCss,
   pageCss,
 } from './css.ts';
@@ -592,34 +593,6 @@ test('アンケートとカルーセルはカードの指定から外れる。ca
   }
 });
 
-test('キャプションを出す列だけが、説明を探す対象になる', () => {
-  const targets = captionTargets({
-    key: 'a',
-    appearance: appearanceOf((a) => (a.media.style = 'caption')),
-  });
-  for (const target of targets.split(', ')) {
-    assert.ok(target.startsWith(`[${COLUMN_ATTR}="a"] `), `${target} が a の中に閉じている`);
-  }
-  // A deck is mostly columns that did not ask. Walking them and turning each picture away
-  // one at a time is what this avoids
-  for (const style of ['show', 'text', 'mark', 'hidden'] as const) {
-    assert.equal(
-      captionTargets({ key: 'b', appearance: appearanceOf((a) => (a.media.style = style)) }),
-      '',
-      `${style} は対象にならない`
-    );
-  }
-});
-
-test('写真と動画の両方が対象になる', () => {
-  const targets = captionTargets({
-    key: 'a',
-    appearance: appearanceOf((a) => (a.media.style = 'caption')),
-  });
-  assert.ok(targets.includes('[data-testid="tweetPhoto"]'));
-  assert.ok(targets.includes('[data-testid="videoPlayer"]'));
-});
-
 // --- x.com's own furniture ---
 
 const chromeOf = (patch: (c: XChromeSettings) => void): string => {
@@ -931,17 +904,21 @@ test('ページの背景は body 1本。タイムラインには触れない', (
   assert.equal(css.includes('primaryColumn'), false);
 });
 
-test('新規投稿のフォームは3つの形すべてを名指し、返信の箱は避ける', () => {
-  const parts = COMPOSE_FORM_SELECTOR.split(', ');
-  assert.equal(parts.length, 3);
-  // X Pro's drawer, x.com's modal, and the box at the head of x.com's timeline
-  assert.ok(parts.some((part) => part.includes('drawerAnimatedDiv')));
-  assert.ok(parts.some((part) => part.includes('[role="dialog"][aria-modal="true"]')));
-  // The head box keeps itself off a reply by refusing anything holding a timeline cell
-  const head = parts.find((part) => part.includes('primaryColumn'))!;
-  assert.match(head, /:not\(:has\(\[data-testid="cellInnerDiv"\]\)\)/);
-  // Every one of them is a form being written in, not an empty container X left behind
-  for (const part of parts) assert.ok(part.includes('tweetTextarea_0_label'), part);
+test('新規投稿のフォームは3つの形を名指す。CSS 側だけが返信の箱を避ける', () => {
+  const shapes = COMPOSE_SHAPES.split(', ');
+  assert.equal(shapes.length, 3);
+  // X Pro's drawer, x.com's modal, and the block at the head of x.com's timeline
+  assert.ok(shapes.some((shape) => shape.includes('drawerAnimatedDiv')));
+  assert.ok(shapes.some((shape) => shape.includes('[role="dialog"][aria-modal="true"]')));
+  assert.ok(shapes.includes(COMPOSE_HEAD_BLOCK));
+  // None of them asks what it holds: they are walked up to from the box being typed in,
+  // and `:has()` here would cost a subtree search per element on every settling
+  for (const shape of shapes) assert.equal(shape.includes(':has('), false, shape);
+  // The CSS side, which cannot walk, keeps the head box off a reply by refusing anything
+  // holding a timeline cell
+  const css = chromeOf((c) => (c.composeBox = false));
+  assert.match(css, /:not\(:has\(\[data-testid="cellInnerDiv"\]\)\)/);
+  assert.ok(css.includes(COMPOSE_LABEL));
 });
 
 test('全体の指定は印そのものに、アカウントの指定は名前つきで、全体が先に出る', () => {
