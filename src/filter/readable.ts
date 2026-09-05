@@ -4,7 +4,7 @@
  * looks lives in `styles.css`. Rather than enumerating targets it measures each
  * element that directly holds text, so it does not depend on X's selectors.
  */
-import { backgroundBehind } from '../appearance/background.ts';
+import { backgroundBehind, backgroundWithin } from '../appearance/background.ts';
 import { fixIfWorsened, parseCssColor, BLACK } from '../appearance/contrast.ts';
 
 /** The marker for the target color. Its value is the direction to shift in (`styles.css` holds the colors) */
@@ -29,14 +29,23 @@ export const clearReadable = (cell: Element): void => {
  */
 export const markReadable = (cell: Element): void => {
   clearReadable(cell);
+  /*
+   * What is behind the post, with the highlight laid on it and without it. Measured once
+   * for the post rather than once per element: the walk from an element runs to the root,
+   * and above the post it is the same walk every time. What each element adds of its own
+   * is the few layers between it and the post (`backgroundWithin`).
+   */
+  const behind = backgroundBehind(cell);
+  const behindWithout = backgroundBehind(cell, cell);
+  if (behind === null || behindWithout === null) return;
+
   for (const element of cell.querySelectorAll('*')) {
     if (!hasOwnText(element)) continue;
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
     // After the highlight is laid down, and before it (measured with the cell's background skipped)
-    const after = backgroundBehind(element);
-    const before = backgroundBehind(element, cell);
-    if (after === null || before === null) continue;
+    const after = backgroundWithin(element, cell, behind);
+    const before = backgroundWithin(element, cell, behindWithout);
     const fg = fixIfWorsened(before, after, current);
     if (fg === null) continue;
     element.setAttribute(FG_ATTR, fg === BLACK ? 'dark' : 'light');

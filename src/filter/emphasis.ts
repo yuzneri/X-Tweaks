@@ -5,8 +5,8 @@
  */
 import type { Emphasis, MarkRange } from './decide.ts';
 import { markTargets, ownTextNodesOf, type MarkTarget } from './post.ts';
-import { backgroundBehind } from '../appearance/background.ts';
-import { fixIfWorsened, layer, parseColor, parseCssColor } from '../appearance/contrast.ts';
+import { backgroundBehind, backgroundWithin } from '../appearance/background.ts';
+import { fixIfWorsened, layer, parseColor, parseCssColor, type Rgb } from '../appearance/contrast.ts';
 
 const STYLE_ID = 'xpro-tweaks-mark-style';
 
@@ -154,12 +154,19 @@ export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolea
   const added: Array<{ key: string; range: Range }> = [];
   /** The ranges already painted, per element. Kept to avoid overlaps */
   const taken = new Map<Element, MarkRange[]>();
+  /*
+   * What is behind the post, measured once. Everything painted in it sits on this, and
+   * the walk up from an element runs to the root — above the post it is the same walk
+   * every time (`backgroundWithin`).
+   */
+  const behind = adjustContrast ? backgroundBehind(cell) : null;
   /** A memo so the same element-and-color pair is not measured twice. Lives for one call only */
   const contrast = new Map<Element, Map<string, string | null>>();
   const fgFor = (element: Element, color: string): string | null => {
+    if (behind === null) return null;
     const here = contrast.get(element) ?? new Map<string, string | null>();
     contrast.set(element, here);
-    if (!here.has(color)) here.set(color, readableOver(element, color));
+    if (!here.has(color)) here.set(color, readableOver(element, cell, behind, color));
     return here.get(color) ?? null;
   };
 
@@ -186,10 +193,15 @@ export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolea
  * null when none is needed. The highlight is already part of what `backgroundBehind`
  * measured, so only the single layer of emphasis color is added.
  */
-const readableOver = (element: Element, color: string): string | null => {
-  const behind = backgroundBehind(element);
+const readableOver = (
+  element: Element,
+  cell: Element,
+  behindCell: Rgb,
+  color: string
+): string | null => {
+  const behind = backgroundWithin(element, cell, behindCell);
   const emphasis = parseColor(color);
-  if (behind === null || emphasis === null) return null;
+  if (emphasis === null) return null;
   const current = parseCssColor(getComputedStyle(element).color);
   // With the text color unreadable, leave it alone. Going on without anything to
   // compare against would turn a perfectly good palette white or black

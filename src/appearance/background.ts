@@ -30,11 +30,36 @@ export const backgroundBehind = (element: Element, skip?: Element): Rgb | null =
     if (color.a === 1) {
       // Reached an opaque color. Use it as the base and lay the remembered
       // translucent colors back over it, moving frontward
-      let base: Rgb = { r: color.r, g: color.g, b: color.b };
-      for (let j = stack.length - 1; j >= 0; j--) base = layer(base, stack[j]!);
-      return base;
+      return over({ r: color.r, g: color.g, b: color.b }, stack);
     }
     stack.push(color);
   }
   return null;
+};
+
+/** Lays translucent colors, remembered front to back, over an opaque one */
+const over = (base: Rgb, stack: readonly Rgba[]): Rgb => {
+  let result = base;
+  for (let j = stack.length - 1; j >= 0; j--) result = layer(result, stack[j]!);
+  return result;
+};
+
+/**
+ * The color visible behind an element, given what is already known to be behind `within`.
+ *
+ * The same answer as `backgroundBehind`, for an element inside something whose own
+ * backdrop has been measured. Only the few layers between the two are walked, where the
+ * plain walk goes up to the root every time — and a post being made readable asks this of
+ * every element in it that holds words, twice over (`filter/readable.ts`).
+ */
+export const backgroundWithin = (element: Element, within: Element, behind: Rgb): Rgb => {
+  const stack: Rgba[] = [];
+  for (let el: Element | null = element; el !== null && el !== within; el = el.parentElement) {
+    const color = parseCssColor(getComputedStyle(el).backgroundColor);
+    if (color === null || color.a === 0) continue;
+    // An opaque color below `within` hides everything above it, this one included
+    if (color.a === 1) return over({ r: color.r, g: color.g, b: color.b }, stack);
+    stack.push(color);
+  }
+  return over(behind, stack);
 };
