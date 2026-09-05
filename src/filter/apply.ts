@@ -5,8 +5,8 @@
  */
 import { ACTIONS, type HighlightBase } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
-import { backgroundBehind } from '../appearance/background.ts';
-import { layer, parseColor } from '../appearance/contrast.ts';
+import { backgroundBehind, backgroundOver, layersWithin } from '../appearance/background.ts';
+import { layer, parseColor, type Rgb } from '../appearance/contrast.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
 import { counted, spentOn } from '../diagnostics.ts';
@@ -48,12 +48,19 @@ export const composeWaiting = (): number => {
   const posts = [...composing];
   composing.clear();
 
+  /** What is behind each scope, asked once however many of its posts are waiting */
+  const behind = new Map<Element, Rgb | null>();
+  const behindScope = (column: Element): Rgb | null => {
+    if (!behind.has(column)) behind.set(column, backgroundBehind(column, column));
+    return behind.get(column) ?? null;
+  };
+
   const laid = posts.map(([cell, want]) => ({
     cell,
     want,
     color:
       want.look.highlightBase === 'theme'
-        ? (overThemeColor(cell, want.rule) ?? want.rule)
+        ? (overThemeColor(cell, want.rule, behindScope) ?? want.rule)
         : want.rule,
   }));
   for (const { cell, want, color } of laid) {
@@ -88,7 +95,16 @@ export type Look = {
  * one skipped is measured here and composited. X's theme colors are not hard-coded:
  * measuring by walking up handles dark, dim and light with the same code.
  */
-const overThemeColor = (cell: Element, color: string): string | null => {
+const overThemeColor = (
+  cell: Element,
+  color: string,
+  /**
+   * What is behind a scope, with the scope's own background left out. Handed in rather
+   * than measured here so that a round of posts in the same scope measures it once: the
+   * walk above a scope is the same walk for every post in it, and it is the long part.
+   */
+  behindScope: (column: Element) => Rgb | null
+): string | null => {
   const column = cell.closest(`[${COLUMN_ATTR}]`);
   // A post opened outside the columns (the detail panel and the like) has no layer to skip
   if (column === null) return null;
@@ -97,8 +113,10 @@ const overThemeColor = (cell: Element, color: string): string | null => {
   // Measuring from the cell itself would count the color laid on this cell last time as backdrop
   const parent = cell.parentElement;
   if (parent === null) return null;
-  const base = backgroundBehind(parent, column);
-  if (base === null) return null;
+  const above = behindScope(column);
+  if (above === null) return null;
+  // Only what lies between the post and its scope is walked here; the rest is the caller's
+  const base = backgroundOver(layersWithin(parent, column), above);
   const { r, g, b } = layer(base, highlight);
   return `rgb(${r}, ${g}, ${b})`;
 };

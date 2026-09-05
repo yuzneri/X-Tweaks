@@ -5,7 +5,8 @@
  * element that directly holds text, so it does not depend on X's selectors.
  */
 import { backgroundBehind, backgroundOver, layersWithin } from '../appearance/background.ts';
-import { fixIfWorsened, parseCssColor, BLACK } from '../appearance/contrast.ts';
+import { COLUMN_ATTR } from '../appearance/css.ts';
+import { fixIfWorsened, parseCssColor, BLACK, type Rgb } from '../appearance/contrast.ts';
 
 /** The marker for the target color. Its value is the direction to shift in (`styles.css` holds the colors) */
 export const FG_ATTR = 'data-xpro-fg';
@@ -90,6 +91,21 @@ export const markReadableWaiting = (): number => {
   const posts = [...waiting];
   waiting.clear();
 
+  /**
+   * What is behind each scope, asked once however many of its posts are waiting.
+   *
+   * The walk from a post runs to the root, and above the scope it is the same walk for
+   * every post in it — which is the long part of it (`layersWithin` walks the short one).
+   */
+  const behindScope = new Map<Element, Rgb | null>();
+  const scopeOf = (cell: Element): { column: Element; behind: Rgb } | null => {
+    const column = cell.closest(`[${COLUMN_ATTR}]`);
+    if (column === null) return null;
+    if (!behindScope.has(column)) behindScope.set(column, backgroundBehind(column));
+    const behind = behindScope.get(column) ?? null;
+    return behind === null ? null : { column, behind };
+  };
+
   let worked = 0;
   const wanted: { element: Element; fg: string }[] = [];
   const marks: { cell: Element; color: string; any: boolean }[] = [];
@@ -99,7 +115,7 @@ export const markReadableWaiting = (): number => {
     if (already === done(color, true) || already === done(color, false)) continue;
     worked += 1;
     clearReadable(cell);
-    const found = readCell(cell);
+    const found = readCell(cell, scopeOf(cell));
     if (found === null) continue;
     wanted.push(...found);
     marks.push({ cell, color, any: found.length > 0 });
@@ -114,14 +130,22 @@ export const markReadableWaiting = (): number => {
  * the caller's, so that a round of posts can be read before any of them is written to.
  * null where what is behind the post could not be measured at all.
  */
-const readCell = (cell: Element): { element: Element; fg: string }[] | null => {
+const readCell = (
+  cell: Element,
+  scope: { column: Element; behind: Rgb } | null
+): { element: Element; fg: string }[] | null => {
   /*
-   * What is behind the post, with the highlight laid on it and without it. Measured once
-   * for the post rather than once per element: the walk from an element runs to the root,
-   * and above the post it is the same walk every time (`layersWithin`).
+   * What is behind the post, with the highlight laid on it and without it. Worked out
+   * once for the post rather than once per element, and from what is behind its scope
+   * rather than by walking to the root each time.
    */
-  const behind = backgroundBehind(cell);
-  const behindWithout = backgroundBehind(cell, cell);
+  const parent = cell.parentElement;
+  const behind =
+    scope === null ? backgroundBehind(cell) : backgroundOver(layersWithin(cell, scope.column), scope.behind);
+  const behindWithout =
+    scope === null || parent === null
+      ? backgroundBehind(cell, cell)
+      : backgroundOver(layersWithin(parent, scope.column), scope.behind);
   if (behind === null || behindWithout === null) return null;
 
   const wanted: { element: Element; fg: string }[] = [];
