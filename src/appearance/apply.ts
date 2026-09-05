@@ -33,6 +33,7 @@ import {
   watchChanges,
 } from './changed.ts';
 import { counted, noted, timed } from '../diagnostics.ts';
+import { atAQuietMoment } from '../quiet.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
@@ -318,7 +319,7 @@ const toMeasure = new Set<Element>();
 let booked = false;
 
 /** Whether the round now running is that booked one */
-let atAQuietMoment = false;
+let inTheBookedRound = false;
 
 /**
  * Measures at the next moment the browser has nothing else to do with the page.
@@ -334,17 +335,15 @@ let atAQuietMoment = false;
 const measureSoon = (): void => {
   if (booked) return;
   booked = true;
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      booked = false;
-      atAQuietMoment = true;
-      try {
-        stampMediaFrames();
-      } finally {
-        atAQuietMoment = false;
-      }
-    })
-  );
+  atAQuietMoment(() => {
+    booked = false;
+    inTheBookedRound = true;
+    try {
+      stampMediaFrames();
+    } finally {
+      inTheBookedRound = false;
+    }
+  });
 };
 
 /** Whether something is waiting that the reader asked for, rather than something that turned up */
@@ -359,7 +358,7 @@ let awaited = false;
  * posts arriving of their own accord wait for the window between two rounds of measuring.
  */
 const mayMeasure = (): boolean =>
-  atAQuietMoment && (awaited || Date.now() - lastMeasured >= MEASURE_MS);
+  inTheBookedRound && (awaited || Date.now() - lastMeasured >= MEASURE_MS);
 
 /** Notes that a post has something still to be measured, and keeps it for a later round */
 const measureLater = (element: Element): void => {
@@ -1884,7 +1883,7 @@ export const stampMediaFrames = (): void => {
    * (`changed.ts`) alone, since what changed since the last settling is still theirs to
    * deal with.
    */
-  const changed = atAQuietMoment ? new Set(toMeasure) : changedCells();
+  const changed = inTheBookedRound ? new Set(toMeasure) : changedCells();
   if (changed === null) noted('every post');
   else counted('posts looked at', changed.size);
   /*

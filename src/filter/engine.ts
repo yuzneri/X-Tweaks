@@ -23,6 +23,7 @@ import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
 import { handledChanges, postsTouched } from '../appearance/changed.ts';
+import { atAQuietMoment } from '../quiet.ts';
 import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
@@ -326,17 +327,33 @@ const judgeAll = (): void => {
  * just been written to (`filter/readable.ts`).
  */
 const keepWordsReadable = (): void => {
-  const composing = performance.now();
-  const coloured = composeWaiting();
-  const words = performance.now();
-  if (coloured > 0) {
-    counted('posts coloured', coloured);
-    spentOn('· composing colours', words - composing);
-  }
-  const posts = markReadableWaiting();
-  if (posts === 0) return;
-  counted('posts kept readable', posts);
-  spentOn('· keeping words readable', performance.now() - words);
+  /*
+   * Put off until the browser has laid the page out and painted it (`quiet.ts`). Both of
+   * these read colours back out of the page, and doing that in the middle of a round —
+   * with everything the round has just written still to be worked out — is what costs the
+   * page its answering: measured on a real timeline at about 85ms for the first reading of
+   * a round, whether it is answering for one post or twenty.
+   *
+   * What waits is a colour arriving a frame or two after the post it belongs to, which is
+   * not something a reader can see.
+   */
+  atAQuietMoment(() => {
+    const started = performance.now();
+    const coloured = composeWaiting();
+    const words = performance.now();
+    if (coloured > 0) {
+      counted('posts coloured', coloured);
+      spentOn('· composing colours', words - started);
+    }
+    const posts = markReadableWaiting();
+    if (posts > 0) {
+      counted('posts kept readable', posts);
+      spentOn('· keeping words readable', performance.now() - words);
+    }
+    if (coloured > 0 || posts > 0) {
+      say('colouring the posts that were highlighted', performance.now() - started);
+    }
+  });
 };
 
 /**
