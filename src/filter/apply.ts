@@ -5,7 +5,7 @@
  */
 import { ACTIONS, type HighlightBase } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
-import { backgroundBehind } from '../appearance/background.ts';
+import { backdropRound, backgroundBehind } from '../appearance/background.ts';
 import { layer, parseColor } from '../appearance/contrast.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
@@ -19,6 +19,18 @@ const HIDDEN = 'xpro-hidden';
 const HIGHLIGHTED = 'xpro-highlighted';
 const PLACEHOLDER = 'xpro-placeholder';
 const COLOR_VAR = '--xpro-highlight';
+
+/**
+ * What the colour now on a post was worked out from: the colour the rule asked for, and
+ * the round of backdrops it was composited over (`appearance/background.ts`).
+ *
+ * Compositing means measuring what is behind the post, which is a walk up to the root
+ * asking each ancestor what it is painted in — about a millisecond a post on the real
+ * site, and a change to the rules asks it of every highlighted post on the page. What is
+ * behind a post does not change while it sits there, so the answer is kept here and used
+ * again until something repaints the page.
+ */
+const COLOR_FROM = 'data-xpro-highlight-from';
 
 /**
  * Cells opened with the "Show" button, remembered so a re-judgement does not collapse
@@ -73,6 +85,7 @@ const resetDecision = (cell: Element): void => {
   if (classes.contains(COLLAPSED) || classes.contains(HIDDEN) || classes.contains(HIGHLIGHTED)) {
     classes.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
     (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+    cell.removeAttribute(COLOR_FROM);
     placeholderOf(cell)?.remove();
   }
   clearReadable(cell);
@@ -166,14 +179,25 @@ const showDecision = (
     placeholderOf(cell)?.remove();
     cell.classList.remove(COLLAPSED, HIDDEN);
     cell.classList.add(HIGHLIGHTED);
-    // With "X's own backdrop" chosen as the base, lay down an opaque color composited
-    // with the column background skipped. When it cannot be measured, the specified
-    // color is used as is and the extension leaves the color alone
-    const color =
-      look.highlightBase === 'theme'
-        ? (overThemeColor(cell, decision.color) ?? decision.color)
-        : decision.color;
-    (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
+    /*
+     * With "X's own backdrop" chosen as the base, lay down an opaque color composited
+     * with the column background skipped. When it cannot be measured, the specified
+     * color is used as is and the extension leaves the color alone.
+     * Worked out once per colour (see `COLOR_FROM`); after that the post already carries
+     * the answer.
+     */
+    const from = `${decision.color}|${look.highlightBase}|${backdropRound()}`;
+    let color: string;
+    if (cell.getAttribute(COLOR_FROM) === from) {
+      color = (cell as HTMLElement).style.getPropertyValue(COLOR_VAR) || decision.color;
+    } else {
+      color =
+        look.highlightBase === 'theme'
+          ? (overThemeColor(cell, decision.color) ?? decision.color)
+          : decision.color;
+      (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
+      cell.setAttribute(COLOR_FROM, from);
+    }
     // Whether to mark it depends on the background including the color just laid down,
     // so it is measured after the color is applied
     const readable = performance.now();
@@ -189,6 +213,7 @@ const showDecision = (
 
   cell.classList.remove(HIGHLIGHTED);
   (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+  cell.removeAttribute(COLOR_FROM);
   clearReadable(cell);
 
   if (decision.action === ACTIONS.HIDE) {

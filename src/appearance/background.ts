@@ -5,6 +5,23 @@
  */
 import { layer, parseCssColor, type Rgb, type Rgba } from './contrast.ts';
 
+/**
+ * Which round of backdrops is current.
+ *
+ * What is behind a post does not change while it sits there, so a colour composited over
+ * it can be kept and used again (`filter/apply.ts`). What does change it is the extension
+ * painting something new — a background colour picked, a scope's rules rewritten — and
+ * that is what this counts.
+ */
+let round = 0;
+
+export const backdropRound = (): number => round;
+
+/** Says that what is behind things may have changed, so nothing measured before it stands */
+export const backdropsChanged = (): void => {
+  round++;
+};
+
 /** Limit on how far to walk up. A page that reaches no opaque color within it counts as unmeasurable */
 const MAX_ANCESTORS = 40;
 
