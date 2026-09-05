@@ -91,7 +91,15 @@ export const markReadable = (cell: Element, color: string): boolean => {
   const behindWithout = backgroundBehind(cell, cell);
   if (behind === null || behindWithout === null) return true;
 
-  let marked = false;
+  /*
+   * Worked out for every word first, and written afterwards.
+   *
+   * The marker is something the stylesheet answers to, so writing one makes the browser
+   * work out the page's styles again — and the next colour read waits for it. Written as
+   * they were decided, a post's few dozen runs of text cost a few dozen of those
+   * (measured on the real site: 9ms a post, against about one).
+   */
+  const wanted: { element: Element; fg: string }[] = [];
   for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
@@ -105,9 +113,9 @@ export const markReadable = (cell: Element, color: string): boolean => {
     const before = backgroundOver(between, behindWithout);
     const fg = fixIfWorsened(before, after, current);
     if (fg === null) continue;
-    element.setAttribute(FG_ATTR, fg === BLACK ? 'dark' : 'light');
-    marked = true;
+    wanted.push({ element, fg: fg === BLACK ? 'dark' : 'light' });
   }
-  cell.setAttribute(FG_IN_ATTR, done(color, marked));
+  for (const { element, fg } of wanted) element.setAttribute(FG_ATTR, fg);
+  cell.setAttribute(FG_IN_ATTR, done(color, wanted.length > 0));
   return true;
 };
