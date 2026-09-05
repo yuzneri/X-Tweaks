@@ -9,7 +9,7 @@ import { backgroundBehind } from '../appearance/background.ts';
 import { layer, parseColor } from '../appearance/contrast.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
-import { spentOn } from '../diagnostics.ts';
+import { counted, spentOn } from '../diagnostics.ts';
 import { mark, unmark } from './emphasis.ts';
 import { clearReadable, markReadable } from './readable.ts';
 
@@ -155,8 +155,10 @@ const showDecision = (
   messages: Messages,
   look: Look
 ): void => {
+  const started = performance.now();
   if (!decision) {
     resetDecision(cell);
+    spentOn('· nothing applies', performance.now() - started);
     return;
   }
 
@@ -174,8 +176,11 @@ const showDecision = (
     (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
     // Whether to mark it depends on the background including the color just laid down,
     // so it is measured after the color is applied
-    if (look.adjustContrast) markReadable(cell);
+    const readable = performance.now();
+    if (look.adjustContrast) counted('posts kept readable', markReadable(cell, color) ? 1 : 0);
     else clearReadable(cell);
+    spentOn('· keeping words readable', performance.now() - readable);
+    spentOn('· highlighting', performance.now() - started);
     return;
   }
 
@@ -191,6 +196,7 @@ const showDecision = (
     placeholderOf(cell)?.remove();
     cell.classList.remove(COLLAPSED);
     cell.classList.add(HIDDEN);
+    spentOn('· hiding', performance.now() - started);
     return;
   }
 
@@ -205,4 +211,5 @@ const showDecision = (
     cell.prepend(buildPlaceholder(cell, decision, author, messages));
   }
   cell.classList.add(COLLAPSED);
+  spentOn('· collapsing', performance.now() - started);
 };

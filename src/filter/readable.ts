@@ -48,9 +48,18 @@ const wordsIn = (cell: Element): Element[] => {
  */
 const FG_IN_ATTR = 'data-xpro-fg-in';
 
+/**
+ * What the marker says: the colour the post was looked at under, and whether anything
+ * came of it. A post that needed nothing is worth telling from one that has marks to
+ * take off, so that taking them off costs nothing where there are none.
+ */
+const done = (color: string, marked: boolean): string => `${marked ? 'm' : 'n'}:${color}`;
+
 export const clearReadable = (cell: Element): void => {
-  if (!cell.hasAttribute(FG_IN_ATTR)) return;
+  const before = cell.getAttribute(FG_IN_ATTR);
+  if (before === null) return;
   cell.removeAttribute(FG_IN_ATTR);
+  if (before.startsWith('n')) return;
   for (const el of cell.querySelectorAll(`[${FG_ATTR}]`)) el.removeAttribute(FG_ATTR);
 };
 
@@ -58,8 +67,19 @@ export const clearReadable = (cell: Element): void => {
  * Marks the text in a highlighted cell, only as far as needed.
  * Only text the highlight made unreadable is marked; text X shows in dim gray to begin
  * with, and elements whose color could not be read, are left alone.
+ *
+ * Answers whether it had to work anything out, which is what the console line counts.
  */
-export const markReadable = (cell: Element): void => {
+export const markReadable = (cell: Element, color: string): boolean => {
+  /*
+   * Already answered for this colour. What the answer turns on — the colour laid on the
+   * post, what is behind it, and the colours X draws the words in — none of it changes
+   * while the post stands there, so a re-judgement under the same colour has nothing to
+   * work out again. (This pass costs about a millisecond a post on the real site, and a
+   * change to the rules asks it of every highlighted post on the page.)
+   */
+  const already = cell.getAttribute(FG_IN_ATTR);
+  if (already === done(color, true) || already === done(color, false)) return false;
   clearReadable(cell);
   /*
    * What is behind the post, with the highlight laid on it and without it. Measured once
@@ -69,8 +89,9 @@ export const markReadable = (cell: Element): void => {
    */
   const behind = backgroundBehind(cell);
   const behindWithout = backgroundBehind(cell, cell);
-  if (behind === null || behindWithout === null) return;
+  if (behind === null || behindWithout === null) return true;
 
+  let marked = false;
   for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
@@ -80,6 +101,8 @@ export const markReadable = (cell: Element): void => {
     const fg = fixIfWorsened(before, after, current);
     if (fg === null) continue;
     element.setAttribute(FG_ATTR, fg === BLACK ? 'dark' : 'light');
-    cell.setAttribute(FG_IN_ATTR, '');
+    marked = true;
   }
+  cell.setAttribute(FG_IN_ATTR, done(color, marked));
+  return true;
 };

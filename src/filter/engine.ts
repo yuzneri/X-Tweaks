@@ -16,6 +16,7 @@ import {
   type Tally,
 } from './health.ts';
 import { apply, isExpandedByUser, reset, type Look } from './apply.ts';
+import { clearReadable } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
@@ -195,9 +196,18 @@ const watchAd = (isAd: boolean): void => {
  */
 const reads = new WeakMap<Element, Post>();
 
-/** Lets go of what was read from the posts the page has changed since the last settling */
+/**
+ * Lets go of what was read from the posts the page has changed since the last settling,
+ * and of what was worked out about the words in them.
+ *
+ * Both are answers about a post as it stood. X rewriting one in place leaves the post
+ * where it is, so neither would be asked again on its own.
+ */
 const forgetTouchedReads = (): void => {
-  for (const cell of postsTouched()) reads.delete(cell);
+  for (const cell of postsTouched()) {
+    reads.delete(cell);
+    clearReadable(cell);
+  }
 };
 
 /** true once judged. A cell still mid-render, or one that is not a judging target, gives false */
