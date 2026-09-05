@@ -136,10 +136,19 @@ const warnSaveFailed =
     );
   };
 
+/** What the last check made of the markers. A verdict is acted on once it comes twice running */
+let lastFound: Marker[] = [];
+
 /**
  * Checks whether the markers are broken. Called after one full pass of judging.
  * It reports again only when the set of broken markers changes, and when the body-text
  * marker is broken it drops the rules that read the body and judges again.
+ *
+ * A verdict has to come twice in a row before it counts. A deck being switched empties
+ * the columns and fills them again, and in between there is a moment where the posts are
+ * in the page but not one of them can be read yet — which is the shape of the body-text
+ * marker having been renamed, and was being reported as exactly that (seen on the real
+ * site: "post" broken, then unbroken a moment later).
  */
 const checkHealth = (): void => {
   tally.articles = document.querySelectorAll(ARTICLE_SELECTOR).length;
@@ -147,7 +156,9 @@ const checkHealth = (): void => {
   const found = brokenMarkers(tally);
   // Spotting columns is not counted during judging, so the result from resolving is added
   if (columnsBroken) found.push('column');
-  if (sameMarkers(found, broken)) return;
+  const settled = sameMarkers(found, lastFound);
+  lastFound = found;
+  if (!settled || sameMarkers(found, broken)) return;
 
   const stopped = textRulesStopped(broken);
   broken = found;
