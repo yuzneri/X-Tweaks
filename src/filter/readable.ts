@@ -64,41 +64,66 @@ export const clearReadable = (cell: Element): void => {
 };
 
 /**
- * Marks the text in a highlighted cell, only as far as needed.
- * Only text the highlight made unreadable is marked; text X shows in dim gray to begin
- * with, and elements whose color could not be read, are left alone.
+ * The posts waiting to have their words looked at, and the colour each was given.
  *
- * Answers whether it had to work anything out, which is what the console line counts.
+ * The work is put off to the end of a round of judging rather than done where the post is
+ * decided. Deciding a post writes to it — the colour, the classes — and reading a colour
+ * back makes the browser work out the page's styles again before it answers. One post at
+ * a time, that is a pass over the page's styles per post: measured on the real site at
+ * 10ms a post, where a whole round of them costs about the same as one.
  */
-export const markReadable = (cell: Element, color: string): boolean => {
-  /*
-   * Already answered for this colour. What the answer turns on — the colour laid on the
-   * post, what is behind it, and the colours X draws the words in — none of it changes
-   * while the post stands there, so a re-judgement under the same colour has nothing to
-   * work out again. (This pass costs about a millisecond a post on the real site, and a
-   * change to the rules asks it of every highlighted post on the page.)
-   */
-  const already = cell.getAttribute(FG_IN_ATTR);
-  if (already === done(color, true) || already === done(color, false)) return false;
-  clearReadable(cell);
+const waiting = new Map<Element, string>();
+
+export const markReadableLater = (cell: Element, color: string): void => {
+  waiting.set(cell, color);
+};
+
+/**
+ * Looks at every post that was waiting, and answers how many had to be worked out.
+ *
+ * Called once at the end of a round of judging (`filter/engine.ts`). Every post is read
+ * before any of them is written to, so the round costs one pass over the page's styles
+ * rather than one per post.
+ */
+export const markReadableWaiting = (): number => {
+  if (waiting.size === 0) return 0;
+  const posts = [...waiting];
+  waiting.clear();
+
+  let worked = 0;
+  const wanted: { element: Element; fg: string }[] = [];
+  const marks: { cell: Element; color: string; any: boolean }[] = [];
+  for (const [cell, color] of posts) {
+    const already = cell.getAttribute(FG_IN_ATTR);
+    // Already worked out under this colour, and what is behind a post does not move
+    if (already === done(color, true) || already === done(color, false)) continue;
+    worked += 1;
+    clearReadable(cell);
+    const found = readCell(cell);
+    if (found === null) continue;
+    wanted.push(...found);
+    marks.push({ cell, color, any: found.length > 0 });
+  }
+  for (const { element, fg } of wanted) element.setAttribute(FG_ATTR, fg);
+  for (const { cell, color, any } of marks) cell.setAttribute(FG_IN_ATTR, done(color, any));
+  return worked;
+};
+
+/**
+ * Which words in a post want a colour of their own, and which. Reads only; the writing is
+ * the caller's, so that a round of posts can be read before any of them is written to.
+ * null where what is behind the post could not be measured at all.
+ */
+const readCell = (cell: Element): { element: Element; fg: string }[] | null => {
   /*
    * What is behind the post, with the highlight laid on it and without it. Measured once
    * for the post rather than once per element: the walk from an element runs to the root,
-   * and above the post it is the same walk every time. What each element adds of its own
-   * is the few layers between it and the post (`backgroundWithin`).
+   * and above the post it is the same walk every time (`layersWithin`).
    */
   const behind = backgroundBehind(cell);
   const behindWithout = backgroundBehind(cell, cell);
-  if (behind === null || behindWithout === null) return true;
+  if (behind === null || behindWithout === null) return null;
 
-  /*
-   * Worked out for every word first, and written afterwards.
-   *
-   * The marker is something the stylesheet answers to, so writing one makes the browser
-   * work out the page's styles again — and the next colour read waits for it. Written as
-   * they were decided, a post's few dozen runs of text cost a few dozen of those
-   * (measured on the real site: 9ms a post, against about one).
-   */
   const wanted: { element: Element; fg: string }[] = [];
   for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
@@ -115,7 +140,5 @@ export const markReadable = (cell: Element, color: string): boolean => {
     if (fg === null) continue;
     wanted.push({ element, fg: fg === BLACK ? 'dark' : 'light' });
   }
-  for (const { element, fg } of wanted) element.setAttribute(FG_ATTR, fg);
-  cell.setAttribute(FG_IN_ATTR, done(color, wanted.length > 0));
-  return true;
+  return wanted;
 };

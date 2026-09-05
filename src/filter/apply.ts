@@ -11,7 +11,7 @@ import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
 import { counted, spentOn } from '../diagnostics.ts';
 import { mark, unmark } from './emphasis.ts';
-import { clearReadable, markReadable } from './readable.ts';
+import { clearReadable, markReadableLater } from './readable.ts';
 
 const COLLAPSED = 'xpro-collapsed';
 /** Hidden: no placeholder either, the whole cell is taken out of the display */
@@ -202,10 +202,13 @@ const showDecision = (
     }
     // Whether to mark it depends on the background including the color just laid down,
     // so it is measured after the color is applied
-    const readable = performance.now();
-    if (look.adjustContrast) counted('posts kept readable', markReadable(cell, color) ? 1 : 0);
+    /*
+     * Left for the end of the round rather than done here: reading a colour back makes
+     * the browser work out the page's styles again, and the post has just been written to
+     * (`markReadableLater`)
+     */
+    if (look.adjustContrast) markReadableLater(cell, color);
     else clearReadable(cell);
-    spentOn('· keeping words readable', performance.now() - readable);
     spentOn('· highlighting', performance.now() - started);
     return;
   }

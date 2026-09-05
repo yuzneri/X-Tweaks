@@ -16,7 +16,7 @@ import {
   type Tally,
 } from './health.ts';
 import { apply, isExpandedByUser, reset, type Look } from './apply.ts';
-import { clearReadable } from './readable.ts';
+import { clearReadable, markReadableWaiting } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
@@ -274,6 +274,7 @@ const judgeNew = (root: ParentNode, onlySettled = false): void => {
     }
   }
   counted('posts judged', fresh);
+  keepWordsReadable();
   // A round that looked at only part of them is no material for the watch. The skipped
   // cells were not unreadable, merely unlooked-at, and letting them through would
   // wrongly report "there are cells but not one could be read"
@@ -314,8 +315,22 @@ const judgeAll = (): void => {
     // A cell opened by hand stays open
     if (!isExpandedByUser(cell)) reset(cell);
   }
+  keepWordsReadable();
   // Emphasis does not change the DOM, so merely changing a color does not wake the Observer
   sweep();
+};
+
+/**
+ * Looks at the words in the posts this round highlighted, all of them together.
+ * Held back until here for what it costs to read a colour back out of a page that has
+ * just been written to (`filter/readable.ts`).
+ */
+const keepWordsReadable = (): void => {
+  const started = performance.now();
+  const posts = markReadableWaiting();
+  if (posts === 0) return;
+  counted('posts kept readable', posts);
+  spentOn('· keeping words readable', performance.now() - started);
 };
 
 /**
