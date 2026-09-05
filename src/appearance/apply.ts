@@ -30,6 +30,7 @@ import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
   isCompact,
+  layoutKey,
   mediaStyleOf,
   quoteStyleOf,
   timeFormatOf,
@@ -256,28 +257,40 @@ const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
  *
  * What the memory cannot see is the page changing around an element that stayed put.
  * Three things do that, and each has its own answer:
- *   - the settings changed, or the columns did: `remeasureEverything` (from
- *     `applyAppearance`), because the limits themselves moved
- *   - a scope changed size: the same, because everything in it wraps differently at
- *     another width. Watched on the scopes themselves rather than on the window, so that
- *     a column widened where it stands — by our own setting, by X Pro's, or by the window
- *     — is caught the same way
+ *   - the settings for its scope changed the way it is drawn: the measurement carries
+ *     which settings it was taken under (`measuredUnder`), so it stands or falls with
+ *     them — and with them alone, leaving the scopes beside it untouched
+ *   - a scope changed size: `remeasureEverything`, because everything in it wraps
+ *     differently at another width. Watched on the scopes themselves rather than on the
+ *     window, so that a column widened where it stands — by our own setting, by X Pro's,
+ *     or by the window — is caught the same way
  *   - a picture finished loading: that one picture is forgotten, not the page — pictures
  *     arrive one at a time while the reader scrolls, and forgetting everything each time
  *     one did would leave nothing remembered at all
  */
 
 /** What was measured for one medium, and the state of the page it was measured in */
-const frames = new WeakMap<Element, { generation: number; limit: number; frame: Element | null }>();
+const frames = new WeakMap<Element, { key: string; frame: Element | null }>();
 
 /** What was measured for one body, and the state of the page it was measured in */
-const overflows = new WeakMap<Element, { generation: number; key: string; over: boolean }>();
+const overflows = new WeakMap<Element, { key: string; over: boolean }>();
 
 /**
  * Which round of measurements is current. Everything measured under an earlier one is
  * measured again the next time it is asked for.
  */
 let generation = 0;
+
+/**
+ * What a measurement was taken under: the round, and how the scope it sits in is drawn.
+ *
+ * The scope's own share of it is what keeps a change to one scope off the others. A deck
+ * comes back a column at a time, and every column arriving rewrites the stylesheet —
+ * measured against the page as a whole, that would mean measuring every picture and every
+ * body on screen again, five or ten times over, while the reader waits.
+ */
+const measuredUnder = (appearance: AppearanceNode): string =>
+  `${generation}|${layoutKey(appearance)}`;
 
 const remeasureEverything = (): void => {
   generation++;
@@ -295,16 +308,22 @@ const widths = new WeakMap<Element, number>();
  * the one time it is worth having. Nothing measured here follows the height: what a body
  * wraps at and how tall a picture is drawn both follow the width.
  *
- * The first answer for a scope arrives as soon as it is watched, and costs one round of
- * measuring.
+ * The first answer for a scope says how wide it already is, which is not a change: it is
+ * ignored, and only a scope that later changes width has what was measured in it dropped.
  */
 const sizes = new ResizeObserver((entries) => {
   let changed = false;
   for (const entry of entries) {
     const width = entry.contentRect.width;
-    if (widths.get(entry.target) === width) continue;
+    const known = widths.get(entry.target);
     widths.set(entry.target, width);
-    changed = true;
+    /*
+     * The first word about a scope is not news. A scope is watched the moment it is seen,
+     * and the answer that comes back says how wide it already was — nothing was measured
+     * under any other width. Taking it for a change is what made a deck coming back a
+     * column at a time measure every picture on screen again for each one that arrived.
+     */
+    if (known !== undefined && known !== width) changed = true;
   }
   if (changed) remeasureEverything();
 });
@@ -522,20 +541,21 @@ const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> |
   /** The frames that should carry the marker at the end of this round */
   const wanted = new Set<Element>();
   /** The media nothing is remembered about. Measured together, and only if there are any */
-  const unmeasured: { media: Element; limit: number }[] = [];
+  const unmeasured: { media: Element; limit: number; key: string }[] = [];
 
   for (const { element, appearance } of columnsOnScreen(columns)) {
     // How the limit is derived lives in `limitFor` alone. null means this scope wants no marker
     const limit = limitFor(appearance);
     if (limit === null) continue;
+    const key = measuredUnder(appearance);
     for (const root of rootsIn(element, changed)) {
       root.querySelectorAll(MEDIA_ANYWHERE).forEach((media) => {
         const known = frames.get(media);
-        if (known && known.generation === generation && known.limit === limit) {
+        if (known && known.key === key) {
           if (known.frame) wanted.add(known.frame);
           return;
         }
-        unmeasured.push({ media, limit });
+        unmeasured.push({ media, limit, key });
       });
     }
   }
@@ -547,10 +567,10 @@ const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> |
    * it is a post folded away by a rule or not drawn yet, and remembering it would leave
    * the picture uncapped when the post is opened again ("Show").
    */
-  const measure = ({ media, limit }: { media: Element; limit: number }): void => {
+  const measure = ({ media, limit, key }: { media: Element; limit: number; key: string }): void => {
     if (media.getBoundingClientRect().height === 0) return;
     const frame = frameOf(media, limit);
-    frames.set(media, { generation, limit, frame });
+    frames.set(media, { key, frame });
     if (frame) wanted.add(frame);
   };
 
@@ -568,8 +588,8 @@ const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> |
    * uncap — the box is not drawn at all — so those are measured with the stylesheet off,
    * as they always were.
    */
-  const capped: { media: Element; limit: number }[] = [];
-  const hidden: { media: Element; limit: number }[] = [];
+  const capped: typeof unmeasured = [];
+  const hidden: typeof unmeasured = [];
   for (const one of unmeasured) (one.limit === 0 ? hidden : capped).push(one);
 
   if (capped.length > 0) {
@@ -1554,7 +1574,7 @@ const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
 
   if (appearance.maxLines === null) return false;
   // Measured last: it costs a layout, and everything above is a lookup
-  return overflowsLimit(text, appearance.maxLines);
+  return overflowsLimit(text, appearance, appearance.maxLines);
 };
 
 /**
@@ -1571,16 +1591,16 @@ const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
  * A body drawn at no height is not remembered. It is not short, it is not on screen yet,
  * and remembering "it fits" would leave the button off once it appears.
  */
-const overflowsLimit = (text: Element, maxLines: number): boolean => {
-  const key = `${maxLines} ${text.textContent?.length ?? 0}`;
+const overflowsLimit = (text: Element, appearance: AppearanceNode, maxLines: number): boolean => {
+  const key = `${measuredUnder(appearance)}|${text.textContent?.length ?? 0}`;
   const known = overflows.get(text);
-  if (known && known.generation === generation && known.key === key) return known.over;
+  if (known && known.key === key) return known.over;
 
   const height = text.clientHeight;
   if (height === 0) return false;
   const reachesLimit = height >= (maxLines - 0.5) * lineHeightOf(text);
   const over = reachesLimit && text.scrollHeight > height + 2;
-  overflows.set(text, { generation, key, over });
+  overflows.set(text, { key, over });
   return over;
 };
 
@@ -1869,16 +1889,7 @@ export const applyAppearance = (
     .join('\n');
 
   const style = styleElement();
-  /*
-   * The measurements stand or fall with the stylesheet: what a body wraps at and how tall
-   * a picture is drawn are what these rules decide. So a change that leaves the CSS as it
-   * was — a colour, or one of the settings that only moves the marks — leaves every
-   * measurement alone, and picking a colour no longer means measuring the page again.
-   */
-  if (style.textContent !== css) {
-    style.textContent = css;
-    remeasureEverything();
-  }
+  if (style.textContent !== css) style.textContent = css;
 
   lastColumns = columns;
   lastMessages = messages;

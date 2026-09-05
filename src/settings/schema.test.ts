@@ -19,6 +19,8 @@ import {
   minutesOf,
   splitDuration,
   appearanceApplies,
+  layoutKey,
+  type AppearanceNode,
   canEmphasizeWith,
   fillNode,
   cardStyleOf,
@@ -909,4 +911,26 @@ test('投稿フォームの色だけでも「中身のある段」として数�
   // taken for empty and dropped the next time it is edited
   const node = fillNode({ appearance: { colors: { composeBackground: '#3b1d5e' } } });
   assert.equal(hasContent(node), true);
+});
+
+test('描かれ方を決める設定だけが、レイアウトのキーに入る', () => {
+  const base = emptyNode().appearance;
+  // A colour does not move anything: the same key
+  const colored = { ...base, colors: { ...base.colors, background: '#123456', text: '#ffffff' } };
+  assert.equal(layoutKey(colored), layoutKey(base));
+  // The switches and sizes that decide how a post is laid out: a different key each
+  const moves: ((a: AppearanceNode) => AppearanceNode)[] = [
+    (a) => ({ ...a, columnWidth: 400 }),
+    (a) => ({ ...a, compact: true }),
+    (a) => ({ ...a, fontSize: 12 }),
+    (a) => ({ ...a, maxLines: 3 }),
+    (a) => ({ ...a, wordsShown: 40 }),
+    (a) => ({ ...a, collapseNewlines: true }),
+    (a) => ({ ...a, timeFormat: 'absolute' }),
+    (a) => ({ ...a, cardStyle: 'text' }),
+    (a) => ({ ...a, quoteStyle: 'mark' }),
+    (a) => ({ ...a, media: { ...a.media, style: 'hidden' } }),
+    (a) => ({ ...a, media: { ...a.media, maxThumbHeight: 200 } }),
+  ];
+  for (const move of moves) assert.notEqual(layoutKey(move(base)), layoutKey(base));
 });

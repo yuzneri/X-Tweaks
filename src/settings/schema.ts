@@ -1165,6 +1165,35 @@ export const withoutColumnItems = (appearance: AppearanceNode): AppearanceNode =
   colors: { ...appearance.colors, columnTitle: null, columnHeader: null },
 });
 
+/**
+ * What of an appearance decides how a post is *drawn*, as one string.
+ *
+ * Two appearances that agree here lay a post out the same way, whatever else differs
+ * between them. It is what the extension's own measurements are remembered against
+ * (`appearance/apply.ts`): a colour picked, or a mark reworded, leaves every height and
+ * every line count where it was, and a column arriving beside others leaves theirs alone.
+ *
+ * The items are named one by one rather than taken wholesale, because "what changes the
+ * layout" is a judgement about each of them: the colours do not, the widths and sizes do,
+ * and so does anything that puts words into a post or takes them out. An item added to
+ * the appearance and forgotten here shows up as a measurement outliving a setting, which
+ * rights itself the next time the post is redrawn or the window is resized.
+ */
+export const layoutKey = (appearance: AppearanceNode): string =>
+  [
+    appearance.columnWidth,
+    appearance.compact,
+    appearance.fontSize,
+    appearance.maxLines,
+    appearance.wordsShown,
+    appearance.collapseNewlines,
+    appearance.timeFormat,
+    appearance.cardStyle,
+    appearance.quoteStyle,
+    appearance.media.style,
+    appearance.media.maxThumbHeight,
+  ].join('|');
+
 /** The appearance's contents. The switch for whether it applies (`enabled`) is not included */
 const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.columnWidth !== null ||
