@@ -25,7 +25,13 @@ import {
   X_SHOW_MORE,
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
-import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
+import {
+  changedCells,
+  changeEverything,
+  noticeChange,
+  roundAnswersAChange,
+  watchChanges,
+} from './changed.ts';
 import { counted, noted, timed } from '../diagnostics.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
@@ -233,6 +239,19 @@ const rootsIn = (element: Element, changed: Set<Element> | null): Element[] =>
   changed === null ? [element] : cellsIn(element, changed);
 
 /**
+ * The same, for a round that is going to measure: the posts left waiting for it come
+ * back in as well.
+ *
+ * Only the two passes that measure ask for this. Bringing what is waiting into every
+ * pass would have them work out a post's lines and captions again for no reason — the
+ * post has not changed, it is only that nobody has measured it yet.
+ */
+const rootsToMeasure = (element: Element, changed: Set<Element> | null): Element[] =>
+  changed === null
+    ? [element]
+    : [...new Set([...changed, ...toMeasure])].filter((cell) => element.contains(cell));
+
+/**
  * Where to take a mark off again.
  *
  * A round working from the changed posts must only tidy up inside them: a sweep of the
@@ -269,6 +288,84 @@ const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
  *     arrive one at a time while the reader scrolls, and forgetting everything each time
  *     one did would leave nothing remembered at all
  */
+
+/**
+ * How long to leave between two rounds of measuring the page.
+ *
+ * Reading a height forces the browser to lay the page out then and there, and on a real
+ * timeline that one read costs a fifth of a second whether it is answering for one
+ * picture or a hundred (measured on x.com: 200ms for two pictures, on a page of 125
+ * posts). Paid on every settling, with posts arriving all the while, that is the page
+ * stuttering the whole time it is read.
+ *
+ * So measuring waits: what needs it is remembered and answered together, a few times a
+ * second rather than a few times a frame. What is waiting keeps whatever it was given
+ * last — a picture already capped stays capped, a button already there stays there — so
+ * the wait shows as a mark arriving late on something new, not as one flickering on
+ * something already on screen.
+ *
+ * A round that has to be right cannot wait, and does not: the settings changing, or the
+ * columns, measures at once (see `mayMeasure`).
+ */
+const MEASURE_MS = 500;
+
+let lastMeasured = 0;
+
+/** The posts with something still to measure. Looked at again on a later round */
+const toMeasure = new Set<Element>();
+
+/** Whether a round of measuring is already booked for the next quiet moment */
+let booked = false;
+
+/** Whether the round now running is that booked one */
+let atAQuietMoment = false;
+
+/**
+ * Measures at the next moment the browser has nothing else to do with the page.
+ *
+ * Two frames out rather than one: a callback on the next frame runs *before* that frame
+ * is laid out, so it would be reading a page our own writes had just made stale — which
+ * is the forced layout this is here to avoid. A callback on the frame after that finds
+ * the page laid out and painted, and reading it costs nothing.
+ *
+ * A background tab never gets there, and nothing in it wants measuring: it comes back
+ * when the tab does.
+ */
+const measureSoon = (): void => {
+  if (booked) return;
+  booked = true;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      booked = false;
+      atAQuietMoment = true;
+      try {
+        stampMediaFrames();
+      } finally {
+        atAQuietMoment = false;
+      }
+    })
+  );
+};
+
+/** Whether something is waiting that the reader asked for, rather than something that turned up */
+let awaited = false;
+
+/**
+ * Whether this round may measure.
+ *
+ * Only the booked round measures — the one that runs when the browser has just laid the
+ * page out, where reading a height costs nothing. What that round is allowed to measure
+ * depends on what is waiting: a change the reader made is answered on the spot, while
+ * posts arriving of their own accord wait for the window between two rounds of measuring.
+ */
+const mayMeasure = (): boolean =>
+  atAQuietMoment && (awaited || Date.now() - lastMeasured >= MEASURE_MS);
+
+/** Notes that a post has something still to be measured, and keeps it for a later round */
+const measureLater = (element: Element): void => {
+  const cell = element.closest(CELL_SELECTOR);
+  if (cell) toMeasure.add(cell);
+};
 
 /** What was measured for one medium, and the state of the page it was measured in */
 const frames = new WeakMap<Element, { key: string; frame: Element | null }>();
@@ -326,7 +423,14 @@ const sizes = new ResizeObserver((entries) => {
      */
     if (known !== undefined && known !== width) changed = true;
   }
-  if (changed) remeasureEverything();
+  if (!changed) return;
+  remeasureEverything();
+  /*
+   * A width changing moves nothing in the page, so nothing tells the passes to look
+   * again: they are told here. Without it, everything in the scope would go on showing
+   * what it was given at the old width until something else happened to it.
+   */
+  changeEverything();
 });
 
 /**
@@ -538,7 +642,11 @@ const restampTimes = (
  * Sets the media frame markers again. They are redone because a stale marker left
  * over from a tighter limit would keep that frame shrunk.
  */
-const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> | null): void => {
+const restampMediaFrames = (
+  columns: ColumnAppearance[],
+  changed: Set<Element> | null,
+  measuring: boolean
+): void => {
   /** The frames that should carry the marker at the end of this round */
   const wanted = new Set<Element>();
   /** The media nothing is remembered about. Measured together, and only if there are any */
@@ -549,11 +657,22 @@ const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> |
     const limit = limitFor(appearance);
     if (limit === null) continue;
     const key = measuredUnder(appearance);
-    for (const root of rootsIn(element, changed)) {
+    for (const root of measuring ? rootsToMeasure(element, changed) : rootsIn(element, changed)) {
       root.querySelectorAll(MEDIA_ANYWHERE).forEach((media) => {
         const known = frames.get(media);
         if (known && known.key === key) {
           if (known.frame) wanted.add(known.frame);
+          return;
+        }
+        if (!measuring) {
+          /*
+           * Not measured yet, and this round is not the one to do it. What it was given
+           * before stands: a frame already marked keeps its marker rather than losing it
+           * for a round and getting it back
+           */
+          measureLater(media);
+          const marked = media.closest(`[${MEDIA_FRAME_ATTR}]`);
+          if (marked) wanted.add(marked);
           return;
         }
         unmeasured.push({ media, limit, key });
@@ -1550,7 +1669,11 @@ const lineHeightOf = (text: Element): number => {
  * stops being cut off — the column has a post opened in it, the posts get packed, the
  * limit is lifted — arrive long after the button was put in.
  */
-const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
+const wantsShowMore = (
+  text: Element,
+  appearance: AppearanceNode,
+  measuring: boolean
+): boolean | null => {
   // Body text inside a quote is outside the limit (matching the targets in css.ts).
   // A scope with a post opened is too, and is turned away by the caller, which knows
   // the scope without having to walk up from the body to find it
@@ -1576,7 +1699,7 @@ const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
 
   if (appearance.maxLines === null) return false;
   // Measured last: it costs a layout, and everything above is a lookup
-  return overflowsLimit(text, appearance, appearance.maxLines);
+  return overflowsLimit(text, appearance, appearance.maxLines, measuring);
 };
 
 /**
@@ -1593,10 +1716,20 @@ const wantsShowMore = (text: Element, appearance: AppearanceNode): boolean => {
  * A body drawn at no height is not remembered. It is not short, it is not on screen yet,
  * and remembering "it fits" would leave the button off once it appears.
  */
-const overflowsLimit = (text: Element, appearance: AppearanceNode, maxLines: number): boolean => {
+const overflowsLimit = (
+  text: Element,
+  appearance: AppearanceNode,
+  maxLines: number,
+  measuring: boolean
+): boolean | null => {
   const key = `${measuredUnder(appearance)}|${text.textContent?.length ?? 0}`;
   const known = overflows.get(text);
   if (known && known.key === key) return known.over;
+  // Nothing to say yet: the caller leaves this body as it found it (see `MEASURE_MS`)
+  if (!measuring) {
+    measureLater(text);
+    return null;
+  }
 
   counted('bodies measured', 1);
   const height = text.clientHeight;
@@ -1618,7 +1751,8 @@ const addShowMore = (
   columns: ColumnAppearance[],
   messages: Messages,
   readLinkColor: () => string | null,
-  changed: Set<Element> | null
+  changed: Set<Element> | null,
+  measuring: boolean
 ): void => {
   /*
    * Every body is decided before any of them is written to. Deciding costs a measurement
@@ -1626,13 +1760,18 @@ const addShowMore = (
    * page to be laid out again — with a body decided and written one after the other, a
    * timeline of several hundred posts pays that hundreds of times over.
    */
-  const decided: { text: Element; under: Element; existing: HTMLElement | null; wanted: boolean }[] =
-    [];
+  const decided: {
+    text: Element;
+    under: Element;
+    existing: HTMLElement | null;
+    wanted: boolean | null;
+  }[] = [];
   for (const { element, appearance } of columnsOnScreen(columns)) {
     // A scope with a post opened has no limit to open out of, and neither has one with
     // the posts packed (see `wantsShowMore`). Asked once here rather than per body
     const wants = !element.hasAttribute(OPENED_ATTR) && !isCompact(appearance.compact);
-    for (const root of rootsIn(element, changed)) {
+    const where = measuring ? rootsToMeasure(element, changed) : rootsIn(element, changed);
+    for (const root of where) {
       root.querySelectorAll(TWEET_TEXT_SELECTOR).forEach((text) => {
         /*
          * The button belongs under everything the extension put after the body, not directly
@@ -1647,13 +1786,15 @@ const addShowMore = (
           text,
           under,
           existing,
-          wanted: wants && wantsShowMore(text, appearance),
+          wanted: wants ? wantsShowMore(text, appearance, measuring) : false,
         });
       });
     }
   }
 
   for (const { text, under, existing, wanted } of decided) {
+    // No answer yet: this body is left exactly as it was found (see `MEASURE_MS`)
+    if (wanted === null) continue;
     if (!wanted) {
       // A button put in before the marks were is not where it belongs any more, so it is
       // looked for past them as well as under them
@@ -1737,9 +1878,22 @@ export const stampMediaFrames = (): void => {
    * Which posts this round has to look at. Asked once and handed to every pass: they must
    * agree about it, or one of them would tidy up after a post another never looked at
    */
-  const changed = changedCells();
+  /*
+   * The booked round is not a settling: it was called to measure what was waiting, so it
+   * looks at those posts and nothing else — and leaves the settlings' own bookkeeping
+   * (`changed.ts`) alone, since what changed since the last settling is still theirs to
+   * deal with.
+   */
+  const changed = atAQuietMoment ? new Set(toMeasure) : changedCells();
   if (changed === null) noted('every post');
   else counted('posts looked at', changed.size);
+  /*
+   * Whether anything gets measured this round, decided once and handed to both passes
+   * that do it: measuring is one cost for the page however many answers come out of it,
+   * so the two of them share a round rather than taking one each (see `MEASURE_MS`)
+   */
+  const measuring = mayMeasure();
+  if (measuring) noted('measured');
   // The time markers are set again on the same occasion. When every tier says
   // "as X shows it", they are stripped so that no marker of ours is left in X's DOM
   // even though no rule targets them
@@ -1754,7 +1908,7 @@ export const stampMediaFrames = (): void => {
   // Whether even one column needs markers. How the limit is derived lives in `limitFor` alone
   const needsFrames = lastColumns.some((column) => limitFor(column.appearance) !== null);
   if (needsFrames) {
-    timed('· media frames', () => restampMediaFrames(lastColumns, changed));
+    timed('· media frames', () => restampMediaFrames(lastColumns, changed, measuring));
   } else {
     // Once every tier drops the limit, strip the markers set earlier too.
     // Turning the extension off replaces the settings with empty ones, which arrives here
@@ -1815,10 +1969,26 @@ export const stampMediaFrames = (): void => {
     (stampsLines || lastColumns.some((column) => column.appearance.maxLines !== null))
   ) {
     listenToXShowMore();
-    timed('· show more', () => addShowMore(lastColumns, lastMessages!, readLinkColor, changed));
+    timed('· show more', () =>
+      addShowMore(lastColumns, lastMessages!, readLinkColor, changed, measuring)
+    );
   } else {
     // Once every tier drops the limit, remove the buttons added earlier too
     document.querySelectorAll(`.${MORE_CLASS}`).forEach((button) => button.remove());
+  }
+  if (measuring) {
+    /*
+     * Both passes that measure have had their turn, so what was waiting for them is let
+     * go of — including anything they did not get to, which is a post in a scope that no
+     * longer asks to be measured at all
+     */
+    lastMeasured = Date.now();
+    awaited = false;
+    toMeasure.clear();
+  } else if (toMeasure.size > 0) {
+    // What the reader did is worth interrupting the window for; what X did is not
+    if (roundAnswersAChange()) awaited = true;
+    measureSoon();
   }
 };
 

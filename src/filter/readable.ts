@@ -10,12 +10,27 @@ import { fixIfWorsened, parseCssColor, BLACK } from '../appearance/contrast.ts';
 /** The marker for the target color. Its value is the direction to shift in (`styles.css` holds the colors) */
 export const FG_ATTR = 'data-xpro-fg';
 
-/** Whether the element holds text of its own. Measuring containers too would disagree with the color of the text inside */
-const hasOwnText = (element: Element): boolean => {
-  for (const node of element.childNodes) {
-    if (node.nodeType === Node.TEXT_NODE && (node.nodeValue ?? '').trim() !== '') return true;
+/**
+ * The elements in a post that hold words of their own.
+ *
+ * Found by walking the words rather than the elements. Measuring a container as well as
+ * the text inside it would disagree with the color that text is actually drawn in, so
+ * only these are looked at — and a post as X builds one holds a few hundred elements
+ * against a few dozen runs of text, so starting from the words is the shorter walk by an
+ * order of magnitude. (Measured on the real site: this pass was costing 10ms a post.)
+ */
+const wordsIn = (cell: Element): Element[] => {
+  const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+  const found: Element[] = [];
+  const seen = new Set<Element>();
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    if ((node.nodeValue ?? '').trim() === '') continue;
+    const element = node.parentElement;
+    if (element === null || seen.has(element)) continue;
+    seen.add(element);
+    found.push(element);
   }
-  return false;
+  return found;
 };
 
 export const clearReadable = (cell: Element): void => {
@@ -39,8 +54,7 @@ export const markReadable = (cell: Element): void => {
   const behindWithout = backgroundBehind(cell, cell);
   if (behind === null || behindWithout === null) return;
 
-  for (const element of cell.querySelectorAll('*')) {
-    if (!hasOwnText(element)) continue;
+  for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
     // After the highlight is laid down, and before it (measured with the cell's background skipped)

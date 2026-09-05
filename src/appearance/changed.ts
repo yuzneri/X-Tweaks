@@ -46,6 +46,16 @@ let lastFull = 0;
 let answer: Set<Element> | null | undefined;
 
 /**
+ * Whether this round is answering a change rather than coming round on its own.
+ *
+ * The two look alike from outside — both look at every post — but they are owed different
+ * things. A settings change has to be right by the time the reader looks up, so anything
+ * it needs measuring is measured there and then. The safety round has nothing new to say
+ * and can wait for a good moment (`appearance/apply.ts`).
+ */
+export const roundAnswersAChange = (): boolean => everything;
+
+/**
  * The posts to look at, or null for all of them.
  *
  * Every pass in a settling gets the same answer, and the answer is thrown away when the
