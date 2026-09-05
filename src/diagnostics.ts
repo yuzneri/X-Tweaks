@@ -15,14 +15,21 @@
  * counted twice over — once on its own, and once in the whole it belongs to.
  */
 
-/** Long enough to be noticed as a stutter rather than a pause between frames */
-const SLOW_MS = 100;
+/**
+ * Long enough to be worth saying something about.
+ *
+ * Below a frame's worth of time (16ms) nothing can be felt, and everything above it takes
+ * something away from the page: a round at this length is not yet a stutter, but it is
+ * where one starts. Kept low enough that a round which improved can be seen to have
+ * improved, rather than simply falling silent.
+ */
+const SLOW_MS = 30;
 
 /** Whether a round took long enough to be worth saying anything about */
 export const feltAsSlow = (took: number): boolean => took >= SLOW_MS;
 
 /** How long to stay quiet after saying something */
-const QUIET_MS = 3000;
+const QUIET_MS = 1000;
 
 /** What each part of the round took, in the order the parts ran */
 let phases: { name: string; ms: number }[] = [];
@@ -41,6 +48,8 @@ const notes = new Set<string>();
 
 let lastSaid = 0;
 let unsaid = 0;
+/** The longest of the rounds that went unsaid, so a quiet window cannot hide the worst one */
+let worstUnsaid = 0;
 
 /** Times one part of a round. The cost of asking the clock twice is nothing beside what it measures */
 export const timed = <T>(name: string, step: () => T): T => {
@@ -76,7 +85,10 @@ const line = (what: string, took: number): string => {
     .sort((a, b) => b[1] - a[1])
     .map(([name, ms]) => `${name} ${Math.round(ms)}ms`);
   const sizes = [...notes, ...[...counts].map(([name, n]) => `${name} ${n}`)];
-  const missed = unsaid > 0 ? ` (+${unsaid} more since the last of these)` : '';
+  const missed =
+    unsaid > 0
+      ? ` (+${unsaid} more since the last of these, worst ${Math.round(worstUnsaid)}ms)`
+      : '';
   return (
     `⏱ ${Math.round(took)}ms ${what}${missed}` +
     (sizes.length > 0 ? ` — ${sizes.join(', ')}` : '') +
@@ -102,8 +114,10 @@ export const saidIfSlow = (
       log(line(what, took), 'color:#f59e0b');
       lastSaid = now;
       unsaid = 0;
+      worstUnsaid = 0;
     } else {
       unsaid += 1;
+      worstUnsaid = Math.max(worstUnsaid, took);
     }
   }
   phases = [];

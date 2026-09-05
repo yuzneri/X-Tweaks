@@ -32,7 +32,7 @@ import {
   roundAnswersAChange,
   watchChanges,
 } from './changed.ts';
-import { counted, noted, timed } from '../diagnostics.ts';
+import { counted, noted, saidIfSlow, timed } from '../diagnostics.ts';
 import { atAQuietMoment } from '../quiet.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
@@ -338,10 +338,16 @@ const measureSoon = (): void => {
   atAQuietMoment(() => {
     booked = false;
     inTheBookedRound = true;
+    const started = performance.now();
     try {
       stampMediaFrames();
     } finally {
       inTheBookedRound = false;
+      // Its own round, so what it cost is reported as its own rather than landing on
+      // whatever prints next (`diagnostics.ts`)
+      saidIfSlow('measuring what arrived', performance.now() - started, (message, style) =>
+        logSlow?.(message, style)
+      );
     }
   });
 };
@@ -1859,6 +1865,16 @@ const listenToXShowMore = (): void => {
     },
     true
   );
+};
+
+/**
+ * Where to say something about a slow round of measuring. Handed over at startup, because
+ * this side has no screen and no logger of its own (`filter/engine.ts` has both).
+ */
+let logSlow: ((message: string, style: string) => void) | null = null;
+
+export const sayWhereSlow = (log: (message: string, style: string) => void): void => {
+  logSlow = log;
 };
 
 /** The per-column appearances applied most recently. Used to re-mark on every settling */

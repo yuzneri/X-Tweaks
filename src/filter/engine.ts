@@ -21,7 +21,7 @@ import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
-import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
+import { applyAppearance, sayWhereSlow, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
 import { handledChanges, postsTouched } from '../appearance/changed.ts';
 import { atAQuietMoment } from '../quiet.ts';
 import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
@@ -558,6 +558,7 @@ export type EngineHooks = {
 
 export const start = async (settings: Settings, given: EngineHooks): Promise<void> => {
   injectStyles();
+  sayWhereSlow((message, style) => given.logStyled(message, style));
   adopt(settings);
   hooks = given;
   // Posts appearing while the columns are being resolved are picked up and judged by the Observer
