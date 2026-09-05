@@ -26,6 +26,7 @@ import {
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
 import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
+import { counted, noted, timed } from '../diagnostics.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
   cardStyleOf,
@@ -592,6 +593,7 @@ const restampMediaFrames = (columns: ColumnAppearance[], changed: Set<Element> |
   const hidden: typeof unmeasured = [];
   for (const one of unmeasured) (one.limit === 0 ? hidden : capped).push(one);
 
+  counted('pictures measured', capped.length + hidden.length);
   if (capped.length > 0) {
     /*
      * Two things of ours stand between the box and its own height, and both come off
@@ -1596,6 +1598,7 @@ const overflowsLimit = (text: Element, appearance: AppearanceNode, maxLines: num
   const known = overflows.get(text);
   if (known && known.key === key) return known.over;
 
+  counted('bodies measured', 1);
   const height = text.clientHeight;
   if (height === 0) return false;
   const reachesLimit = height >= (maxLines - 0.5) * lineHeightOf(text);
@@ -1735,6 +1738,8 @@ export const stampMediaFrames = (): void => {
    * agree about it, or one of them would tidy up after a post another never looked at
    */
   const changed = changedCells();
+  if (changed === null) noted('every post');
+  else counted('posts looked at', changed.size);
   // The time markers are set again on the same occasion. When every tier says
   // "as X shows it", they are stripped so that no marker of ours is left in X's DOM
   // even though no rule targets them
@@ -1742,14 +1747,14 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => timeFormatOf(column.appearance.timeFormat) !== 'relative')
   ) {
-    restampTimes(lastColumns, lastMessages, changed);
+    timed('· times', () => restampTimes(lastColumns, lastMessages!, changed));
   } else {
     clearTimes();
   }
   // Whether even one column needs markers. How the limit is derived lives in `limitFor` alone
   const needsFrames = lastColumns.some((column) => limitFor(column.appearance) !== null);
   if (needsFrames) {
-    restampMediaFrames(lastColumns, changed);
+    timed('· media frames', () => restampMediaFrames(lastColumns, changed));
   } else {
     // Once every tier drops the limit, strip the markers set earlier too.
     // Turning the extension off replaces the settings with empty ones, which arrives here
@@ -1779,7 +1784,9 @@ export const stampMediaFrames = (): void => {
      * press into the mark being opened out.
      */
     listenToXShowMore();
-    restampAttachments(lastColumns, lastMessages, readLinkColor, genericAlts, changed);
+    timed('· lines', () =>
+      restampAttachments(lastColumns, lastMessages!, readLinkColor, genericAlts, changed)
+    );
   } else {
     clearAttachments();
   }
@@ -1794,7 +1801,7 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
   ) {
-    restampCaptions(lastColumns, lastMessages, readLinkColor, changed);
+    timed('· captions', () => restampCaptions(lastColumns, lastMessages!, readLinkColor, changed));
   } else {
     clearCaptions();
   }
@@ -1808,7 +1815,7 @@ export const stampMediaFrames = (): void => {
     (stampsLines || lastColumns.some((column) => column.appearance.maxLines !== null))
   ) {
     listenToXShowMore();
-    addShowMore(lastColumns, lastMessages, readLinkColor, changed);
+    timed('· show more', () => addShowMore(lastColumns, lastMessages!, readLinkColor, changed));
   } else {
     // Once every tier drops the limit, remove the buttons added earlier too
     document.querySelectorAll(`.${MORE_CLASS}`).forEach((button) => button.remove());

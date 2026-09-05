@@ -22,6 +22,7 @@ import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
 import { handledChanges } from '../appearance/changed.ts';
+import { counted, feltAsSlow, saidIfSlow, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
@@ -203,11 +204,16 @@ const judge = (cell: Element): boolean => {
  * whose scope may still move and judges the settled ones first.
  */
 const judgeNew = (root: ParentNode, onlySettled = false): void => {
+  let fresh = 0;
   for (const cell of root.querySelectorAll(CELL_SELECTOR)) {
     if (judged.has(cell)) continue;
     if (onlySettled && !surface().scopeSettled(cell)) continue;
-    if (judge(cell)) judged.add(cell);
+    if (judge(cell)) {
+      judged.add(cell);
+      fresh += 1;
+    }
   }
+  counted('posts judged', fresh);
   // A round that looked at only part of them is no material for the watch. The skipped
   // cells were not unreadable, merely unlooked-at, and letting them through would
   // wrongly report "there are cells but not one could be read"
@@ -231,7 +237,9 @@ const judgeAll = (): void => {
   judged = new WeakSet();
   // Carrying the previous round's counts over would count the same cell twice
   resetAdWatch();
-  for (const cell of document.querySelectorAll(CELL_SELECTOR)) {
+  const all = document.querySelectorAll(CELL_SELECTOR);
+  counted('posts judged again', all.length);
+  for (const cell of all) {
     if (judge(cell)) {
       judged.add(cell);
       continue;
@@ -302,10 +310,12 @@ const refreshColumns = async (): Promise<ScopeInfo[]> => {
       columns.length,
       columns.filter((scope) => scope.columnId !== null).length
     );
+    const started = performance.now();
     // Columns changing places changes what the rules target, so the appearance is set again
-    if (current) applyAppearance(current, surface().scopes(), messages);
-    judgeAllAndCheck();
+    if (current) timed('appearance', () => applyAppearance(current!, surface().scopes(), messages));
+    timed('judge', judgeAllAndCheck);
     report(columns);
+    say(`taking in ${columns.length} columns`, performance.now() - started);
     return columns;
   } finally {
     refreshing = false;
@@ -319,10 +329,22 @@ const refreshColumns = async (): Promise<ScopeInfo[]> => {
  */
 const guard = (name: string, step: () => void): void => {
   try {
-    step();
+    timed(name, step);
   } catch (error) {
     hooks?.logStyled(`xpro-tweaks: ${name} failed: ${String(error)}`, 'color:#f59e0b');
   }
+};
+
+/**
+ * Says what a round cost, where it cost enough to be felt (`diagnostics.ts`).
+ *
+ * How big the page is decides nearly everything about the number, so it goes in the line
+ * — counted here rather than kept, because it is only ever wanted where a line is about
+ * to be printed.
+ */
+const say = (what: string, took: number): void => {
+  if (feltAsSlow(took)) counted('posts on the page', document.querySelectorAll(CELL_SELECTOR).length);
+  saidIfSlow(what, took, (message, style) => hooks?.logStyled(message, style));
 };
 
 /**
@@ -334,10 +356,13 @@ const guard = (name: string, step: () => void): void => {
  * cleared here unlooked-at (`appearance/changed.ts`).
  */
 const settle = (): void => {
+  const started = performance.now();
   try {
     settleWork();
   } finally {
     handledChanges();
+    // Said only where it took long enough to be felt (`diagnostics.ts`)
+    say('settling', performance.now() - started);
   }
 };
 
@@ -395,8 +420,9 @@ const observe = (): void => {
 };
 
 export const updateSettings = (settings: Settings): void => {
-  adopt(settings);
-  judgeAllAndCheck();
+  const started = performance.now();
+  timed('appearance', () => adopt(settings));
+  timed('judge', judgeAllAndCheck);
   /*
    * Which columns stay on record depends on whether they have settings, so a change to
    * the settings means narrowing them down again.
@@ -407,6 +433,7 @@ export const updateSettings = (settings: Settings): void => {
    */
   reported = '';
   report(surface().detect());
+  say('applying a change to the settings', performance.now() - started);
 };
 
 /** The parts outside the judging (the entry points to the settings screen and so on) use the same dictionary */
