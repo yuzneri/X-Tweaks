@@ -1,7 +1,7 @@
 /**
  * Running the filter: watching the DOM for changes, judging posts, and applying the result.
  */
-import { adjustsContrast, highlightBaseOf, type Settings } from '../settings/schema.ts';
+import { adjustsContrast, highlightBaseOf, paintKey, type Settings } from '../settings/schema.ts';
 import { resolve, type ColumnScope } from '../settings/resolve.ts';
 import { surface } from '../surface/index.ts';
 import type { ScopeInfo, SurfaceState } from '../surface/index.ts';
@@ -88,6 +88,7 @@ const effectiveFor = (scope: ColumnScope, settings: Settings) => {
     look: {
       adjustContrast: adjustsContrast(node.appearance.autoContrast),
       highlightBase: highlightBaseOf(node.appearance.highlightBase),
+      paint: paintKey(node.appearance),
     },
   };
   effective.set(key, built);

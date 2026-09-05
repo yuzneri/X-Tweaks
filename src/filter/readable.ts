@@ -4,7 +4,7 @@
  * looks lives in `styles.css`. Rather than enumerating targets it measures each
  * element that directly holds text, so it does not depend on X's selectors.
  */
-import { backgroundBehind, backgroundWithin } from '../appearance/background.ts';
+import { backgroundBehind, backgroundOver, layersWithin } from '../appearance/background.ts';
 import { fixIfWorsened, parseCssColor, BLACK } from '../appearance/contrast.ts';
 
 /** The marker for the target color. Its value is the direction to shift in (`styles.css` holds the colors) */
@@ -95,9 +95,14 @@ export const markReadable = (cell: Element, color: string): boolean => {
   for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
-    // After the highlight is laid down, and before it (measured with the cell's background skipped)
-    const after = backgroundWithin(element, cell, behind);
-    const before = backgroundWithin(element, cell, behindWithout);
+    /*
+     * After the highlight is laid down, and before it (measured with the post's own
+     * background skipped). What is between this element and the post is the same for
+     * both, so it is read once and laid over each backdrop in turn
+     */
+    const between = layersWithin(element, cell);
+    const after = backgroundOver(between, behind);
+    const before = backgroundOver(between, behindWithout);
     const fg = fixIfWorsened(before, after, current);
     if (fg === null) continue;
     element.setAttribute(FG_ATTR, fg === BLACK ? 'dark' : 'light');

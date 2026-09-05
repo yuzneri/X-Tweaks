@@ -5,22 +5,6 @@
  */
 import { layer, parseCssColor, type Rgb, type Rgba } from './contrast.ts';
 
-/**
- * Which round of backdrops is current.
- *
- * What is behind a post does not change while it sits there, so a colour composited over
- * it can be kept and used again (`filter/apply.ts`). What does change it is the extension
- * painting something new — a background colour picked, a scope's rules rewritten — and
- * that is what this counts.
- */
-let round = 0;
-
-export const backdropRound = (): number => round;
-
-/** Says that what is behind things may have changed, so nothing measured before it stands */
-export const backdropsChanged = (): void => {
-  round++;
-};
 
 /** Limit on how far to walk up. A page that reaches no opaque color within it counts as unmeasurable */
 const MAX_ANCESTORS = 40;
@@ -62,21 +46,35 @@ const over = (base: Rgb, stack: readonly Rgba[]): Rgb => {
 };
 
 /**
- * The color visible behind an element, given what is already known to be behind `within`.
+ * What lies between an element and something it sits inside: either a colour that hides
+ * everything above it, or the translucent layers to lay over whatever is behind that
+ * container.
  *
- * The same answer as `backgroundBehind`, for an element inside something whose own
- * backdrop has been measured. Only the few layers between the two are walked, where the
- * plain walk goes up to the root every time — and a post being made readable asks this of
- * every element in it that holds words, twice over (`filter/readable.ts`).
+ * Read once and used for both answers a highlighted post needs — how its words look with
+ * the highlight and how they looked without it — because the two differ only in what is
+ * behind the post, never in what is inside it (`filter/readable.ts`).
  */
-export const backgroundWithin = (element: Element, within: Element, behind: Rgb): Rgb => {
-  const stack: Rgba[] = [];
+export type Within = { opaque: Rgb } | { layers: Rgba[] };
+
+export const layersWithin = (element: Element, within: Element): Within => {
+  const layers: Rgba[] = [];
   for (let el: Element | null = element; el !== null && el !== within; el = el.parentElement) {
     const color = parseCssColor(getComputedStyle(el).backgroundColor);
     if (color === null || color.a === 0) continue;
-    // An opaque color below `within` hides everything above it, this one included
-    if (color.a === 1) return over({ r: color.r, g: color.g, b: color.b }, stack);
-    stack.push(color);
+    // An opaque color below `within` hides everything above it, that one alone decides
+    if (color.a === 1) return { opaque: over({ r: color.r, g: color.g, b: color.b }, layers) };
+    layers.push(color);
   }
-  return over(behind, stack);
+  return { layers };
 };
+
+/** What such a reading means over a given backdrop */
+export const backgroundOver = (found: Within, behind: Rgb): Rgb =>
+  'opaque' in found ? found.opaque : over(behind, found.layers);
+
+/**
+ * The color visible behind an element, given what is already known to be behind `within`.
+ * The same answer as `backgroundBehind`, walking only what lies between the two.
+ */
+export const backgroundWithin = (element: Element, within: Element, behind: Rgb): Rgb =>
+  backgroundOver(layersWithin(element, within), behind);

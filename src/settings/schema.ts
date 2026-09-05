@@ -1194,6 +1194,22 @@ export const layoutKey = (appearance: AppearanceNode): string =>
     appearance.media.maxThumbHeight,
   ].join('|');
 
+/**
+ * What of an appearance decides the colours a post is drawn over, as one string.
+ *
+ * The companion to `layoutKey`, for the other thing the extension has to measure: what is
+ * behind a post, which a translucent highlight is composited over. Measuring it means
+ * walking up from the post asking every ancestor what it is painted in, so the answer is
+ * kept and used again while this stays the same (`filter/apply.ts`).
+ *
+ * Every colour goes in, because every one of them is painted somewhere between a post and
+ * the page behind it. What is deliberately left out is everything about *other* scopes: a
+ * column arriving beside this one changes the stylesheet without changing what is behind
+ * anything already on screen.
+ */
+export const paintKey = (appearance: AppearanceNode): string =>
+  Object.values(appearance.colors).join('|');
+
 /** The appearance's contents. The switch for whether it applies (`enabled`) is not included */
 const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.columnWidth !== null ||

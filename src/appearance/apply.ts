@@ -25,7 +25,6 @@ import {
   X_SHOW_MORE,
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
-import { backdropsChanged } from './background.ts';
 import {
   changedCells,
   changeEverything,
@@ -2020,9 +2019,6 @@ export const applyAppearance = (
    */
   watchChanges();
   changeEverything();
-  // What the extension paints is about to be written afresh, so a colour composited over
-  // any of it no longer stands (`appearance/background.ts`)
-  backdropsChanged();
   stampColumns();
 
   // Columns sharing a key share their rules, so they are folded into one.

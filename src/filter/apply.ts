@@ -5,7 +5,7 @@
  */
 import { ACTIONS, type HighlightBase } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
-import { backdropRound, backgroundBehind } from '../appearance/background.ts';
+import { backgroundBehind } from '../appearance/background.ts';
 import { layer, parseColor } from '../appearance/contrast.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
@@ -21,8 +21,8 @@ const PLACEHOLDER = 'xpro-placeholder';
 const COLOR_VAR = '--xpro-highlight';
 
 /**
- * What the colour now on a post was worked out from: the colour the rule asked for, and
- * the round of backdrops it was composited over (`appearance/background.ts`).
+ * What the colour now on a post was worked out from: the colour the rule asked for, what
+ * it was laid over, and the colours the scope paints (`paintKey`).
  *
  * Compositing means measuring what is behind the post, which is a walk up to the root
  * asking each ancestor what it is painted in — about a millisecond a post on the real
@@ -43,6 +43,8 @@ export const isExpandedByUser = (cell: Element): boolean => expanded.has(cell);
 export type Look = {
   adjustContrast: boolean;
   highlightBase: HighlightBase;
+  /** The colours this scope paints, as one string (`paintKey`). What a composited colour is kept against */
+  paint: string;
 };
 
 /**
@@ -186,7 +188,7 @@ const showDecision = (
      * Worked out once per colour (see `COLOR_FROM`); after that the post already carries
      * the answer.
      */
-    const from = `${decision.color}|${look.highlightBase}|${backdropRound()}`;
+    const from = `${decision.color}|${look.highlightBase}|${look.paint}`;
     let color: string;
     if (cell.getAttribute(COLOR_FROM) === from) {
       color = (cell as HTMLElement).style.getPropertyValue(COLOR_VAR) || decision.color;
