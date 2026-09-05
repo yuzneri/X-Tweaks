@@ -32,6 +32,39 @@ const COLOR_VAR = '--xpro-highlight';
  */
 const COLOR_FROM = 'data-xpro-highlight-from';
 
+/** The posts whose highlight colour still has to be composited, and what from */
+const composing = new Map<Element, { rule: string; from: string; look: Look }>();
+
+/**
+ * Works out the colour every post that was waiting is to be highlighted in, and lays it
+ * on. Answers how many there were.
+ *
+ * Called once at the end of a round of judging (`filter/engine.ts`), for the reason the
+ * words are (`filter/readable.ts`): every post is read before any of them is written to,
+ * so the round costs the browser one pass over the page's styles rather than one a post.
+ */
+export const composeWaiting = (): number => {
+  if (composing.size === 0) return 0;
+  const posts = [...composing];
+  composing.clear();
+
+  const laid = posts.map(([cell, want]) => ({
+    cell,
+    want,
+    color:
+      want.look.highlightBase === 'theme'
+        ? (overThemeColor(cell, want.rule) ?? want.rule)
+        : want.rule,
+  }));
+  for (const { cell, want, color } of laid) {
+    (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
+    cell.setAttribute(COLOR_FROM, want.from);
+    if (want.look.adjustContrast) markReadableLater(cell, color);
+    else clearReadable(cell);
+  }
+  return laid.length;
+};
+
 /**
  * Cells opened with the "Show" button, remembered so a re-judgement does not collapse
  * them again. They are held in a WeakSet rather than as a DOM class so the decision
@@ -70,8 +103,17 @@ const overThemeColor = (cell: Element, color: string): string | null => {
   return `rgb(${r}, ${g}, ${b})`;
 };
 
+/**
+ * The placeholder standing in for a folded-away post, if it has one.
+ *
+ * Asked only where the post is folded, because that is the only state one exists in:
+ * looking for it is a search through the post, and a post as X builds one holds hundreds
+ * of elements.
+ */
 const placeholderOf = (cell: Element): HTMLElement | null =>
-  cell.querySelector<HTMLElement>(`:scope > .${PLACEHOLDER}`);
+  cell.classList.contains(COLLAPSED)
+    ? cell.querySelector<HTMLElement>(`:scope > .${PLACEHOLDER}`)
+    : null;
 
 /**
  * Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched
@@ -85,10 +127,11 @@ const placeholderOf = (cell: Element): HTMLElement | null =>
 const resetDecision = (cell: Element): void => {
   const classes = cell.classList;
   if (classes.contains(COLLAPSED) || classes.contains(HIDDEN) || classes.contains(HIGHLIGHTED)) {
+    // Before the classes go: which of them is on is how the placeholder is found at all
+    placeholderOf(cell)?.remove();
     classes.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
     (cell as HTMLElement).style.removeProperty(COLOR_VAR);
     cell.removeAttribute(COLOR_FROM);
-    placeholderOf(cell)?.remove();
   }
   clearReadable(cell);
 };
@@ -182,33 +225,22 @@ const showDecision = (
     cell.classList.remove(COLLAPSED, HIDDEN);
     cell.classList.add(HIGHLIGHTED);
     /*
-     * With "X's own backdrop" chosen as the base, lay down an opaque color composited
-     * with the column background skipped. When it cannot be measured, the specified
-     * color is used as is and the extension leaves the color alone.
-     * Worked out once per colour (see `COLOR_FROM`); after that the post already carries
-     * the answer.
+     * With "X's own backdrop" chosen as the base, the colour laid down is the rule's
+     * composited with the column background skipped, which means reading what is behind
+     * the post. That reading, and the one the words need, are both left to the end of the
+     * round (`composeWaiting`): the post has just been written to, and a colour read back
+     * from it now would make the browser work out the page's styles again — once per post
+     * rather than once per round.
      */
     const from = `${decision.color}|${look.highlightBase}|${look.paint}`;
-    let color: string;
     if (cell.getAttribute(COLOR_FROM) === from) {
-      color = (cell as HTMLElement).style.getPropertyValue(COLOR_VAR) || decision.color;
+      // Worked out before, and nothing behind the post has moved since
+      const color = (cell as HTMLElement).style.getPropertyValue(COLOR_VAR) || decision.color;
+      if (look.adjustContrast) markReadableLater(cell, color);
+      else clearReadable(cell);
     } else {
-      color =
-        look.highlightBase === 'theme'
-          ? (overThemeColor(cell, decision.color) ?? decision.color)
-          : decision.color;
-      (cell as HTMLElement).style.setProperty(COLOR_VAR, color);
-      cell.setAttribute(COLOR_FROM, from);
+      composing.set(cell, { rule: decision.color, from, look });
     }
-    // Whether to mark it depends on the background including the color just laid down,
-    // so it is measured after the color is applied
-    /*
-     * Left for the end of the round rather than done here: reading a colour back makes
-     * the browser work out the page's styles again, and the post has just been written to
-     * (`markReadableLater`)
-     */
-    if (look.adjustContrast) markReadableLater(cell, color);
-    else clearReadable(cell);
     spentOn('· highlighting', performance.now() - started);
     return;
   }

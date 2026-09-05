@@ -15,7 +15,7 @@ import {
   type Marker,
   type Tally,
 } from './health.ts';
-import { apply, isExpandedByUser, reset, type Look } from './apply.ts';
+import { apply, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
 import { clearReadable, markReadableWaiting } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
@@ -326,11 +326,17 @@ const judgeAll = (): void => {
  * just been written to (`filter/readable.ts`).
  */
 const keepWordsReadable = (): void => {
-  const started = performance.now();
+  const composing = performance.now();
+  const coloured = composeWaiting();
+  const words = performance.now();
+  if (coloured > 0) {
+    counted('posts coloured', coloured);
+    spentOn('· composing colours', words - composing);
+  }
   const posts = markReadableWaiting();
   if (posts === 0) return;
   counted('posts kept readable', posts);
-  spentOn('· keeping words readable', performance.now() - started);
+  spentOn('· keeping words readable', performance.now() - words);
 };
 
 /**
