@@ -1815,12 +1815,12 @@ export const applyAppearance = (
   messages: Messages
 ): void => {
   /*
-   * The limits themselves may have moved, so nothing measured under the previous ones
-   * stands, and nothing marked under them does either. What that means is written out
-   * where the measurements are kept and in `changed.ts`.
+   * Every post is marked again: what a line says follows settings that never reach the
+   * stylesheet (how much of a description goes on screen, above all). What was *measured*
+   * is a different question, answered below — it follows how the page is drawn, which is
+   * the stylesheet itself.
    */
   watchChanges();
-  remeasureEverything();
   changeEverything();
   stampColumns();
 
@@ -1869,7 +1869,16 @@ export const applyAppearance = (
     .join('\n');
 
   const style = styleElement();
-  if (style.textContent !== css) style.textContent = css;
+  /*
+   * The measurements stand or fall with the stylesheet: what a body wraps at and how tall
+   * a picture is drawn are what these rules decide. So a change that leaves the CSS as it
+   * was — a colour, or one of the settings that only moves the marks — leaves every
+   * measurement alone, and picking a colour no longer means measuring the page again.
+   */
+  if (style.textContent !== css) {
+    style.textContent = css;
+    remeasureEverything();
+  }
 
   lastColumns = columns;
   lastMessages = messages;

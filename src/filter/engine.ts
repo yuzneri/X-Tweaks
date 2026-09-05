@@ -216,17 +216,28 @@ const judgeNew = (root: ParentNode, onlySettled = false): void => {
 
 /**
  * Judges every visible cell again. Called when the rules change and when the
- * arrangement of columns changes. Resetting first is what clears the colors left by
- * the previous rules.
+ * arrangement of columns changes.
+ *
+ * A cell that gets judged is not cleared first: the judgement says what its whole state
+ * is, down to "nothing applies", and clearing it beforehand only takes the placeholder
+ * out to put an identical one back. Doing that to every post on the page is a few hundred
+ * changes to the DOM for nothing — and every one of them is a post the marking passes
+ * then have to look at again (`appearance/changed.ts`).
+ *
+ * What is cleared is what could not be judged: a cell mid-render keeps whatever the rules
+ * that are gone gave it, and nothing else is coming to take it off.
  */
 const judgeAll = (): void => {
   judged = new WeakSet();
   // Carrying the previous round's counts over would count the same cell twice
   resetAdWatch();
   for (const cell of document.querySelectorAll(CELL_SELECTOR)) {
+    if (judge(cell)) {
+      judged.add(cell);
+      continue;
+    }
     // A cell opened by hand stays open
     if (!isExpandedByUser(cell)) reset(cell);
-    if (judge(cell)) judged.add(cell);
   }
   // Emphasis does not change the DOM, so merely changing a color does not wake the Observer
   sweep();
