@@ -33,7 +33,24 @@ const wordsIn = (cell: Element): Element[] => {
   return found;
 };
 
+/**
+ * The marker on a post something of ours was written into.
+ *
+ * It is here so that taking those marks off again can start by asking whether there are
+ * any. Searching a post for them means walking it, and a post as X builds one holds
+ * hundreds of elements — asked of every post on the page every time the rules change,
+ * that walk was the single heaviest thing the judging did (measured on the real site:
+ * 178ms of a 198ms round, for 121 posts).
+ *
+ * Written on the post itself rather than remembered beside it, so that it goes wherever
+ * the post goes: X hands a post's elements on to another one, and a copy carrying our
+ * marks has to be found to have them taken off.
+ */
+const FG_IN_ATTR = 'data-xpro-fg-in';
+
 export const clearReadable = (cell: Element): void => {
+  if (!cell.hasAttribute(FG_IN_ATTR)) return;
+  cell.removeAttribute(FG_IN_ATTR);
   for (const el of cell.querySelectorAll(`[${FG_ATTR}]`)) el.removeAttribute(FG_ATTR);
 };
 
@@ -63,5 +80,6 @@ export const markReadable = (cell: Element): void => {
     const fg = fixIfWorsened(before, after, current);
     if (fg === null) continue;
     element.setAttribute(FG_ATTR, fg === BLACK ? 'dark' : 'light');
+    cell.setAttribute(FG_IN_ATTR, '');
   }
 };

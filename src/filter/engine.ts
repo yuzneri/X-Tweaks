@@ -22,7 +22,7 @@ import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
 import { handledChanges, postsTouched } from '../appearance/changed.ts';
-import { counted, feltAsSlow, saidIfSlow, timed } from '../diagnostics.ts';
+import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
@@ -203,18 +203,34 @@ const forgetTouchedReads = (): void => {
 /** true once judged. A cell still mid-render, or one that is not a judging target, gives false */
 const judge = (cell: Element): boolean => {
   if (!current) return false;
+  /*
+   * The three parts are timed apart. They are each a different kind of work — searching
+   * the post, matching the rules against what it says, and writing the answer into the
+   * page — and which of them a slow round was spent on is the whole question
+   * (`diagnostics.ts`).
+   */
+  const t0 = performance.now();
   const known = reads.get(cell);
   const post = known ?? readPost(cell);
   if (!post) return false;
-  if (!known) reads.set(cell, post);
+  if (!known) {
+    reads.set(cell, post);
+    counted('posts read', 1);
+    spentOn('· reading', performance.now() - t0);
+  }
   watchAd(post.isAd);
   tally.posts++;
   if (post.values.text.length > 0) tally.texts++;
   // Once the detection counts as broken, treat everything as not an ad
   const seen = adBroken ? { ...post, isAd: false } : post;
+  const t1 = performance.now();
   const { filter, look } = effectiveFor(surface().scopeOf(cell), current);
+  const verdict = decide(seen, filter);
+  const t2 = performance.now();
+  spentOn('· deciding', t2 - t1);
   // The placeholder names a single author (a post `readPost` could read always has one)
-  apply(cell, decide(seen, filter), seen.values.screenName[0] ?? null, messages, look);
+  apply(cell, verdict, seen.values.screenName[0] ?? null, messages, look);
+  spentOn('· applying', performance.now() - t2);
   return true;
 };
 

@@ -9,6 +9,7 @@ import { backgroundBehind } from '../appearance/background.ts';
 import { layer, parseColor } from '../appearance/contrast.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import type { Decision, Verdict } from './decide.ts';
+import { spentOn } from '../diagnostics.ts';
 import { mark, unmark } from './emphasis.ts';
 import { clearReadable, markReadable } from './readable.ts';
 
@@ -58,12 +59,23 @@ const overThemeColor = (cell: Element, color: string): string | null => {
 const placeholderOf = (cell: Element): HTMLElement | null =>
   cell.querySelector<HTMLElement>(`:scope > .${PLACEHOLDER}`);
 
-/** Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched here */
+/**
+ * Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched
+ * here.
+ *
+ * A post that carries none of them is left where it stands. On a change to the rules that
+ * is most of the page — every post nothing matched — and the undoing is a search through
+ * a post for what was never put there. The placeholder rides along with the class that
+ * puts it in, so where there is no class there is nothing to take out either.
+ */
 const resetDecision = (cell: Element): void => {
-  cell.classList.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
-  (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+  const classes = cell.classList;
+  if (classes.contains(COLLAPSED) || classes.contains(HIDDEN) || classes.contains(HIGHLIGHTED)) {
+    classes.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
+    (cell as HTMLElement).style.removeProperty(COLOR_VAR);
+    placeholderOf(cell)?.remove();
+  }
   clearReadable(cell);
-  placeholderOf(cell)?.remove();
 };
 
 /** Removes only what the extension added, restoring the original display */
@@ -117,7 +129,12 @@ export const apply = (
   messages: Messages,
   look: Look
 ): void => {
+  // Timed apart from the emphasis below: one writes the post's own state, the other
+  // paints inside its words, and they cost quite different things (`diagnostics.ts`)
+  const started = performance.now();
   showDecision(cell, verdict.decision, author, messages, look);
+  const painted = performance.now();
+  spentOn('· deciding how to show', painted - started);
 
   /*
    * Emphasis is an action that does not change how a post is shown, so it is applied
@@ -127,6 +144,7 @@ export const apply = (
    * the state one step back.
    */
   mark(cell, verdict.emphases, look.adjustContrast);
+  spentOn('· emphasis', performance.now() - painted);
 };
 
 /** Applies only the display decision (collapse, hide, highlight). Emphasis is `apply`'s separate concern */

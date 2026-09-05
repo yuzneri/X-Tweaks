@@ -27,6 +27,12 @@ const QUIET_MS = 3000;
 /** What each part of the round took, in the order the parts ran */
 let phases: { name: string; ms: number }[] = [];
 
+/**
+ * The same, for work that happens a little at a time all over a round: a part of judging
+ * one post, say, which happens hundreds of times and is worth seeing as one number.
+ */
+const spent = new Map<string, number>();
+
 /** How much there was of what the round worked on, added up as it went */
 const counts = new Map<string, number>();
 
@@ -46,6 +52,11 @@ export const timed = <T>(name: string, step: () => T): T => {
   }
 };
 
+/** Adds to the time spent on something that happens over and over within a round */
+export const spentOn = (name: string, ms: number): void => {
+  spent.set(name, (spent.get(name) ?? 0) + ms);
+};
+
 /** Adds to how much of something a round dealt with (posts looked at, pictures measured) */
 export const counted = (name: string, n: number): void => {
   if (n > 0) counts.set(name, (counts.get(name) ?? 0) + n);
@@ -57,10 +68,13 @@ export const noted = (what: string): void => {
 };
 
 const line = (what: string, took: number): string => {
-  const parts = phases
-    .filter((phase) => phase.ms >= 1)
-    .sort((a, b) => b.ms - a.ms)
-    .map((phase) => `${phase.name} ${Math.round(phase.ms)}ms`);
+  // A part that ran more than once in the round is added up, not listed twice
+  const total = new Map(spent);
+  for (const phase of phases) total.set(phase.name, (total.get(phase.name) ?? 0) + phase.ms);
+  const parts = [...total]
+    .filter(([, ms]) => ms >= 1)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, ms]) => `${name} ${Math.round(ms)}ms`);
   const sizes = [...notes, ...[...counts].map(([name, n]) => `${name} ${n}`)];
   const missed = unsaid > 0 ? ` (+${unsaid} more since the last of these)` : '';
   return (
@@ -93,6 +107,7 @@ export const saidIfSlow = (
     }
   }
   phases = [];
+  spent.clear();
   counts.clear();
   notes.clear();
 };
