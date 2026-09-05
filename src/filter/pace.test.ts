@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_SETTLE_MS, nextWait, SETTLE_MS } from './pace.ts';
+import { APPLY_MS, applyIn, MAX_SETTLE_MS, nextWait, SETTLE_MS } from './pace.ts';
 
 test('軽い回のあとは、いちばん短い待ちに戻る', () => {
   assert.equal(nextWait(0), SETTLE_MS);
@@ -24,4 +24,15 @@ test('待ちは重かった回に引きずられない。次が軽ければ次�
   const heavy = nextWait(300);
   assert.equal(heavy, MAX_SETTLE_MS);
   assert.equal(nextWait(3), SETTLE_MS);
+});
+
+test('設定の変更は、間が空いていればすぐ当てる', () => {
+  assert.equal(applyIn(1_000, 0), 0);
+  assert.equal(applyIn(1_000, 1_000 - APPLY_MS), 0);
+});
+
+test('立て続けに来た変更は、窓が閉じるまで待つ', () => {
+  // A key pressed 20ms after the last one was applied waits out the rest of the window
+  assert.equal(applyIn(1_020, 1_000), APPLY_MS - 20);
+  assert.equal(applyIn(1_000, 1_000), APPLY_MS);
 });

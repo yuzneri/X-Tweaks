@@ -47,3 +47,25 @@ const SHARE = 0.2;
  */
 export const nextWait = (took: number): number =>
   Math.min(MAX_SETTLE_MS, Math.max(SETTLE_MS, Math.round(took / SHARE)));
+
+/**
+ * How long to leave between applying one change to the settings and the next.
+ *
+ * The settings screen saves on every keystroke and on every step of a colour picker, and
+ * every save comes back to the page as a change to apply — which means judging every post
+ * on it again, and rebuilding what the appearance marks. Typed at speed, that is a stall
+ * per character in the very page the screen is standing on.
+ *
+ * The first change of a burst is applied at once, so the screen answers as it is used;
+ * the ones that follow within this window are gathered up, and the last of them is applied
+ * when it closes. What is applied is always the whole of the settings, so nothing is lost
+ * by skipping the ones in between.
+ */
+export const APPLY_MS = 200;
+
+/**
+ * When to apply a change that arrived at `now`, given when one was last applied.
+ * `0` means "now"; anything else is how long to wait.
+ */
+export const applyIn = (now: number, lastApply: number): number =>
+  Math.max(0, APPLY_MS - (now - lastApply));

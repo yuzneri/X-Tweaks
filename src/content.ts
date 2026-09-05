@@ -22,6 +22,7 @@ import { emptySettings, type Settings } from './settings/schema.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
+import { applyIn } from './filter/pace.ts';
 import { clearAltTitles, stampAltTitles, useGenericAlts } from './appearance/apply.ts';
 import { clearComposeMarks, markComposeForms } from './appearance/compose-mark.ts';
 import { open as openPanel, toggle as togglePanel } from './panel/panel.tsx';
@@ -199,6 +200,33 @@ const main = async (): Promise<void> => {
    */
   let started = false;
   let missed = false;
+  /**
+   * Applying the settings, no faster than `applyIn` allows.
+   *
+   * The first change of a burst goes in at once, and the ones that follow are gathered up
+   * and applied as one. The screen saves on every keystroke, and every save is judged
+   * against every post on the page — typed at speed in a settings panel standing in the
+   * page itself, that was a stall per character.
+   *
+   * The values are read at the moment of applying rather than captured, so what goes in
+   * is always the latest.
+   */
+  let applyTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastApply = 0;
+  const applySettings = (): void => {
+    if (applyTimer !== null) return;
+    const wait = applyIn(Date.now(), lastApply);
+    if (wait === 0) {
+      lastApply = Date.now();
+      updateSettings(effectiveSettings(current, paused));
+      return;
+    }
+    applyTimer = setTimeout(() => {
+      applyTimer = null;
+      lastApply = Date.now();
+      updateSettings(effectiveSettings(current, paused));
+    }, wait);
+  };
   /** The group whose records were rebuilt on this page. Starts empty per page */
   let rebuiltGroup: string | null = null;
   const reapply = (): boolean => {
@@ -219,7 +247,7 @@ const main = async (): Promise<void> => {
       missed = true;
       return false;
     }
-    updateSettings(effectiveSettings(current, paused));
+    applySettings();
     return true;
   };
 
