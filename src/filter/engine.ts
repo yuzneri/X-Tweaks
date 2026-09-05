@@ -5,7 +5,7 @@ import { adjustsContrast, highlightBaseOf, type Settings } from '../settings/sch
 import { resolve, type ColumnScope } from '../settings/resolve.ts';
 import { surface } from '../surface/index.ts';
 import type { ScopeInfo, SurfaceState } from '../surface/index.ts';
-import { adJudgementBroken, compileFilter, decide, type CompiledFilter } from './decide.ts';
+import { adJudgementBroken, compileFilter, decide, type CompiledFilter, type Post } from './decide.ts';
 import {
   brokenMarkers,
   columnsUnresolved,
@@ -21,7 +21,7 @@ import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import { applyAppearance, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
-import { handledChanges } from '../appearance/changed.ts';
+import { handledChanges, postsTouched } from '../appearance/changed.ts';
 import { counted, feltAsSlow, saidIfSlow, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
@@ -180,11 +180,33 @@ const watchAd = (isAd: boolean): void => {
   judgeAll();
 };
 
+/**
+ * What each post said when it was last read out.
+ *
+ * Reading one means a couple of dozen searches through it, and a post on the real site
+ * holds hundreds of elements — measured there at nearly 2ms a post, which is what made
+ * a deck coming back cost a fifth of a second per column while every post already on
+ * screen was read out again.
+ *
+ * What is remembered is what the post *says*, never what was decided about it: a change
+ * to the rules judges every post afresh, from what it said. The reading is dropped where
+ * the page changed the post (`postsTouched`), and with it where X built the post anew,
+ * that being a different element with nothing remembered about it.
+ */
+const reads = new WeakMap<Element, Post>();
+
+/** Lets go of what was read from the posts the page has changed since the last settling */
+const forgetTouchedReads = (): void => {
+  for (const cell of postsTouched()) reads.delete(cell);
+};
+
 /** true once judged. A cell still mid-render, or one that is not a judging target, gives false */
 const judge = (cell: Element): boolean => {
   if (!current) return false;
-  const post = readPost(cell);
+  const known = reads.get(cell);
+  const post = known ?? readPost(cell);
   if (!post) return false;
+  if (!known) reads.set(cell, post);
   watchAd(post.isAd);
   tally.posts++;
   if (post.values.text.length > 0) tally.texts++;
@@ -235,6 +257,13 @@ const judgeNew = (root: ParentNode, onlySettled = false): void => {
  */
 const judgeAll = (): void => {
   judged = new WeakSet();
+  /*
+   * Asked here as well as at a settling, because this runs on a change to the settings
+   * too — which can arrive between the page changing a post and the settling that would
+   * have heard about it, and judging that post from what it used to say would stand until
+   * the rules changed again
+   */
+  forgetTouchedReads();
   // Carrying the previous round's counts over would count the same cell twice
   resetAdWatch();
   const all = document.querySelectorAll(CELL_SELECTOR);
@@ -387,11 +416,14 @@ const settleWork = (): void => {
     // Columns arrive one at a time over tens of seconds, so waiting for all of them
     // would leave new posts untouched. Cells inside a column with no marker are
     // skipped: a result reached without the column tier gets overturned later and flickers
+    forgetTouchedReads();
     guard('judge', () => judgeNew(document, true));
     return;
   }
   // Even when the set of columns is the same, the names arrive late
   guard('detect', () => report(surface().detect()));
+  // What the page changed is no longer what was read out of it
+  forgetTouchedReads();
   guard('judge', () => judgeNew(document));
 };
 

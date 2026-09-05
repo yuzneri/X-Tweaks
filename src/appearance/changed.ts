@@ -83,6 +83,17 @@ export const changeEverything = (): void => {
 };
 
 /**
+ * The posts the page has changed since the last settling, whatever this round was told
+ * to look at.
+ *
+ * Apart from `changedCells` on purpose: that one answers "what is this round working
+ * on", and says "all of them" for a round that came round on its own. This one answers
+ * "what has actually changed", which is what anything holding on to what a post said
+ * needs in order to know when to let go (`filter/engine.ts`).
+ */
+export const postsTouched = (): ReadonlySet<Element> => cells;
+
+/**
  * The post this node is part of has to be looked at again.
  *
  * For what the watch cannot see by itself: the extension changing what a post shows
