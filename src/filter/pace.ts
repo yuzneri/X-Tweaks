@@ -66,9 +66,15 @@ export const APPLY_MS = 200;
 /**
  * When to apply a change that arrived at `now`, given when one was last applied.
  * `0` means "now"; anything else is how long to wait.
+ *
+ * Never longer than the gap itself, however the two readings compare. A reading from
+ * before the last one says the clock moved rather than that time passed, and the
+ * difference — a machine waking from sleep, a correction from the network — would
+ * otherwise become the wait, holding a change the reader just made for as long as the
+ * clock jumped.
  */
 export const applyIn = (now: number, lastApply: number): number =>
-  Math.max(0, APPLY_MS - (now - lastApply));
+  Math.min(APPLY_MS, Math.max(0, APPLY_MS - (now - lastApply)));
 
 /**
  * The shortest a round of measuring may leave before the next one.

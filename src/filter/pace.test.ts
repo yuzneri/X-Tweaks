@@ -56,3 +56,15 @@ test('測るのが高いページは、そのぶん間を空ける', () => {
   // However slow it gets, a new picture is not left uncapped for ever
   assert.equal(measureAgainIn(10_000), MEASURE_MAX_MS);
 });
+
+test('時計が戻っても、設定の反映は止まらない', () => {
+  /*
+   * The clock behind this is monotonic (`content.ts` reads `performance.now()`), so a
+   * reading before the last one cannot happen. Pinned anyway: read from a wall clock —
+   * which is what this was given at first — an NTP correction or a machine waking from
+   * sleep hands in a `now` from before `lastApply`, and an unclamped subtraction would
+   * hold the settings back by however far the clock moved.
+   */
+  assert.equal(applyIn(1000, 5000), APPLY_MS);
+  assert.ok(applyIn(1000, 5000) <= APPLY_MS);
+});
