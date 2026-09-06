@@ -212,18 +212,20 @@ const main = async (): Promise<void> => {
    * is always the latest.
    */
   let applyTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastApply = 0;
+  // Never, rather than the moment the page loaded: the clock starts at nothing, so a
+  // zero would hold the first change back (`filter/pace.ts`)
+  let lastApply = Number.NEGATIVE_INFINITY;
   const applySettings = (): void => {
     if (applyTimer !== null) return;
-    const wait = applyIn(Date.now(), lastApply);
+    const wait = applyIn(performance.now(), lastApply);
     if (wait === 0) {
-      lastApply = Date.now();
+      lastApply = performance.now();
       updateSettings(effectiveSettings(current, paused));
       return;
     }
     applyTimer = setTimeout(() => {
       applyTimer = null;
-      lastApply = Date.now();
+      lastApply = performance.now();
       updateSettings(effectiveSettings(current, paused));
     }, wait);
   };

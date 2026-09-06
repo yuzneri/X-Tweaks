@@ -150,7 +150,9 @@ export const takeNewPosts = (): void => {
     return;
   }
 
-  const now = Date.now();
+  // Elapsed time, so from the clock that only moves forward: a wall clock corrected
+  // backwards would hold the retry off by however far it moved (`filter/pace.ts`)
+  const now = performance.now();
   const go = nextGo({ goes, lastGo }, now, { scrollY: window.scrollY });
   if (go === 'later') {
     // Said once per offer, so scrolling through a long timeline does not fill the console
