@@ -18,12 +18,12 @@
 /**
  * Long enough to be worth saying something about.
  *
- * Below a frame's worth of time (16ms) nothing can be felt, and everything above it takes
- * something away from the page: a round at this length is not yet a stutter, but it is
- * where one starts. Kept low enough that a round which improved can be seen to have
- * improved, rather than simply falling silent.
+ * Three frames' worth of time (16ms each). Below that a round is lost among the page's own
+ * work and nothing can be felt; at this length a reader scrolling can see the page hesitate.
+ * Low enough to catch a round on its way to becoming a stutter, high enough that a page
+ * behaving itself says nothing at all.
  */
-const SLOW_MS = 30;
+const SLOW_MS = 50;
 
 /** Whether a round took long enough to be worth saying anything about */
 export const feltAsSlow = (took: number): boolean => took >= SLOW_MS;
