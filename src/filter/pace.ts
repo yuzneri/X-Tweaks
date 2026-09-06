@@ -69,3 +69,27 @@ export const APPLY_MS = 200;
  */
 export const applyIn = (now: number, lastApply: number): number =>
   Math.max(0, APPLY_MS - (now - lastApply));
+
+/**
+ * The shortest a round of measuring may leave before the next one.
+ *
+ * Reading a height back makes the browser lay the page out then and there, and on a real
+ * timeline that one reading costs what a whole layout costs — measured on x.com at
+ * anywhere from 40ms to 200ms, for a single picture. What it answers is worth having, but
+ * not at any price and not on every settling.
+ */
+export const MEASURE_MS = 400;
+
+/** However slow the page turns out to be, a new picture is capped within this */
+export const MEASURE_MAX_MS = 3000;
+
+/**
+ * How long to leave before measuring again, given what the last round of it cost.
+ *
+ * The same arithmetic as `nextWait`, and for the same reason: the page keeps the greater
+ * share of the time whatever it turns out to hold. A page where measuring is cheap is
+ * measured often; one where it costs a fifth of a second is measured a few times a
+ * minute, and what waits for it is a picture keeping its full height a moment longer.
+ */
+export const measureAgainIn = (took: number): number =>
+  Math.min(MEASURE_MAX_MS, Math.max(MEASURE_MS, Math.round(took / SHARE)));

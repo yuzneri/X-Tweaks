@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { APPLY_MS, applyIn, MAX_SETTLE_MS, nextWait, SETTLE_MS } from './pace.ts';
+import {
+  APPLY_MS,
+  applyIn,
+  MAX_SETTLE_MS,
+  MEASURE_MAX_MS,
+  MEASURE_MS,
+  measureAgainIn,
+  nextWait,
+  SETTLE_MS,
+} from './pace.ts';
 
 test('軽い回のあとは、いちばん短い待ちに戻る', () => {
   assert.equal(nextWait(0), SETTLE_MS);
@@ -35,4 +44,15 @@ test('立て続けに来た変更は、窓が閉じるまで待つ', () => {
   // A key pressed 20ms after the last one was applied waits out the rest of the window
   assert.equal(applyIn(1_020, 1_000), APPLY_MS - 20);
   assert.equal(applyIn(1_000, 1_000), APPLY_MS);
+});
+
+test('測るのが安いページは、こまめに測る', () => {
+  assert.equal(measureAgainIn(0), MEASURE_MS);
+  assert.equal(measureAgainIn(50), MEASURE_MS);
+});
+
+test('測るのが高いページは、そのぶん間を空ける', () => {
+  assert.equal(measureAgainIn(200), 1000);
+  // However slow it gets, a new picture is not left uncapped for ever
+  assert.equal(measureAgainIn(10_000), MEASURE_MAX_MS);
 });

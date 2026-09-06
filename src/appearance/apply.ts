@@ -25,14 +25,9 @@ import {
   X_SHOW_MORE,
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
-import {
-  changedCells,
-  changeEverything,
-  noticeChange,
-  roundAnswersAChange,
-  watchChanges,
-} from './changed.ts';
+import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
 import { counted, noted, saidIfSlow, timed } from '../diagnostics.ts';
+import { measureAgainIn, MEASURE_MS } from '../filter/pace.ts';
 import { atAQuietMoment } from '../quiet.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
@@ -290,27 +285,18 @@ const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
  *     one did would leave nothing remembered at all
  */
 
-/**
- * How long to leave between two rounds of measuring the page.
- *
- * Reading a height forces the browser to lay the page out then and there, and on a real
- * timeline that one read costs a fifth of a second whether it is answering for one
- * picture or a hundred (measured on x.com: 200ms for two pictures, on a page of 125
- * posts). Paid on every settling, with posts arriving all the while, that is the page
- * stuttering the whole time it is read.
- *
- * So measuring waits: what needs it is remembered and answered together, a few times a
- * second rather than a few times a frame. What is waiting keeps whatever it was given
- * last — a picture already capped stays capped, a button already there stays there — so
- * the wait shows as a mark arriving late on something new, not as one flickering on
- * something already on screen.
- *
- * A round that has to be right cannot wait, and does not: the settings changing, or the
- * columns, measures at once (see `mayMeasure`).
+/*
+ * Measuring waits (`filter/pace.ts` decides how long). What needs it is remembered and
+ * answered together, and what is waiting keeps whatever it was given last — a picture
+ * already capped stays capped, a button already there stays there — so the wait shows as
+ * a mark arriving late on something new, never as one flickering on something already on
+ * screen.
  */
-const MEASURE_MS = 500;
 
 let lastMeasured = 0;
+
+/** How long this page has earned between rounds of measuring, from what the last one cost */
+let measureWait = MEASURE_MS;
 
 /** The posts with something still to measure. Looked at again on a later round */
 const toMeasure = new Set<Element>();
@@ -320,6 +306,9 @@ let booked = false;
 
 /** Whether the round now running is that booked one */
 let inTheBookedRound = false;
+
+/** Whether the round now running actually measured anything */
+let measured = false;
 
 /**
  * Measures at the next moment the browser has nothing else to do with the page.
@@ -338,11 +327,14 @@ const measureSoon = (): void => {
   atAQuietMoment(() => {
     booked = false;
     inTheBookedRound = true;
+    measured = false;
     const started = performance.now();
     try {
       stampMediaFrames();
     } finally {
       inTheBookedRound = false;
+      // What it cost is what it earns before the next one (`filter/pace.ts`)
+      if (measured) measureWait = measureAgainIn(performance.now() - started);
       // Its own round, so what it cost is reported as its own rather than landing on
       // whatever prints next (`diagnostics.ts`)
       saidIfSlow('measuring what arrived', performance.now() - started, (message, style) =>
@@ -352,19 +344,16 @@ const measureSoon = (): void => {
   });
 };
 
-/** Whether something is waiting that the reader asked for, rather than something that turned up */
-let awaited = false;
-
 /**
  * Whether this round may measure.
  *
- * Only the booked round measures — the one that runs when the browser has just laid the
- * page out, where reading a height costs nothing. What that round is allowed to measure
- * depends on what is waiting: a change the reader made is answered on the spot, while
- * posts arriving of their own accord wait for the window between two rounds of measuring.
+ * Only the booked round measures — the one that runs once the browser has laid the page
+ * out — and only when the page has had the time it earned since the last one. Nothing is
+ * let through early, a change the reader made included: what waits on a measurement is a
+ * picture keeping its full height, or a "Show more" arriving late, and neither is worth a
+ * page that stops answering.
  */
-const mayMeasure = (): boolean =>
-  inTheBookedRound && (awaited || Date.now() - lastMeasured >= MEASURE_MS);
+const mayMeasure = (): boolean => inTheBookedRound && Date.now() - lastMeasured >= measureWait;
 
 /** Notes that a post has something still to be measured, and keeps it for a later round */
 const measureLater = (element: Element): void => {
@@ -1997,12 +1986,10 @@ export const stampMediaFrames = (): void => {
      * go of — including anything they did not get to, which is a post in a scope that no
      * longer asks to be measured at all
      */
+    measured = true;
     lastMeasured = Date.now();
-    awaited = false;
     toMeasure.clear();
   } else if (toMeasure.size > 0) {
-    // What the reader did is worth interrupting the window for; what X did is not
-    if (roundAnswersAChange()) awaited = true;
     measureSoon();
   }
 };
