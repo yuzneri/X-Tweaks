@@ -46,7 +46,9 @@ const counts = new Map<string, number>();
 /** Anything about the round worth saying that is not a number */
 const notes = new Set<string>();
 
-let lastSaid = 0;
+// Never, rather than the moment the page loaded, so that the first slow round is said
+// rather than swallowed as one that came too soon after the last (`appearance/apply.ts`)
+let lastSaid = Number.NEGATIVE_INFINITY;
 let unsaid = 0;
 /** The longest of the rounds that went unsaid, so a quiet window cannot hide the worst one */
 let worstUnsaid = 0;
@@ -74,6 +76,27 @@ export const counted = (name: string, n: number): void => {
 /** Says something about the round that is not a number ("every post", say) */
 export const noted = (what: string): void => {
   notes.add(what);
+};
+
+/**
+ * Makes the browser work out what it has been putting off, and says how much there was.
+ *
+ * A round that reads the page back pays, on its first reading, for everything written
+ * since the page was last drawn — X's own writes as much as ours, and a live timeline
+ * writes constantly. Left alone, that cost lands on whichever reading happened to come
+ * first and reads as if the reading itself were expensive: "one picture measured, 240ms".
+ *
+ * Asked for here, before the round starts, it stands on its own line. What is left over
+ * afterwards is the round's own — including a pass the round made necessary by writing
+ * between two of its own readings, which shows up as a second round catching up again.
+ *
+ * It adds no work: the reading that follows forces the same pass, and the drawing after
+ * that would have forced it anyway. A page with nothing outstanding answers at once.
+ */
+export const pageCaughtUp = (): void => {
+  const started = performance.now();
+  document.documentElement.getBoundingClientRect();
+  spentOn('· the page catching up', performance.now() - started);
 };
 
 const line = (what: string, took: number): string => {
@@ -108,7 +131,7 @@ export const saidIfSlow = (
   took: number,
   log: (message: string, style: string) => void
 ): void => {
-  const now = Date.now();
+  const now = performance.now();
   if (feltAsSlow(took)) {
     if (now - lastSaid >= QUIET_MS) {
       log(line(what, took), 'color:#f59e0b');
