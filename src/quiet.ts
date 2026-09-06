@@ -22,6 +22,13 @@ let waiting: (() => void)[] = [];
 
 let booked = false;
 
+/** Where a job that fell over is reported. Set by whoever has somewhere to report it */
+let report: ((error: unknown) => void) | null = null;
+
+export const sayWhatFellOver = (say: (error: unknown) => void): void => {
+  report = say;
+};
+
 export const atAQuietMoment = (work: () => void): void => {
   waiting.push(work);
   if (booked) return;
@@ -31,7 +38,24 @@ export const atAQuietMoment = (work: () => void): void => {
       booked = false;
       const due = waiting;
       waiting = [];
-      for (const one of due) one();
+      for (const one of due) {
+        /*
+         * Each on its own. Letting one fall over take the rest with it is worse here than
+         * anywhere else: what waits here books itself for the next quiet moment from
+         * inside its own callback, so a job that never runs is a job that is never booked
+         * again — measuring stops for the life of the page, and nothing says so.
+         */
+        try {
+          one();
+        } catch (error) {
+          // Saying so must not be able to stop the rest either, which is the whole point
+          try {
+            report?.(error);
+          } catch {
+            // Nowhere left to say it
+          }
+        }
+      }
     })
   );
 };
