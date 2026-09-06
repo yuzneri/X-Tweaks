@@ -20,6 +20,7 @@ import {
   splitDuration,
   appearanceApplies,
   layoutKey,
+  paintKey,
   type AppearanceNode,
   canEmphasizeWith,
   fillNode,
@@ -933,4 +934,115 @@ test('描かれ方を決める設定だけが、レイアウトのキーに入�
     (a) => ({ ...a, media: { ...a.media, maxThumbHeight: 200 } }),
   ];
   for (const move of moves) assert.notEqual(layoutKey(move(base)), layoutKey(base));
+});
+
+/*
+ * The two keys say when a measurement or a composited colour has to be taken again, so a
+ * field added to the appearance and forgotten here shows as a mark that never updates —
+ * silently, and only on a real page. Rather than listing what is in each key, the tests
+ * below account for every field the appearance has: adding one fails them until it has
+ * been put on one side or the other, on purpose.
+ */
+
+/** The fields `layoutKey` must answer for, and those it must not be troubled by */
+const LAYOUT_FIELDS = [
+  'columnWidth',
+  'compact',
+  'fontSize',
+  'maxLines',
+  'wordsShown',
+  'collapseNewlines',
+  'timeFormat',
+  'cardStyle',
+  'quoteStyle',
+  'media',
+] as const;
+
+/**
+ * Left out of `layoutKey` on purpose. `enabled` and `cleared` are settled before the key
+ * is asked for (`settings/resolve.ts` hands on an empty node where the appearance is off),
+ * and the rest change what a post looks like without changing where anything sits.
+ */
+const NOT_LAYOUT = ['enabled', 'cleared', 'colors', 'autoContrast', 'highlightBase'] as const;
+
+/** The media settings, which live a level down and are all of them about layout */
+const LAYOUT_MEDIA = ['maxThumbHeight', 'style'] as const;
+
+/** A value certainly different from the one given, whatever kind it is */
+const nudged = (value: unknown): unknown => {
+  if (typeof value === 'number') return value + 1;
+  if (typeof value === 'boolean') return !value;
+  if (typeof value === 'string') return `${value}-else`;
+  return 'something else';
+};
+
+const changing = (base: AppearanceNode, field: string): AppearanceNode =>
+  ({
+    ...base,
+    [field]: nudged((base as unknown as Record<string, unknown>)[field]),
+  }) as unknown as AppearanceNode;
+
+test('レイアウトの鍵が、外見の項目をひとつ残らず引き受けている', () => {
+  const fields = Object.keys(fillAll({}).global.appearance);
+  const accounted = new Set<string>([...LAYOUT_FIELDS, ...NOT_LAYOUT]);
+  for (const field of fields) {
+    assert.ok(accounted.has(field), `${field} が layoutKey の対象か対象外かを決めていない`);
+  }
+  assert.equal(fields.length, accounted.size, '使われていない項目名が残っている');
+  // The same, a level down: `media` is one entry above but two settings here, and both of
+  // them are what a picture's height is measured under
+  const inMedia = Object.keys(fillAll({}).global.appearance.media);
+  for (const field of inMedia) {
+    assert.ok(LAYOUT_MEDIA.includes(field as (typeof LAYOUT_MEDIA)[number]), `media.${field} を決めていない`);
+  }
+  assert.equal(inMedia.length, LAYOUT_MEDIA.length, '使われていない media の項目名が残っている');
+});
+
+/*
+ * Naming a field is not the same as the key answering for it: a list checked against a
+ * list can be brought back into agreement by adding the name, leaving `layoutKey` itself
+ * untouched. So each name is put through the key and the answer has to move.
+ */
+test('レイアウトに効くと決めた項目は、ひとつ残らず鍵を動かす', () => {
+  const base = fillAll({}).global.appearance;
+  for (const field of LAYOUT_FIELDS) {
+    if (field === 'media') continue;
+    assert.notEqual(layoutKey(changing(base, field)), layoutKey(base), `${field} を変えても鍵が変わらない`);
+  }
+  for (const field of LAYOUT_MEDIA) {
+    const moved = {
+      ...base,
+      media: { ...base.media, [field]: nudged(base.media[field]) },
+    } as unknown as AppearanceNode;
+    assert.notEqual(layoutKey(moved), layoutKey(base), `media.${field} を変えても鍵が変わらない`);
+  }
+});
+
+test('レイアウトに効かないと決めた項目では、鍵は動かない', () => {
+  const base = fillAll({}).global.appearance;
+  for (const field of NOT_LAYOUT) {
+    assert.equal(layoutKey(changing(base, field)), layoutKey(base), `${field} が鍵を動かしている`);
+  }
+});
+
+test('色の鍵が、色をひとつ残らず引き受けている', () => {
+  const base = fillAll({}).global.appearance;
+  for (const name of Object.keys(base.colors)) {
+    const moved: AppearanceNode = {
+      ...base,
+      colors: { ...base.colors, [name]: '#123456' },
+    };
+    assert.notEqual(paintKey(moved), paintKey(base), `${name} を変えても鍵が変わらない`);
+  }
+});
+
+test('同じ色の組み合わせなら、同じ鍵になる', () => {
+  const one = fillAll({ global: { appearance: { colors: { background: '#111111' } } } });
+  const two = fillAll({ global: { appearance: { colors: { background: '#111111' } } } });
+  assert.equal(paintKey(one.global.appearance), paintKey(two.global.appearance));
+});
+
+test('色の鍵は、レイアウトの項目では動かない', () => {
+  const base = fillAll({}).global.appearance;
+  assert.equal(paintKey({ ...base, columnWidth: 500 }), paintKey(base));
 });
