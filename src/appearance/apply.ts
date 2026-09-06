@@ -26,7 +26,7 @@ import {
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
 import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
-import { counted, noted, saidIfSlow, timed } from '../diagnostics.ts';
+import { counted, noted, pageCaughtUp, saidIfSlow, timed } from '../diagnostics.ts';
 import { measureAgainIn, MEASURE_MS } from '../filter/pace.ts';
 import { atAQuietMoment } from '../quiet.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
@@ -188,6 +188,79 @@ const frameOf = (media: Element, limit: number): Element | null => {
   return decider ?? wrapper;
 };
 
+/**
+ * The same answer as `frameOf`, worked out without writing to the page first, and whether
+ * X has drawn the media at all.
+ *
+ * `frameOf` takes what our rules are doing off the box before reading it, and a write
+ * between two readings makes the browser work the page out again — measured on a real
+ * timeline at 90 to 175ms a round, however few pictures the round was measuring. This
+ * reads instead what the media sits in: our rules are on the box, but the thing above it
+ * that decides its height is left alone until it is marked, so its own height is the one
+ * X would draw.
+ *
+ * Checked against `frameOf` on the real site before it was trusted with anything: the two
+ * agreed on every picture being seen for the first time. Where the frame already carries
+ * our marker the walk below is not attempted at all, for the reason given there.
+ */
+const frameAround = (media: Element, limit: number): { frame: Element | null; drawn: boolean } => {
+  /*
+   * What the media sits in, nearest first, as far up as a frame could be — and not media
+   * itself. Our rules are on every box X marks as media, and a box we have taken off the
+   * page or capped cannot say how tall another would be drawn: X puts one inside another
+   * (a video is marked twice over, `filter/post.ts`), so these really do turn up in the
+   * walk rather than only at the bottom of it.
+   */
+  const above: Element[] = [];
+  for (let el = media.parentElement, i = 0; el && i < MAX_ANCESTORS; el = el.parentElement, i++) {
+    if (el.hasAttribute(COLUMN_ATTR) || el.matches(CELL_SELECTOR)) break;
+    if (el.querySelector(TEXT_SELECTOR)) break;
+    if (!el.matches(MEDIA_ANYWHERE)) above.push(el);
+  }
+
+  /*
+   * A frame already marked is the answer, and no reading below it can improve on it.
+   * Everything inside a marked frame is drawn to the height our own rules impose on it
+   * (`css.ts`: the frame's height is replaced, and its contents are held to it), so a walk
+   * from the media would compare X's shape against ours and find nothing that fits —
+   * answering "no frame at all", which takes the marker off and opens the frame up empty
+   * on a timeline whose reader asked for no pictures.
+   */
+  const marked = above.find((el) => el.hasAttribute(MEDIA_FRAME_ATTR));
+  if (marked) return { frame: marked, drawn: true };
+
+  // Nothing of ours on any of them, so what is on screen is X's own
+  const height = (above[0] ?? media).getBoundingClientRect().height;
+  if (!needsFrame(height, limit)) return { frame: null, drawn: height > 0 };
+
+  let wrapper: Element | null = null;
+  let decider: Element | null = null;
+  for (const el of above) {
+    if (!wrapsBox(height, el.getBoundingClientRect().height)) break;
+    wrapper = el;
+    if (declaresHeight(el, height)) decider = el;
+  }
+  return { frame: decider ?? wrapper, drawn: true };
+};
+
+/**
+ * Whether this element is the one that decides the height, from what X wrote on it as much
+ * as from what is on screen.
+ *
+ * A percentage `padding-bottom` is resolved against the width here rather than handed to
+ * `setsHeight`, which compares lengths: read off the element, `56.25%` arrives as the
+ * string it was written as, and `56.25` beside a height in the hundreds says "sets no
+ * height" about the very element that sets it.
+ */
+const declaresHeight = (el: Element, height: number): boolean => {
+  const shown = getComputedStyle(el);
+  const own = (el as HTMLElement).style;
+  const padding = own.paddingBottom.endsWith('%')
+    ? `${(el.getBoundingClientRect().width * parseFloat(own.paddingBottom)) / 100}px`
+    : own.paddingBottom || shown.paddingBottom;
+  return setsHeight(own.aspectRatio || shown.aspectRatio, padding, height);
+};
+
 /** One scope on screen, with the appearance that applies inside it */
 type MarkedColumn = { element: Element; appearance: AppearanceNode };
 
@@ -293,7 +366,13 @@ const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
  * screen.
  */
 
-let lastMeasured = 0;
+/*
+ * When the last round of measuring ran. Before any has, it is not "the beginning of
+ * time" but "long enough ago": the clock behind it starts at nothing when the page loads
+ * (`performance.now()`), so a zero here would hold the first round back by the whole of
+ * the wait, on the one occasion there is most to measure.
+ */
+let lastMeasured = Number.NEGATIVE_INFINITY;
 
 /** How long this page has earned between rounds of measuring, from what the last one cost */
 let measureWait = MEASURE_MS;
@@ -303,6 +382,9 @@ const toMeasure = new Set<Element>();
 
 /** Whether a round of measuring is already booked for the next quiet moment */
 let booked = false;
+
+/** The wait put in front of a booking, where the page has not earned its next round yet */
+let waitingToBook: ReturnType<typeof setTimeout> | null = null;
 
 /** Whether the round now running is that booked one */
 let inTheBookedRound = false;
@@ -320,9 +402,23 @@ let measured = false;
  *
  * A background tab never gets there, and nothing in it wants measuring: it comes back
  * when the tab does.
+ *
+ * A round asked for before the page has earned it waits out the difference on the clock
+ * first. Booking it straight away would put it two frames out, where it would find its
+ * turn still not come, do the whole round's walking for nothing, and book itself again —
+ * once every couple of frames until the wait ran out, which on a page slow enough to have
+ * earned a long wait is a hundred rounds of exactly the work the wait exists to prevent.
  */
 const measureSoon = (): void => {
-  if (booked) return;
+  if (booked || waitingToBook !== null) return;
+  const owed = Math.max(0, measureWait - (performance.now() - lastMeasured));
+  if (owed > 0) {
+    waitingToBook = setTimeout(() => {
+      waitingToBook = null;
+      measureSoon();
+    }, owed);
+    return;
+  }
   booked = true;
   atAQuietMoment(() => {
     booked = false;
@@ -330,6 +426,11 @@ const measureSoon = (): void => {
     measured = false;
     const started = performance.now();
     try {
+      // What the passes below read the page for pays, on the first reading, for whatever
+      // has been written since it was last drawn — X's own writes as much as ours. Asked
+      // for here it stands on its own line rather than landing on the first pass that
+      // happens to read (`diagnostics.ts`). Only a round that is going to read asks
+      if (mayMeasure()) pageCaughtUp();
       stampMediaFrames();
     } finally {
       inTheBookedRound = false;
@@ -353,7 +454,7 @@ const measureSoon = (): void => {
  * picture keeping its full height, or a "Show more" arriving late, and neither is worth a
  * page that stops answering.
  */
-const mayMeasure = (): boolean => inTheBookedRound && Date.now() - lastMeasured >= measureWait;
+const mayMeasure = (): boolean => inTheBookedRound && performance.now() - lastMeasured >= measureWait;
 
 /** Notes that a post has something still to be measured, and keeps it for a later round */
 const measureLater = (element: Element): void => {
@@ -383,6 +484,9 @@ let generation = 0;
  */
 const measuredUnder = (appearance: AppearanceNode): string =>
   `${generation}|${layoutKey(appearance)}`;
+
+/** What hidden media is remembered under. It stands apart from every measurement */
+const HIDDEN_KEY = 'hidden';
 
 const remeasureEverything = (): void => {
   generation++;
@@ -425,7 +529,17 @@ const sizes = new ResizeObserver((entries) => {
    * what it was given at the old width until something else happened to it.
    */
   changeEverything();
+  // Saying what has to be looked at again is not the same as anything looking. What runs
+  // the passes is a settling, and only `filter/engine.ts` starts one
+  settleAgain?.();
 });
+
+/** How to ask for a settling. Set by whoever runs them (`filter/engine.ts`) */
+let settleAgain: (() => void) | null = null;
+
+export const askForASettling = (ask: () => void): void => {
+  settleAgain = ask;
+};
 
 /**
  * The scopes being watched. Held to be let go of: an Observer keeps what it watches
@@ -650,7 +764,16 @@ const restampMediaFrames = (
     // How the limit is derived lives in `limitFor` alone. null means this scope wants no marker
     const limit = limitFor(appearance);
     if (limit === null) continue;
-    const key = measuredUnder(appearance);
+    /*
+     * What is asked of hidden media is not a height but whether X drew it at all, and that
+     * answer does not turn on how wide the column is or on anything else measured this
+     * round — so it is kept until the media itself is replaced, or the scope stops hiding.
+     *
+     * It has to be. Once the frame carries the marker our rules take it off the page
+     * altogether, and reading it again would find nothing drawn and take the marker back
+     * off, putting the picture on a timeline the reader asked to have none.
+     */
+    const key = limit === 0 ? HIDDEN_KEY : measuredUnder(appearance);
     for (const root of measuring ? rootsToMeasure(element, changed) : rootsIn(element, changed)) {
       root.querySelectorAll(MEDIA_ANYWHERE).forEach((media) => {
         const known = frames.get(media);
@@ -689,24 +812,26 @@ const restampMediaFrames = (
   };
 
   /*
-   * What our own rules are doing to the box has to be out of the way while it is measured,
-   * or the height read back is the one we imposed rather than the one X would draw.
+   * What our own rules are doing to the box has to be out of the way before it can be
+   * measured, or the height read back is the one we imposed rather than the one X would
+   * draw — and taking it off is a write, which makes the browser lay the whole page out
+   * again before the next reading. That is the expensive part of a round, not the reading.
    *
-   * Where the rules cap the height, taking the cap off the few boxes about to be measured
-   * is enough, and it is done inline so that only those boxes are affected: switching the
-   * whole stylesheet off and on again costs the browser a pass over every element on the
-   * page — hundreds of milliseconds on a deck of several hundred posts, and a reader
-   * scrolling brings new pictures in on every settling.
+   * Where the rules take the media off the timeline altogether, nothing is taken off at
+   * all: what is asked is only whether the media is drawn, and the frame around it is
+   * still there to be read (`frameAround`).
    *
-   * Where the rules take the media off the timeline altogether there is nothing to
-   * uncap — the box is not drawn at all — so those are measured with the stylesheet off,
-   * as they always were.
+   * Where the rules cap the height, the cap still comes off the few boxes about to be
+   * measured, inline so that only those boxes are affected.
    */
   const capped: typeof unmeasured = [];
   const hidden: typeof unmeasured = [];
   for (const one of unmeasured) (one.limit === 0 ? hidden : capped).push(one);
 
-  counted('pictures measured', capped.length + hidden.length);
+  // Counted apart because what each costs the page is not the same thing: one writes to
+  // the page and pays for it, the other only reads
+  counted('pictures uncapped', capped.length);
+  counted('pictures read', hidden.length);
   if (capped.length > 0) {
     /*
      * Two things of ours stand between the box and its own height, and both come off
@@ -719,6 +844,8 @@ const restampMediaFrames = (
      * the limit, which is not "too tall" — so it would lose the frame it needs. What is
      * still wanted is marked again below, out of what this round measures.
      */
+    /** The frames the markers came off, so they can go back on if the reading falls over */
+    const bared: Element[] = [];
     for (const { media } of capped) {
       for (
         let frame = media.closest(`[${MEDIA_FRAME_ATTR}]`);
@@ -726,6 +853,7 @@ const restampMediaFrames = (
         frame = frame.parentElement?.closest(`[${MEDIA_FRAME_ATTR}]`) ?? null
       ) {
         frame.removeAttribute(MEDIA_FRAME_ATTR);
+        bared.push(frame);
       }
     }
     const inline = capped.map(({ media }) => {
@@ -735,18 +863,60 @@ const restampMediaFrames = (
       el.style.setProperty('max-height', 'none', 'important');
       return { el, had, priority };
     });
-    for (const one of capped) measure(one);
-    for (const { el, had, priority } of inline) {
-      if (had === '') el.style.removeProperty('max-height');
-      else el.style.setProperty('max-height', had, priority);
+    let read = false;
+    try {
+      for (const one of capped) measure(one);
+      read = true;
+    } finally {
+      /*
+       * Put back however the measuring ended. An `!important` of ours left on the box
+       * outlives the stylesheet's own cap, so a reading that threw would leave that
+       * picture at full height for as long as the page is open, with nothing to put it
+       * right again.
+       */
+      for (const { el, had, priority } of inline) {
+        if (had === '') el.style.removeProperty('max-height');
+        else el.style.setProperty('max-height', had, priority);
+      }
+      /*
+       * The markers likewise. Where the reading finished, the sweep below decides which of
+       * them are still wanted; where it did not, that sweep is not reached either, and
+       * leaving them off would put every picture this round had capped back at full height
+       * until a later round measured it again.
+       */
+      if (!read) for (const frame of bared) frame.setAttribute(MEDIA_FRAME_ATTR, '');
     }
   }
 
-  if (hidden.length > 0) {
-    const style = styleElement();
-    style.disabled = true;
-    for (const one of hidden) measure(one);
-    style.disabled = false;
+  /*
+   * Hidden media is read rather than measured. What decides the answer is whether X has
+   * drawn it at all, and the frame it sits in says that without a rule of ours being
+   * touched: switching the whole stylesheet off and on again to ask the box itself costs
+   * the browser two passes over every element on the page — 90 to 175ms on a real deck,
+   * however few pictures had arrived.
+   */
+  for (const { media, limit, key } of hidden) {
+    const { frame, drawn } = frameAround(media, limit);
+    if (frame) {
+      /*
+       * A frame, whether it was read out of the page or was already marked. A marked one
+       * answers at no height at all — our rules have taken it off the page — and that is
+       * still the answer: dropping it here would take the marker off and put the picture
+       * back on a timeline whose reader asked for none.
+       */
+      frames.set(media, { key, frame });
+      wanted.add(frame);
+      continue;
+    }
+    /*
+     * No frame, and nothing drawn: a picture X has not got to yet, or a post folded away.
+     * Nothing is remembered — what is kept under `HIDDEN_KEY` is kept for as long as the
+     * media stands, and this answer would be wrong the moment X draws it — so it is looked
+     * at again on a later round.
+     */
+    if (!drawn) continue;
+    // Drawn, and nothing around it is a frame. That answer holds while the media does
+    frames.set(media, { key, frame: null });
   }
 
   // Written after everything has been measured, and only where the marker is not already
@@ -1951,9 +2121,8 @@ export const stampMediaFrames = (): void => {
   /*
    * The captions written under pictures, redone on the same occasion and for the same
    * reason as the lines: X redraws a post and takes ours away with it.
-   * After the frames above, which measure with our own stylesheet switched off — a
-   * caption is folded to a couple of lines by that stylesheet, and measuring around an
-   * unfolded one would read the wrong height.
+   * After the frames above, so that a caption is measured around a picture already given
+   * its final height rather than one still to be marked.
    */
   if (
     lastMessages &&
@@ -1987,7 +2156,7 @@ export const stampMediaFrames = (): void => {
      * longer asks to be measured at all
      */
     measured = true;
-    lastMeasured = Date.now();
+    lastMeasured = performance.now();
     toMeasure.clear();
   } else if (toMeasure.size > 0) {
     measureSoon();

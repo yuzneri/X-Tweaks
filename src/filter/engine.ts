@@ -2,7 +2,7 @@
  * Running the filter: watching the DOM for changes, judging posts, and applying the result.
  */
 import { adjustsContrast, highlightBaseOf, paintKey, type Settings } from '../settings/schema.ts';
-import { resolve, type ColumnScope } from '../settings/resolve.ts';
+import { appearanceFor, resolve, type ColumnScope } from '../settings/resolve.ts';
 import { surface } from '../surface/index.ts';
 import type { ScopeInfo, SurfaceState } from '../surface/index.ts';
 import { adJudgementBroken, compileFilter, decide, type CompiledFilter, type Post } from './decide.ts';
@@ -15,16 +15,22 @@ import {
   type Marker,
   type Tally,
 } from './health.ts';
-import { apply, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
-import { clearReadable, markReadableWaiting } from './readable.ts';
+import { apply, coloursWaiting, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
+import { clearReadable, markReadableWaiting, wordsWaiting } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
-import { applyAppearance, sayWhereSlow, stampColumns, stampMediaFrames } from '../appearance/apply.ts';
+import {
+  applyAppearance,
+  askForASettling,
+  sayWhereSlow,
+  stampColumns,
+  stampMediaFrames,
+} from '../appearance/apply.ts';
 import { handledChanges, postsTouched } from '../appearance/changed.ts';
-import { atAQuietMoment } from '../quiet.ts';
-import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
+import { atAQuietMoment, sayWhatFellOver } from '../quiet.ts';
+import { counted, feltAsSlow, pageCaughtUp, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
@@ -89,7 +95,14 @@ const effectiveFor = (scope: ColumnScope, settings: Settings) => {
     look: {
       adjustContrast: adjustsContrast(node.appearance.autoContrast),
       highlightBase: highlightBaseOf(node.appearance.highlightBase),
-      paint: paintKey(node.appearance),
+      /*
+       * What is actually painted in that scope, which is what a composited colour has to
+       * be kept against. `node.appearance` is the merge alone: with the appearance
+       * switched off it still carries the colours, while the page shows none of them
+       * (`settings/resolve.ts`), and a key that cannot tell those apart holds a colour
+       * composited over paint that is no longer there.
+       */
+      paint: paintKey(appearanceFor(settings, scope)),
     },
   };
   effective.set(key, built);
@@ -339,18 +352,32 @@ const keepWordsReadable = (): void => {
    */
   atAQuietMoment(() => {
     const started = performance.now();
-    const coloured = composeWaiting();
-    const words = performance.now();
-    if (coloured > 0) {
-      counted('posts coloured', coloured);
-      spentOn('· composing colours', words - started);
-    }
-    const posts = markReadableWaiting();
-    if (posts > 0) {
-      counted('posts kept readable', posts);
-      spentOn('· keeping words readable', performance.now() - words);
-    }
-    if (coloured > 0 || posts > 0) {
+    try {
+      // Both of the passes below read the page back, and the first reading pays for
+      // whatever has been written since it was last drawn. Asked for here, that cost is
+      // told apart from what the passes themselves do (`diagnostics.ts`) — and nothing is
+      // forced on a round with nothing to read
+      if (coloursWaiting() || wordsWaiting()) pageCaughtUp();
+      const ours = performance.now();
+      const coloured = composeWaiting();
+      const words = performance.now();
+      if (coloured > 0) {
+        counted('posts coloured', coloured);
+        spentOn('· composing colours', words - ours);
+      }
+      const posts = markReadableWaiting();
+      if (posts > 0) {
+        counted('posts kept readable', posts);
+        spentOn('· keeping words readable', performance.now() - words);
+      }
+    } finally {
+      /*
+       * Whatever the round found to do, and however it ended. What a round measured is
+       * cleared where it is said, and nowhere else — a round that read the page and then
+       * said nothing leaves its numbers to be added to the next line printed, which is
+       * then reporting work it never did. A round that cost nothing still says nothing:
+       * that judgement belongs to `diagnostics.ts`, not here.
+       */
       say('colouring the posts that were highlighted', performance.now() - started);
     }
   });
@@ -514,7 +541,7 @@ const observe = (): void => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let wait = SETTLE_MS;
 
-  const observer = new MutationObserver(() => {
+  const soon = (): void => {
     if (timer !== null) return;
     timer = setTimeout(() => {
       timer = null;
@@ -522,9 +549,18 @@ const observe = (): void => {
       settle();
       wait = nextWait(performance.now() - started);
     }, wait);
-  });
+  };
 
+  const observer = new MutationObserver(soon);
   observer.observe(document.body, { childList: true, subtree: true });
+
+  /*
+   * A scope changing width moves nothing in the page, so the Observer above hears nothing
+   * about it — and everything measured inside that scope has just been thrown away
+   * (`appearance/apply.ts`). Without this the page would go on showing what it was given
+   * at the old width until a post happened to arrive.
+   */
+  askForASettling(soon);
 };
 
 export const updateSettings = (settings: Settings): void => {
@@ -559,6 +595,11 @@ export type EngineHooks = {
 export const start = async (settings: Settings, given: EngineHooks): Promise<void> => {
   injectStyles();
   sayWhereSlow((message, style) => given.logStyled(message, style));
+  // Work put off to a quiet moment runs outside every `guard` here, and what falls over
+  // there is silent otherwise (`quiet.ts`)
+  sayWhatFellOver((error) =>
+    given.logStyled(`xpro-tweaks: work put off to a quiet moment failed: ${String(error)}`, 'color:#f59e0b')
+  );
   adopt(settings);
   hooks = given;
   // Posts appearing while the columns are being resolved are picked up and judged by the Observer

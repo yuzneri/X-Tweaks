@@ -34,7 +34,9 @@ let everything = true;
  */
 const FULL_MS = 2000;
 
-let lastFull = 0;
+// Never, rather than the moment the page loaded: the clock starts at nothing, and a zero
+// would say the last full round had only just happened (`appearance/apply.ts`)
+let lastFull = Number.NEGATIVE_INFINITY;
 
 /**
  * What was decided for the settling now running.
@@ -53,8 +55,8 @@ let answer: Set<Element> | null | undefined;
  */
 export const changedCells = (): Set<Element> | null => {
   if (answer !== undefined) return answer;
-  const full = everything || Date.now() - lastFull >= FULL_MS;
-  if (full) lastFull = Date.now();
+  const full = everything || performance.now() - lastFull >= FULL_MS;
+  if (full) lastFull = performance.now();
   answer = full ? null : cells;
   return answer;
 };
@@ -116,9 +118,16 @@ let watching = false;
  * Starts the watch. Called once, before the first pass runs.
  *
  * The attributes are named one by one rather than watched wholesale: X writes to `class`
- * and `style` constantly and none of the passes reads either, while these four are read —
+ * and `style` constantly and none of the passes reads either, while the ones below are read —
  * the description written for a picture (`alt`, `aria-label`), the time a post was made
- * (`datetime`), the picture itself (`src`), and what X calls a thing (`data-testid`).
+ * (`datetime`), the picture itself (`src`), what X calls a thing (`data-testid`), where a
+ * link goes (`href`) and what a thing is for (`role`) — seven in all.
+ *
+ * The last two are here because a post is read through them — which post a picture belongs
+ * to, who wrote it, whether a poll is open — and what is read is kept until the post is
+ * reported as changed (`filter/engine.ts`). Left out, a post X rewrote in place without
+ * touching anything else would keep its old reading for as long as the page is open: the
+ * safety net below does not reach that far, it only decides which posts a round looks at.
  */
 export const watchChanges = (): void => {
   if (watching) return;
@@ -139,6 +148,6 @@ export const watchChanges = (): void => {
     subtree: true,
     childList: true,
     characterData: true,
-    attributeFilter: ['alt', 'aria-label', 'datetime', 'src', 'data-testid'],
+    attributeFilter: ['alt', 'aria-label', 'datetime', 'src', 'data-testid', 'href', 'role'],
   });
 };

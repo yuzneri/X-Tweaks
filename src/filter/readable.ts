@@ -50,11 +50,28 @@ const wordsIn = (cell: Element): Element[] => {
 const FG_IN_ATTR = 'data-xpro-fg-in';
 
 /**
- * What the marker says: the colour the post was looked at under, and whether anything
- * came of it. A post that needed nothing is worth telling from one that has marks to
- * take off, so that taking them off costs nothing where there are none.
+ * What the marker says: what the post was looked at under, and whether anything came of
+ * it. A post that needed nothing is worth telling from one that has marks to take off, so
+ * that taking them off costs nothing where there are none.
+ *
+ * What it was looked at under is the highlight colour *and* the colour behind the scope,
+ * because the answer is the contrast between them and either can move on its own. The one
+ * behind moves without anything of ours being touched — the reader changes the colours we
+ * paint, or X is switched between its own light and dark themes — and a marker naming the
+ * highlight alone would go on matching, leaving every post reading against a background
+ * that is no longer there until the page was loaded again.
  */
-const done = (color: string, marked: boolean): string => `${marked ? 'm' : 'n'}:${color}`;
+const done = (color: string, behind: string, marked: boolean): string =>
+  `${marked ? 'm' : 'n'}:${color}:${behind}`;
+
+/**
+ * The backdrop as the marker names it. A scope whose backdrop could not be measured at all
+ * is named as such rather than left out: the post is still read (from its own walk to the
+ * root, `readCell`), and the answer is still worth keeping — it just cannot be told apart
+ * from the next unmeasurable one, which is where this stood before any of it was kept.
+ */
+const under = (behind: Rgb | null): string =>
+  behind === null ? '?' : `${behind.r},${behind.g},${behind.b}`;
 
 export const clearReadable = (cell: Element): void => {
   const before = cell.getAttribute(FG_IN_ATTR);
@@ -78,6 +95,9 @@ const waiting = new Map<Element, string>();
 export const markReadableLater = (cell: Element, color: string): void => {
   waiting.set(cell, color);
 };
+
+/** Whether any post is waiting for its words, asked before a round decides to read the page */
+export const wordsWaiting = (): boolean => waiting.size > 0;
 
 /**
  * Looks at every post that was waiting, and answers how many had to be worked out.
@@ -108,20 +128,29 @@ export const markReadableWaiting = (): number => {
 
   let worked = 0;
   const wanted: { element: Element; fg: string }[] = [];
-  const marks: { cell: Element; color: string; any: boolean }[] = [];
+  const marks: { cell: Element; color: string; behind: string; any: boolean }[] = [];
   for (const [cell, color] of posts) {
+    /*
+     * What is behind the scope is asked for first, because it is half of the marker: one
+     * reading per scope however many of its posts are waiting, and the round is standing
+     * in a quiet moment where reading the page costs nothing (`quiet.ts`).
+     */
+    const scope = scopeOf(cell);
+    const behind = under(scope === null ? null : scope.behind);
     const already = cell.getAttribute(FG_IN_ATTR);
-    // Already worked out under this colour, and what is behind a post does not move
-    if (already === done(color, true) || already === done(color, false)) continue;
+    // Already worked out, under this colour and over this backdrop
+    if (already === done(color, behind, true) || already === done(color, behind, false)) continue;
     worked += 1;
     clearReadable(cell);
-    const found = readCell(cell, scopeOf(cell));
+    const found = readCell(cell, scope);
     if (found === null) continue;
     wanted.push(...found);
-    marks.push({ cell, color, any: found.length > 0 });
+    marks.push({ cell, color, behind, any: found.length > 0 });
   }
   for (const { element, fg } of wanted) element.setAttribute(FG_ATTR, fg);
-  for (const { cell, color, any } of marks) cell.setAttribute(FG_IN_ATTR, done(color, any));
+  for (const { cell, color, behind, any } of marks) {
+    cell.setAttribute(FG_IN_ATTR, done(color, behind, any));
+  }
   return worked;
 };
 

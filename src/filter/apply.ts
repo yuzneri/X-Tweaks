@@ -35,6 +35,9 @@ const COLOR_FROM = 'data-xpro-highlight-from';
 /** The posts whose highlight colour still has to be composited, and what from */
 const composing = new Map<Element, { rule: string; from: string; look: Look }>();
 
+/** Whether any post is waiting for its colour, asked before a round decides to read the page */
+export const coloursWaiting = (): boolean => composing.size > 0;
+
 /**
  * Works out the colour every post that was waiting is to be highlighted in, and lays it
  * on. Answers how many there were.
@@ -45,8 +48,15 @@ const composing = new Map<Element, { rule: string; from: string; look: Look }>()
  */
 export const composeWaiting = (): number => {
   if (composing.size === 0) return 0;
-  const posts = [...composing];
+  /*
+   * Only the posts still asking for it. A round of judging can come and go between the
+   * queueing and this — the settings screen saves on every keystroke — and a post folded
+   * away in the meantime would otherwise be stamped as coloured, and have its words read
+   * against a highlight it no longer carries (`filter/readable.ts` remembers that reading).
+   */
+  const posts = [...composing].filter(([cell]) => cell.classList.contains(HIGHLIGHTED));
   composing.clear();
+  if (posts.length === 0) return 0;
 
   /** What is behind each scope, asked once however many of its posts are waiting */
   const behind = new Map<Element, Rgb | null>();
@@ -124,30 +134,47 @@ const overThemeColor = (
 /**
  * The placeholder standing in for a folded-away post, if it has one.
  *
- * Asked only where the post is folded, because that is the only state one exists in:
- * looking for it is a search through the post, and a post as X builds one holds hundreds
- * of elements.
+ * Looked for among the post's own children rather than searched for through it: a post
+ * holds hundreds of elements as X builds one, but only a couple of them directly, so this
+ * is a step or two either way.
+ *
+ * Neither the class that should accompany it nor the position it was put in is trusted.
+ * X redraws a post and takes our classes with it while leaving what we put inside, and it
+ * is free to put something of its own in front. Miss the placeholder either way and it is
+ * never taken out, and a second one joins it the next time the post is folded.
  */
-const placeholderOf = (cell: Element): HTMLElement | null =>
-  cell.classList.contains(COLLAPSED)
-    ? cell.querySelector<HTMLElement>(`:scope > .${PLACEHOLDER}`)
-    : null;
+const placeholderOf = (cell: Element): HTMLElement | null => {
+  for (let el = cell.firstElementChild; el !== null; el = el.nextElementSibling) {
+    if (el.classList.contains(PLACEHOLDER)) return el as HTMLElement;
+  }
+  return null;
+};
 
 /**
  * Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched
  * here.
  *
- * A post that carries none of them is left where it stands. On a change to the rules that
- * is most of the page — every post nothing matched — and the undoing is a search through
- * a post for what was never put there. The placeholder rides along with the class that
- * puts it in, so where there is no class there is nothing to take out either.
+ * The classes are looked at before they are taken off, because on a change to the rules
+ * most of the page carries none of them and taking off what was never put on is work for
+ * nothing. What we wrote into the post is not gated that way: X takes our classes off a
+ * post it redraws and leaves the rest, so the placeholder and the colour are asked for
+ * whatever the classes say.
  */
 const resetDecision = (cell: Element): void => {
+  // Whatever it was waiting to be given, it is not being given it now
+  composing.delete(cell);
+  // Asked of every post, class or no class: one that X stripped still has ours inside it
+  placeholderOf(cell)?.remove();
   const classes = cell.classList;
   if (classes.contains(COLLAPSED) || classes.contains(HIDDEN) || classes.contains(HIGHLIGHTED)) {
-    // Before the classes go: which of them is on is how the placeholder is found at all
-    placeholderOf(cell)?.remove();
     classes.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
+  }
+  /*
+   * Asked of the attribute rather than of the class, for the reason the placeholder is
+   * (above): what X takes off a post it redraws is our classes, and what it leaves is what
+   * we wrote. The attribute is what says a colour was worked out, so it is what has to go.
+   */
+  if (cell.hasAttribute(COLOR_FROM)) {
     (cell as HTMLElement).style.removeProperty(COLOR_VAR);
     cell.removeAttribute(COLOR_FROM);
   }
@@ -252,7 +279,15 @@ const showDecision = (
      */
     const from = `${decision.color}|${look.highlightBase}|${look.paint}`;
     if (cell.getAttribute(COLOR_FROM) === from) {
-      // Worked out before, and nothing behind the post has moved since
+      /*
+       * Worked out before, and nothing behind the post has moved since. Anything queued in
+       * the meantime is dropped: the rules can go from one colour to another and back
+       * again before a quiet moment comes round — a settings screen saves on every
+       * keystroke, and a tab in the background waits for a quiet moment indefinitely — and
+       * the colour left in the queue is the one from the middle of that, which would be
+       * painted on and stamped as current.
+       */
+      composing.delete(cell);
       const color = (cell as HTMLElement).style.getPropertyValue(COLOR_VAR) || decision.color;
       if (look.adjustContrast) markReadableLater(cell, color);
       else clearReadable(cell);
@@ -266,6 +301,8 @@ const showDecision = (
   // A cell decided to stay open is neither re-collapsed nor hidden when the rules change
   if (expanded.has(cell)) return;
 
+  // Not a highlight any more, so the colour it was queued for is not wanted either
+  composing.delete(cell);
   cell.classList.remove(HIGHLIGHTED);
   (cell as HTMLElement).style.removeProperty(COLOR_VAR);
   cell.removeAttribute(COLOR_FROM);
@@ -284,7 +321,15 @@ const showDecision = (
 
   const existing = placeholderOf(cell);
   if (existing) {
-    // If the matching rule changed, only the reason is swapped out
+    /*
+     * Both halves are put right, not the reason alone. The post this stands in for is not
+     * necessarily the one it was built for: X hands a post's elements on to another post,
+     * taking our classes off and leaving what we put in, and a placeholder kept from
+     * before would go on naming whoever wrote the post that is gone.
+     */
+    const summary = existing.querySelector('.xpro-placeholder-text');
+    const named = author ? `@${author}` : messages.placeholder.post;
+    if (summary && summary.textContent !== named) summary.textContent = named;
     const reason = existing.querySelector('.xpro-placeholder-reason');
     if (reason && reason.textContent !== decision.label) reason.textContent = decision.label;
   } else {
