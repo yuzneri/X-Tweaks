@@ -4,7 +4,7 @@
  * structure, this is the file to fix.
  */
 import { ATTACHMENT_CLASS } from '../appearance/card.ts';
-import { canEmphasize, type MatchTarget } from '../settings/schema.ts';
+import { canEmphasize, type CountMetric, type MatchTarget } from '../settings/schema.ts';
 import type { Post } from './decide.ts';
 
 /** The unit that gets collapsed. It sits outside the post proper, so the gap between posts folds with it */
@@ -295,6 +295,83 @@ const postedAtOf = (tweet: Element, quote: Element | null): number | null => {
   if (!value) return null;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
+};
+
+/**
+ * Where each count is written.
+ *
+ * The pair in a line is the same button in its two states: pressing it swaps the marker
+ * (`like` becomes `unlike`), and the count is on either. Views are not a button at all —
+ * X hangs them off a link into the post's analytics.
+ *
+ * The markers are what is gone by rather than the number shown beside the icon, which X
+ * rounds off ("1.2万", "12K") and cannot be compared against a threshold.
+ *
+ * Bookmarks are not among them, for want of anywhere to read them: in a timeline X leaves
+ * the number off the button altogether, and puts it only on a post opened to be read. It
+ * does count them — the number is in the label of the row as a whole ("60 件の返信、229 件の
+ * ブックマーク、…") — but that label leaves out whatever stands at zero, so which number is
+ * which cannot be told without knowing X's wording in the language it is showing.
+ */
+export const COUNT_MARKERS: Record<CountMetric, string> = {
+  reply: '[data-testid="reply"]',
+  repost: '[data-testid="retweet"], [data-testid="unretweet"]',
+  like: '[data-testid="like"], [data-testid="unlike"]',
+  view: 'a[href$="/analytics"]',
+};
+
+/**
+ * Everything carrying a count, as one selector. What the appearance walks when it writes
+ * the counts out in full (`appearance/apply.ts`)
+ */
+export const COUNT_TARGETS = Object.values(COUNT_MARKERS).join(', ');
+
+/**
+ * The box X animates a count inside. Its text is the count as X shows it, rounded off
+ * where X rounds ("22万"), and X's own element is what the appearance hides to put the
+ * full number in its place.
+ */
+export const COUNT_TEXT = '[data-testid="app-text-transition-container"]';
+
+/**
+ * The number X wrote into a label ("1551 件のいいね。いいねする", "1,551 Likes. Like").
+ * The digits are what is read: the words around them are in X's interface language, and
+ * the number itself is written out in full there rather than rounded off.
+ *
+ * Only the first run is taken, since the words that follow it may hold a number of their
+ * own. Grouping characters within the run are dropped, so a language that writes 1,234 or
+ * 1 234 comes out the same as one that writes 1234.
+ *
+ * null where the label holds no number at all. That is not the same as zero: replies,
+ * reposts and likes say "0" outright, while a post whose views X does not show has nothing
+ * there to read.
+ */
+export const countInLabel = (label: string | null | undefined): number | null => {
+  // The characters a language may put between the groups of digits: a comma, a period,
+  // or a space (ordinary, non-breaking or narrow)
+  const run = label?.match(/\d[\d.,\u00a0\u202f ]*/)?.[0];
+  if (!run) return null;
+  return Number(run.replace(/\D/g, ''));
+};
+
+/**
+ * What the post shows for each kind of reaction. The quote frame is left out for the same
+ * reason `postedAtOf` leaves it out: where a quoted post carries an action bar of its own,
+ * those are the quoted post's numbers.
+ */
+const countsOf = (tweet: Element, quote: Element | null): Record<CountMetric, number | null> => {
+  const read = (metric: CountMetric): number | null => {
+    const marked = Array.from(tweet.querySelectorAll(COUNT_MARKERS[metric])).find(
+      (el) => quote === null || !quote.contains(el)
+    );
+    return marked ? countInLabel(marked.getAttribute('aria-label')) : null;
+  };
+  return {
+    reply: read('reply'),
+    repost: read('repost'),
+    like: read('like'),
+    view: read('view'),
+  };
 };
 
 /**
@@ -627,5 +704,6 @@ export const readPost = (cell: Element): Post | null => {
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
     postedAt: postedAtOf(tweet, quote),
+    counts: countsOf(tweet, quote),
   };
 };

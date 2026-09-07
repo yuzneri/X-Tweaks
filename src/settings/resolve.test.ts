@@ -44,8 +44,10 @@ const conditionsOf = (rule: Rule): string =>
       c.kind === 'text'
         ? `${c.target}:${c.mode}:${c.pattern}`
         : c.kind === 'age'
-          ? `age:${c.direction}:${c.minutes}`
-          : `trait:${c.trait}`
+          ? `age:${c.minutes}`
+          : c.kind === 'count'
+            ? `count:${c.metric}:${c.direction}:${c.count}`
+            : `trait:${c.trait}`
     )
     .join(',');
 

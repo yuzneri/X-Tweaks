@@ -55,7 +55,7 @@ const settings = {
           null
         ),
         rule('r3', [{ kind: 'trait', trait: 'repost', negate: false }], 'highlight', '#00ba7c26'),
-        rule('r4', [{ kind: 'age', direction: 'older', minutes: 1440, negate: false }], 'collapse', null, false),
+        rule('r4', [{ kind: 'age', minutes: 1440 }], 'collapse', null, false),
       ],
       order: ['r1', 'r2', 'r3', 'r4'],
     },

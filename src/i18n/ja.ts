@@ -33,6 +33,13 @@ export const ja: Messages = {
     media: '画像・動画',
   },
 
+  countMetrics: {
+    reply: 'リプライ',
+    repost: 'リポスト',
+    like: 'いいね',
+    view: '表示',
+  },
+
   conditions: {
     text: (target, pattern, mode, negate) => {
       // "Is the author" carries no pattern, so the corner brackets would come out empty
@@ -53,17 +60,9 @@ export const ja: Messages = {
     },
     trait: (name, negate) => (negate ? `${name}ではない` : name),
     // How old a post is, shaped to read as "the post is older than one hour"
-    age: (value, unit, direction, negate) => {
-      const suffix =
-        direction === 'older'
-          ? negate
-            ? 'より古くない'
-            : 'より古い'
-          : negate
-            ? 'より新しくない'
-            : 'より新しい';
-      return `投稿が${value}${AGE_UNITS[unit]}${suffix}`;
-    },
+    age: (value, unit) => `投稿が${value}${AGE_UNITS[unit]}より古い`,
+    // Both directions take the number itself in, so they read as 以上 / 以下
+    count: (name, value, direction) => `${name}が${value}${direction === 'atMost' ? '以下' : '以上'}`,
     and: ' かつ ',
   },
 
@@ -470,8 +469,9 @@ export const ja: Messages = {
     negate: '条件を反転',
     ageLabel: '投稿の古さ',
     ageUnits: AGE_UNITS,
-    ageDirections: { older: 'より古い', newer: 'より新しい' },
     ageError: '1以上の整数を入力してください',
+    countDirections: { atLeast: '以上', atMost: '以下' },
+    countError: '0以上の整数を入力してください',
     enabled: '有効',
     modeLabel: '一致方法',
     traitLabel: '投稿の種類',

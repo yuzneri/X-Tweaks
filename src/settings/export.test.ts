@@ -50,7 +50,9 @@ const fullNode = () => ({
         id: 'r2',
         conditions: [
           { kind: 'trait', trait: 'repost', negate: true },
-          { kind: 'age', direction: 'newer', minutes: 90 },
+          { kind: 'age', minutes: 90 },
+          // 件数は 0 も答えなので、「未設定」として落とされては困る
+          { kind: 'count', metric: 'like', direction: 'atMost', count: 0 },
         ],
         action: 'hide',
       },

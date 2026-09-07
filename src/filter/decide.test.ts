@@ -12,6 +12,7 @@ import {
   newRuleId,
   ruleName,
   type Condition,
+  type CountMetric,
   type FilterNode,
   type MatchTarget,
   type Rule,
@@ -35,8 +36,11 @@ import {
  * A post's values are held as lists, but one is enough for most checks here.
  * A single value can be passed as a bare string, and null as "has no value" (an empty list).
  */
-type PostPatch = Partial<Omit<Post, 'values'>> & {
+type PostPatch = Partial<Omit<Post, 'values' | 'counts'>> & {
   [K in keyof Post['values']]?: string | string[] | null;
+} & {
+  /** Only the counts a check is about are given; the rest stay at "nobody reacted" */
+  counts?: Partial<Post['counts']>;
 };
 
 const some = (value: string | string[] | null | undefined, fallback: string[]): string[] => {
@@ -73,6 +77,7 @@ const post = (patch: PostPatch = {}): Post => ({
   isAd: patch.isAd ?? false,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
+  counts: { reply: 0, repost: 0, like: 0, view: 0, ...patch.counts },
 });
 
 /** Without an explicit order, one is built from the existing rules in the default order (normalization's job in the real code) */
@@ -276,37 +281,67 @@ test('本文を持たない投稿は、本文の条件に一致しない', () =>
 /* --- How old a post is --- */
 
 const HOUR = 60 * 60 * 1000;
-const ageFilter = (direction: 'older' | 'newer', minutes: number, negate = false) =>
-  filter({ rules: [rule({ conditions: [{ kind: 'age', direction, minutes, negate }] })] });
+const ageFilter = (minutes: number) =>
+  filter({ rules: [rule({ conditions: [{ kind: 'age', minutes }] })] });
 
-test('「より古い」は、指定より前に投稿されたものに当たる', () => {
-  const f = ageFilter('older', 60);
+test('古さの条件は、指定より前に投稿されたものに当たる', () => {
+  const f = ageFilter(60);
   assert.ok(judge(post({ postedAt: Date.now() - 5 * HOUR }), f));
   assert.equal(judge(post({ postedAt: Date.now() - 10 * 60 * 1000 }), f), null);
 });
 
-test('「より新しい」は、指定より後に投稿されたものに当たる', () => {
-  const f = ageFilter('newer', 60);
-  assert.equal(judge(post({ postedAt: Date.now() - 5 * HOUR }), f), null);
-  assert.ok(judge(post({ postedAt: Date.now() - 10 * 60 * 1000 }), f));
-});
-
-test('時刻を持たない投稿（広告）は古さの条件に当たらない。否定にすれば当たる', () => {
-  const ad = { postedAt: null, isAd: true };
-  assert.equal(judge(post(ad), ageFilter('older', 60)), null);
-  assert.equal(judge(post(ad), ageFilter('newer', 60)), null);
-  assert.ok(judge(post(ad), ageFilter('older', 60, true)));
+test('時刻を持たない投稿（広告）は古さの条件に当たらない', () => {
+  // 裏返す手立ては無い。古さに否定は無い（schema.ts の `Condition` 参照）
+  assert.equal(judge(post({ postedAt: null, isAd: true }), ageFilter(60)), null);
 });
 
 test('同じフィルタを使い回しても、投稿の時刻ごとに判定される', () => {
-  const f = ageFilter('older', 1);
+  const f = ageFilter(1);
   assert.equal(judge(post({ postedAt: Date.now() - 30 * 1000 }), f), null);
   assert.ok(judge(post({ postedAt: Date.now() - 150 * 1000 }), f));
 });
 
 test('古さだけのルールでは「強調」を選べない（塗る先が無い）', () => {
   // What gets painted is where a text condition matched, and age has no characters to correspond to
-  const condition = { kind: 'age', direction: 'older', minutes: 60, negate: false } as const;
+  const condition = { kind: 'age', minutes: 60 } as const;
+  assert.equal(canEmphasizeWith(condition), false);
+});
+
+/* --- 反応の件数 --- */
+
+const countFilter = (metric: CountMetric, direction: 'atLeast' | 'atMost', count: number) =>
+  filter({ rules: [rule({ conditions: [{ kind: 'count', metric, direction, count }] })] });
+
+test('「以上」は指定の件数そのものにも当たる', () => {
+  const f = countFilter('like', 'atLeast', 100);
+  assert.ok(judge(post({ counts: { like: 100 } }), f));
+  assert.ok(judge(post({ counts: { like: 1000 } }), f));
+  assert.equal(judge(post({ counts: { like: 99 } }), f), null);
+});
+
+test('「以下」は指定の件数そのものにも当たる', () => {
+  const f = countFilter('repost', 'atMost', 5);
+  assert.ok(judge(post({ counts: { repost: 5 } }), f));
+  assert.ok(judge(post({ counts: { repost: 0 } }), f));
+  assert.equal(judge(post({ counts: { repost: 6 } }), f), null);
+});
+
+test('件数の種類ごとに、その種類の数だけを見る', () => {
+  const f = countFilter('view', 'atLeast', 1000);
+  assert.ok(judge(post({ counts: { view: 5000, like: 0 } }), f));
+  assert.equal(judge(post({ counts: { view: 10, like: 5000 } }), f), null);
+});
+
+test('件数を読めない投稿は、どちら向きの条件にも当たらない', () => {
+  // A post whose views X does not show has no number there, which is not the same as zero.
+  // The count conditions carry no negation, so there is no way round it either
+  const unread = { counts: { view: null } };
+  assert.equal(judge(post(unread), countFilter('view', 'atLeast', 1)), null);
+  assert.equal(judge(post(unread), countFilter('view', 'atMost', 3)), null);
+});
+
+test('件数だけのルールでは「強調」を選べない（塗る先が無い）', () => {
+  const condition = { kind: 'count', metric: 'like', direction: 'atLeast', count: 100 } as const;
   assert.equal(canEmphasizeWith(condition), false);
 });
 

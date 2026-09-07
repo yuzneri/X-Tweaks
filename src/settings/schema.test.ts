@@ -120,21 +120,9 @@ test('投稿の古さの条件は、保存の往復でそのまま残る', () =>
   // Normalization is built to discard kinds it does not know, so the round trip is pinned down here.
   // Dropping one would take a condition out of the AND and make the rule match more widely than intended
   const node = fillNode({
-    filter: {
-      rules: [
-        ruleOf({
-          conditions: [
-            { kind: 'age', direction: 'older', minutes: 1440, negate: false },
-            { kind: 'age', direction: 'newer', minutes: 30, negate: true },
-          ],
-        }),
-      ],
-    },
+    filter: { rules: [ruleOf({ conditions: [{ kind: 'age', minutes: 1440 }] })] },
   });
-  assert.deepEqual(node.filter.rules[0]?.conditions, [
-    { kind: 'age', direction: 'older', minutes: 1440, negate: false },
-    { kind: 'age', direction: 'newer', minutes: 30, negate: true },
-  ]);
+  assert.deepEqual(node.filter.rules[0]?.conditions, [{ kind: 'age', minutes: 1440 }]);
 });
 
 test('古さが正の整数でなければ、その条件は捨てる', () => {
@@ -144,29 +132,105 @@ test('古さが正の整数でなければ、その条件は捨てる', () => {
       rules: [
         ruleOf({
           conditions: [
-            { kind: 'age', direction: 'older', minutes: 0 },
-            { kind: 'age', direction: 'older', minutes: -5 },
-            { kind: 'age', direction: 'older', minutes: 1.5 },
-            { kind: 'age', direction: 'older', minutes: '60' },
-            { kind: 'age', direction: 'older', minutes: 60 },
+            { kind: 'age', minutes: 0 },
+            { kind: 'age', minutes: -5 },
+            { kind: 'age', minutes: 1.5 },
+            { kind: 'age', minutes: '60' },
+            { kind: 'age', minutes: 60 },
+          ],
+        }),
+      ],
+    },
+  });
+  assert.deepEqual(node.filter.rules[0]?.conditions, [{ kind: 'age', minutes: 60 }]);
+});
+
+test('「新しいほう」を言っていた古さの条件は、ルールごと捨てる', () => {
+  /*
+   * The young side is gone (see `Condition`). Reading it as the old side would turn the
+   * rule inside out, and dropping the condition alone would widen the rule it sat in, so
+   * the whole rule goes. Both spellings of it are caught
+   */
+  const node = fillNode({
+    filter: {
+      rules: [
+        ruleOf({ id: 'r1', conditions: [{ kind: 'age', direction: 'newer', minutes: 30 }] }),
+        ruleOf({
+          id: 'r2',
+          conditions: [
+            { kind: 'age', direction: 'older', minutes: 30, negate: true },
+            textCondition({ pattern: '宣伝' }),
+          ],
+        }),
+        // "not newer than 30 minutes" says the old side, so it stays — as the old side
+        ruleOf({
+          id: 'r3',
+          conditions: [{ kind: 'age', direction: 'newer', minutes: 30, negate: true }],
+        }),
+        ruleOf({ id: 'r4', conditions: [{ kind: 'age', direction: 'older', minutes: 30 }] }),
+      ],
+    },
+  });
+  assert.deepEqual(
+    node.filter.rules.map((r) => r.id),
+    ['r3', 'r4']
+  );
+  assert.deepEqual(node.filter.rules[0]?.conditions, [{ kind: 'age', minutes: 30 }]);
+});
+
+test('反応の件数の条件は、保存の往復でそのまま残る', () => {
+  const node = fillNode({
+    filter: {
+      rules: [
+        ruleOf({
+          conditions: [
+            { kind: 'count', metric: 'like', direction: 'atLeast', count: 100 },
+            { kind: 'count', metric: 'view', direction: 'atMost', count: 0 },
           ],
         }),
       ],
     },
   });
   assert.deepEqual(node.filter.rules[0]?.conditions, [
-    { kind: 'age', direction: 'older', minutes: 60, negate: false },
+    { kind: 'count', metric: 'like', direction: 'atLeast', count: 100 },
+    { kind: 'count', metric: 'view', direction: 'atMost', count: 0 },
   ]);
 });
 
-test('知らない向きは「より古い」に倒す', () => {
+test('件数が0以上の整数でなければ、その条件は捨てる', () => {
+  // 0 stays, unlike the age above: "0 or fewer likes" is a rule worth writing
   const node = fillNode({
     filter: {
-      rules: [ruleOf({ conditions: [{ kind: 'age', direction: 'そんな向きは無い', minutes: 60 }] })],
+      rules: [
+        ruleOf({
+          conditions: [
+            { kind: 'count', metric: 'like', direction: 'atMost', count: -1 },
+            { kind: 'count', metric: 'like', direction: 'atMost', count: 1.5 },
+            { kind: 'count', metric: 'like', direction: 'atMost', count: '10' },
+            { kind: 'count', metric: 'そんな種類は無い', direction: 'atMost', count: 10 },
+            { kind: 'count', metric: 'like', direction: 'atMost', count: 0 },
+          ],
+        }),
+      ],
     },
   });
   assert.deepEqual(node.filter.rules[0]?.conditions, [
-    { kind: 'age', direction: 'older', minutes: 60, negate: false },
+    { kind: 'count', metric: 'like', direction: 'atMost', count: 0 },
+  ]);
+});
+
+test('知らない件数の向きは「以上」に倒す', () => {
+  const node = fillNode({
+    filter: {
+      rules: [
+        ruleOf({
+          conditions: [{ kind: 'count', metric: 'like', direction: 'そんな向きは無い', count: 10 }],
+        }),
+      ],
+    },
+  });
+  assert.deepEqual(node.filter.rules[0]?.conditions, [
+    { kind: 'count', metric: 'like', direction: 'atLeast', count: 10 },
   ]);
 });
 
@@ -212,10 +276,11 @@ test('否定・大文字小文字の指定は、保存されていなければ�
   });
   const [textCond, traitCond] = node.filter.rules[0]!.conditions;
   assert.equal(textCond?.kind === 'text' && textCond.caseSensitive, true);
-  assert.equal(textCond?.negate, true);
-  assert.equal(traitCond?.negate, true);
+  assert.equal(textCond?.kind === 'text' && textCond.negate, true);
+  assert.equal(traitCond?.kind === 'trait' && traitCond.negate, true);
   // The side with nothing set
-  assert.equal(fillNode({ filter: { rules: [ruleOf()] } }).filter.rules[0]?.conditions[0]?.negate, false);
+  const plain = fillNode({ filter: { rules: [ruleOf()] } }).filter.rules[0]?.conditions[0];
+  assert.equal(plain?.kind === 'text' && plain.negate, false);
 });
 
 test('有効／無効を持たないルールは有効として読む。止める意図が無かったため', () => {
@@ -590,6 +655,20 @@ test('ルールの呼び名は、表示名があればそれ、無ければ条�
       m
     ),
     '広告ではない かつ 返信先のIDが「alice」と一致しない'
+  );
+
+  // 件数は向きと否定の組み合わせが4通りある
+  assert.equal(
+    ruleName(
+      rule({
+        conditions: [
+          { kind: 'count', metric: 'like', direction: 'atLeast', count: 100 },
+          { kind: 'count', metric: 'view', direction: 'atMost', count: 10 },
+        ],
+      }),
+      m
+    ),
+    'いいねが100以上 かつ 表示が10以下'
   );
 });
 

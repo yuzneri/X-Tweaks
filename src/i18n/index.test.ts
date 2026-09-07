@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { en } from './en.ts';
 import { ja } from './ja.ts';
 import { isLanguage, messagesFor, resolveLocale } from './index.ts';
-import { ACTIONS, MATCH_MODES, MATCH_TARGETS, TRAIT_KEYS } from '../settings/schema.ts';
+import { ACTIONS, COUNT_METRICS, MATCH_MODES, MATCH_TARGETS, TRAIT_KEYS } from '../settings/schema.ts';
 
 test('自動のときはブラウザの言語で決める', () => {
   assert.equal(resolveLocale('auto', 'ja'), 'ja');
@@ -63,6 +63,7 @@ test('日本語と英語で、辞書のキーがそろっている', () => {
  */
 test('性質・対象・照らし合わせ方・動作の文言が、設定の値とちょうど対応している', () => {
   assert.deepEqual(Object.keys(en.traits).sort(), [...TRAIT_KEYS].sort());
+  assert.deepEqual(Object.keys(en.countMetrics).sort(), [...COUNT_METRICS].sort());
   assert.deepEqual(Object.keys(en.rules.targets).sort(), [...MATCH_TARGETS].sort());
   assert.deepEqual(Object.keys(en.rules.modes).sort(), [...MATCH_MODES].sort());
   assert.deepEqual(Object.keys(en.actions).sort(), Object.values(ACTIONS).sort());

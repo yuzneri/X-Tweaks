@@ -5,6 +5,8 @@ import {
   canEmphasizeWith,
   type TextCondition,
   type AgeCondition,
+  type CountCondition,
+  type CountMetric,
   defaultColorFor,
   filterApplies,
   isScreenNameTarget,
@@ -52,6 +54,12 @@ export type Post = {
    * original post's time.
    */
   postedAt: number | null;
+  /**
+   * How many reactions of each kind the post shows. null where the count is not on the
+   * post at all, which is not the same as zero: X shows no number for the views of some
+   * posts, while replies, reposts and likes say "0" outright
+   */
+  counts: Record<CountMetric, number | null>;
 };
 
 /** A range to paint. Positions within a string, where `end` points just past the last character */
@@ -216,25 +224,41 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
 /**
  * How old a post is. `Date.now()` is called on every match rather than at compile time:
  * fixing it at compile time would freeze the age until the settings change.
+ *
+ * The answer is still the one from the moment the post was read — a post already judged
+ * is not judged again as it ages (`filter/engine.ts`), so a post crossing the span while
+ * on screen keeps the answer it was given. That standing answer is why only the old side
+ * is offered: "newer than" would be true of every post as it arrived and stay true.
  */
 const ageMatcher = (condition: AgeCondition): ((post: Post) => boolean) => {
   const limit = condition.minutes * 60_000;
-  const older = condition.direction === 'older';
+  return (post) => post.postedAt !== null && Date.now() - post.postedAt > limit;
+};
+
+/**
+ * How many reactions the post carries. The number is the one the post showed when it was
+ * read: a post already judged is not judged again as its counts climb, which is the same
+ * standing answer `ageMatcher` gives about a post growing older on screen.
+ *
+ * A count that could not be read matches nothing, as a post with no time matches no age
+ * condition — and with no negation to turn that round, it matches nothing either way.
+ */
+const countMatcher = (condition: CountCondition): ((post: Post) => boolean) => {
+  const atLeast = condition.direction === 'atLeast';
   return (post) => {
-    if (post.postedAt === null) return false;
-    const age = Date.now() - post.postedAt;
-    return older ? age > limit : age < limit;
+    const count = post.counts[condition.metric];
+    if (count === null) return false;
+    return atLeast ? count >= condition.count : count <= condition.count;
   };
 };
 
 /** Negation simply inverts the result of the evaluation */
 const conditionMatcher = (condition: Condition): ((post: Post) => boolean) => {
+  // Neither a count nor an age carries a negation to apply (see `Condition` in schema.ts)
+  if (condition.kind === 'count') return countMatcher(condition);
+  if (condition.kind === 'age') return ageMatcher(condition);
   const test =
-    condition.kind === 'trait'
-      ? TRAIT_MATCHERS[condition.trait]
-      : condition.kind === 'age'
-        ? ageMatcher(condition)
-        : textMatcher(condition);
+    condition.kind === 'trait' ? TRAIT_MATCHERS[condition.trait] : textMatcher(condition);
   return condition.negate ? (post) => !test(post) : test;
 };
 

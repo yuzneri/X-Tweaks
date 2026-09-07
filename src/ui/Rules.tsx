@@ -6,8 +6,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIONS,
-  AGE_DIRECTIONS,
   AGE_UNITS,
+  COUNT_DIRECTIONS,
+  COUNT_METRICS,
   canEmphasizeWith,
   describeCondition,
   canCompareToSelf,
@@ -25,8 +26,9 @@ import {
   type MatchTarget,
   type Rule,
   type TraitKey,
-  type AgeDirection,
   type AgeUnit,
+  type CountDirection,
+  type CountMetric,
   minutesOf,
   splitDuration,
 } from '../settings/schema.ts';
@@ -50,13 +52,18 @@ type TextInput = Omit<TextCondition, 'kind' | 'target'>;
 
 /**
  * The input for a post's age. The number is held as a string to keep a half-typed value.
- * An empty box makes no condition (the same rule as the other boxes)
+ * An empty box makes no condition (the same rule as the other boxes).
+ * There is nothing but the span to hold: the age has one side (see `Condition`)
  */
-type AgeInput = {
+type AgeInput = { value: string; unit: AgeUnit };
+
+/**
+ * One count's input. Which count it is comes from where the box sits, as with `TextInput`.
+ * The number is held as a string for the same reason the age is: to keep a half-typed value
+ */
+type CountInput = {
   value: string;
-  unit: AgeUnit;
-  direction: AgeDirection;
-  negate: boolean;
+  direction: CountDirection;
 };
 
 /**
@@ -67,6 +74,11 @@ type Draft = {
   trait: TraitCondition | null;
   texts: Partial<Record<MatchTarget, TextInput>>;
   age: AgeInput;
+  /**
+   * One box per kind of count. A rule can hold several ("100 likes or more and 5 reposts
+   * or fewer"), the conditions being an AND
+   */
+  counts: Partial<Record<CountMetric, CountInput>>;
   action: Action;
   color: string | null;
   label: string;
@@ -80,12 +92,15 @@ const emptyText = (): TextInput => ({
   negate: false,
 });
 
-const emptyAge = (): AgeInput => ({ value: '', unit: 'hours', direction: 'older', negate: false });
+const emptyAge = (): AgeInput => ({ value: '', unit: 'hours' });
+
+const emptyCount = (): CountInput => ({ value: '', direction: 'atLeast' });
 
 const emptyDraft = (): Draft => ({
   trait: null,
   texts: {},
   age: emptyAge(),
+  counts: {},
   action: ACTIONS.COLLAPSE,
   color: null,
   label: '',
@@ -107,14 +122,21 @@ const toDraft = (rule: Rule): Draft => {
       negate: c.negate,
     };
   }
+  // As with the text boxes, only the first condition on a count is taken
+  const counts: Partial<Record<CountMetric, CountInput>> = {};
+  for (const c of rule.conditions) {
+    if (c.kind !== 'count' || counts[c.metric]) continue;
+    counts[c.metric] = { value: String(c.count), direction: c.direction };
+  }
   const age = rule.conditions.find((c) => c.kind === 'age');
   return {
     trait: rule.conditions.find((c): c is TraitCondition => c.kind === 'trait') ?? null,
     texts,
+    counts,
     age: age
       ? (() => {
           const { value, unit } = splitDuration(age.minutes);
-          return { value: String(value), unit, direction: age.direction, negate: age.negate };
+          return { value: String(value), unit };
         })()
       : emptyAge(),
     action: rule.action,
@@ -138,14 +160,31 @@ const ageConditionOf = (age: AgeInput): Condition[] => {
   if (raw === '') return [];
   const value = Number(raw);
   if (!Number.isInteger(value) || value <= 0) return [];
-  return [
-    { kind: 'age', direction: age.direction, minutes: minutesOf(value, age.unit), negate: age.negate },
-  ];
+  return [{ kind: 'age', minutes: minutesOf(value, age.unit) }];
 };
 
 /** Whether what was typed fails as an age condition (an empty box passes: it simply does not filter) */
 const badAge = (age: AgeInput): boolean =>
   age.value.trim() !== '' && ageConditionOf(age).length === 0;
+
+/**
+ * Turns one count box into a condition. Empty, below zero and non-integers make none.
+ * Zero is kept, unlike the age: "0 or fewer likes" is a rule worth writing
+ */
+const countConditionOf = (metric: CountMetric, input: CountInput): Condition[] => {
+  const raw = input.value.trim();
+  if (raw === '') return [];
+  const count = Number(raw);
+  if (!Number.isInteger(count) || count < 0) return [];
+  return [{ kind: 'count', metric, direction: input.direction, count }];
+};
+
+/** Whether any count box holds something unreadable as a count. An empty box passes, as above */
+const badCount = (counts: Draft['counts']): boolean =>
+  COUNT_METRICS.some((metric) => {
+    const input = counts[metric];
+    return input !== undefined && input.value.trim() !== '' && countConditionOf(metric, input).length === 0;
+  });
 
 /**
  * Turns the boxes back into a list of conditions, trait first and then targets, matching the screen.
@@ -179,6 +218,10 @@ const toConditions = (draft: Draft): Condition[] => [
     ];
   }),
   ...ageConditionOf(draft.age),
+  ...COUNT_METRICS.flatMap((metric) => {
+    const input = draft.counts[metric];
+    return input ? countConditionOf(metric, input) : [];
+  }),
 ];
 
 /** The key for deciding whether two rules are the same. The same list of conditions means the same rule */
@@ -188,8 +231,10 @@ const conditionsKey = (conditions: Condition[]): string =>
       c.kind === 'text'
         ? ['text', c.target, c.mode, c.pattern.toLowerCase(), c.negate]
         : c.kind === 'age'
-          ? ['age', c.direction, c.minutes, c.negate]
-          : ['trait', c.trait, c.negate]
+          ? ['age', c.minutes]
+          : c.kind === 'count'
+            ? ['count', c.metric, c.direction, c.count]
+            : ['trait', c.trait, c.negate]
     )
   );
 
@@ -203,6 +248,7 @@ const validate = (
 
   // Something unreadable as a number is not silently discarded: no state where it was typed but has no effect
   if (badAge(draft.age)) return { error: m.rules.ageError };
+  if (badCount(draft.counts)) return { error: m.rules.countError };
 
   // A rule with neither a trait nor any text would match every post
   if (conditions.length === 0) return { error: m.rules.errors.noCondition };
@@ -303,6 +349,45 @@ const TextRow = ({ target, input, onChange, onSubmit }: TextRowProps) => {
         {m.rules.caseSensitive}
       </label>
       <NegateBox checked={input.negate} onChange={(negate) => onChange({ ...input, negate })} />
+    </div>
+  );
+};
+
+type CountRowProps = {
+  metric: CountMetric;
+  input: CountInput;
+  onChange: (input: CountInput) => void;
+  onSubmit: () => void;
+};
+
+/** One count's row, shaped like `TextRow`. Left empty, that count does not filter */
+const CountRow = ({ metric, input, onChange, onSubmit }: CountRowProps) => {
+  const m = useMessages();
+  const label = m.countMetrics[metric];
+  return (
+    <div class="row add condition">
+      <span class="field-label">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        aria-label={label}
+        placeholder={m.rules.anyPlaceholder}
+        value={input.value}
+        onInput={(e) => onChange({ ...input, value: e.currentTarget.value })}
+        onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
+      />
+      {/* No "Not" box here: "or more" and "or fewer" already say both sides of a number */}
+      <select
+        aria-label={label}
+        value={input.direction}
+        onChange={(e) => onChange({ ...input, direction: e.currentTarget.value as CountDirection })}
+      >
+        {COUNT_DIRECTIONS.map((direction) => (
+          <option key={direction} value={direction}>
+            {m.rules.countDirections[direction]}
+          </option>
+        ))}
+      </select>
     </div>
   );
 };
@@ -418,27 +503,20 @@ const RuleForm = ({
             </option>
           ))}
         </select>
-        <select
-          aria-label={m.rules.ageLabel}
-          value={draft.age.direction}
-          onChange={(e) =>
-            onDraftChange({
-              ...draft,
-              age: { ...draft.age, direction: e.currentTarget.value as AgeDirection },
-            })
-          }
-        >
-          {AGE_DIRECTIONS.map((direction) => (
-            <option key={direction} value={direction}>
-              {m.rules.ageDirections[direction]}
-            </option>
-          ))}
-        </select>
-        <NegateBox
-          checked={draft.age.negate}
-          onChange={(negate) => onDraftChange({ ...draft, age: { ...draft.age, negate } })}
-        />
       </div>
+
+      {/* How many reactions the post carries. Beside the age, both being numbers read off the post */}
+      {COUNT_METRICS.map((metric) => (
+        <CountRow
+          key={metric}
+          metric={metric}
+          input={draft.counts[metric] ?? emptyCount()}
+          onChange={(input) =>
+            onDraftChange({ ...draft, counts: { ...draft.counts, [metric]: input } })
+          }
+          onSubmit={onSubmit}
+        />
+      ))}
 
       {shownTargets(draft).map((target) => (
         <TextRow

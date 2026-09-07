@@ -53,6 +53,17 @@ export const en = {
   },
 
   /**
+   * The reaction counts usable as conditions. They are the row labels on the settings screen
+   * and also appear in a condition's description, so they are worded to read after a number.
+   */
+  countMetrics: {
+    reply: 'replies',
+    repost: 'reposts',
+    like: 'likes',
+    view: 'views',
+  },
+
+  /**
    * How one condition is phrased. It appears both in rule names and as the note in the list.
    *
    * The assembly lives in the dictionary: how negation attaches and what the word order
@@ -78,27 +89,16 @@ export const en = {
       return `${target} ${verb} “${pattern}”`;
     },
     trait: (name: string, negate: boolean) => (negate ? `not ${name}` : name),
+    /** How old a post is, measured from the moment it was read. Only the old side exists */
+    age: (value: number, unit: keyof typeof AGE_NOUN): string =>
+      `the post is older than ${value} ${AGE_NOUN[unit]}${value === 1 ? '' : 's'}`,
     /**
-     * How old a post is, measured from the moment of judging.
-     * With both a direction and a negation, there are four phrasings
+     * How many reactions of one kind a post carries. Both directions take the number
+     * itself in, so they are worded "or more" and "or fewer" rather than "over" and "under".
+     * There is no negated form: a count condition carries no negation (see `Condition`)
      */
-    age: (
-      value: number,
-      unit: keyof typeof AGE_NOUN,
-      direction: string,
-      negate: boolean
-    ): string => {
-      const span = `${value} ${AGE_NOUN[unit]}${value === 1 ? '' : 's'}`;
-      const verb =
-        direction === 'older'
-          ? negate
-            ? 'is not older than'
-            : 'is older than'
-          : negate
-            ? 'is not newer than'
-            : 'is newer than';
-      return `the post ${verb} ${span}`;
-    },
+    count: (name: string, value: number, direction: string): string =>
+      `the post has ${direction === 'atMost' ? `${value} or fewer` : `${value} or more`} ${name}`,
     /** A rule matches only when every condition holds (AND) */
     and: ' and ',
   },
@@ -571,11 +571,14 @@ export const en = {
     negate: 'Not',
     ageLabel: 'Post age',
     ageUnits: AGE_UNITS,
-    ageDirections: { older: 'older than', newer: 'newer than' } as {
-      older: string;
-      newer: string;
-    },
     ageError: 'Enter a whole number of 1 or more',
+    /** Both take the number itself in, so they read "or more" and "or fewer" (see `COUNT_DIRECTIONS`) */
+    countDirections: { atLeast: 'or more', atMost: 'or fewer' } as {
+      atLeast: string;
+      atMost: string;
+    },
+    /** Zero is allowed here, unlike the age: "0 or fewer likes" is a rule worth writing */
+    countError: 'Enter a whole number of 0 or more',
 
     /** The per-rule on/off. A switch for stopping a rule temporarily rather than deleting it */
     enabled: 'On',

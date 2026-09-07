@@ -277,13 +277,6 @@ export const isSelfMode = (mode: MatchMode): boolean => mode === 'self';
 export const canCompareToSelf = (target: MatchTarget): boolean =>
   isScreenNameTarget(target) && target !== 'screenName';
 
-/**
- * Negation (`negate`) could flip it too, but both are kept so the plainly readable form
- * can be chosen ("newer than one hour" reads better than "not older than one hour").
- */
-export const AGE_DIRECTIONS = ['older', 'newer'] as const;
-export type AgeDirection = (typeof AGE_DIRECTIONS)[number];
-
 export const AGE_UNITS = ['minutes', 'hours', 'days'] as const;
 export type AgeUnit = (typeof AGE_UNITS)[number];
 
@@ -305,6 +298,21 @@ export const splitDuration = (minutes: number): { value: number; unit: AgeUnit }
 };
 
 /**
+ * The reaction counts a post carries. They are the option names on the settings screen and
+ * also appear in a condition's description.
+ */
+export const COUNT_METRICS = ['reply', 'repost', 'like', 'view'] as const;
+export type CountMetric = (typeof COUNT_METRICS)[number];
+
+/**
+ * Which side of the number matches. Both take the number itself in, unlike the age, which
+ * compares strictly: "100 likes or more" is how a count is read, and at a whole number that
+ * difference is one the reader can see.
+ */
+export const COUNT_DIRECTIONS = ['atLeast', 'atMost'] as const;
+export type CountDirection = (typeof COUNT_DIRECTIONS)[number];
+
+/**
  * `negate` inverts that condition's result. A post without the target's value matches no
  * text condition, so negating makes it match ("the body does not contain ●●" holds for a
  * post with no body too).
@@ -320,12 +328,31 @@ export type Condition =
       negate: boolean;
     }
   | { kind: 'trait'; trait: TraitKey; negate: boolean }
-  /** How old a post is, as minutes elapsed at the moment of judging. An ad, having no time, never matches */
-  | { kind: 'age'; direction: AgeDirection; minutes: number; negate: boolean };
+  /**
+   * How old a post is: older than this many minutes at the moment it was read. An ad,
+   * having no time, never matches.
+   *
+   * There is only the one side, and no `negate`. The other side ("newer than an hour")
+   * cannot say what it looks like it says: a post is judged once, as it arrives, and
+   * every post arriving is newer than any span worth naming — so the condition holds for
+   * the whole timeline and goes on holding as the post ages (see `ageMatcher`)
+   */
+  | { kind: 'age'; minutes: number }
+  /**
+   * How many reactions of one kind a post carries. A post whose count cannot be read
+   * matches no count condition, the same as a post with no time and an age condition.
+   *
+   * It carries no `negate`, unlike every other kind: "at least" and "at most" already say
+   * both sides of a number. Negating would add one thing only — also matching a post whose
+   * count could not be read — which is not worth a fourth combination on the screen
+   */
+  | { kind: 'count'; metric: CountMetric; direction: CountDirection; count: number };
 
 export type TextCondition = Extract<Condition, { kind: 'text' }>;
 
 export type AgeCondition = Extract<Condition, { kind: 'age' }>;
+
+export type CountCondition = Extract<Condition, { kind: 'count' }>;
 
 /**
  * Whether this condition determines somewhere to paint.
@@ -355,7 +382,10 @@ export const describeCondition = (condition: Condition, m: Messages): string => 
   if (condition.kind === 'trait') return m.conditions.trait(m.traits[condition.trait], condition.negate);
   if (condition.kind === 'age') {
     const { value, unit } = splitDuration(condition.minutes);
-    return m.conditions.age(value, unit, condition.direction, condition.negate);
+    return m.conditions.age(value, unit);
+  }
+  if (condition.kind === 'count') {
+    return m.conditions.count(m.countMetrics[condition.metric], condition.count, condition.direction);
   }
   return m.conditions.text(
     m.rules.targets[condition.target],
@@ -839,6 +869,7 @@ const hexColor = (v: unknown): string | null =>
 const isTarget = (v: unknown): v is MatchTarget => MATCH_TARGETS.includes(v as MatchTarget);
 const isMode = (v: unknown): v is MatchMode => MATCH_MODES.includes(v as MatchMode);
 const isTraitKey = (v: unknown): v is TraitKey => TRAIT_KEYS.includes(v as TraitKey);
+const isCountMetric = (v: unknown): v is CountMetric => COUNT_METRICS.includes(v as CountMetric);
 
 /** Reads a condition. Text conditions that lost their pattern, and conditions on unknown traits, are dropped */
 const condition = (v: unknown): Condition | null => {
@@ -852,8 +883,16 @@ const condition = (v: unknown): Condition | null => {
   if (o.kind === 'age') {
     const minutes = o.minutes;
     if (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes <= 0) return null;
-    const direction: AgeDirection = o.direction === 'newer' ? 'newer' : 'older';
-    return { kind: 'age', direction, minutes, negate };
+    return { kind: 'age', minutes };
+  }
+  // 0 is kept, unlike the age above: "0 or fewer likes" is a rule worth writing, while
+  // "older than 0 minutes" would only mean every post
+  if (o.kind === 'count') {
+    const count = o.count;
+    if (!isCountMetric(o.metric)) return null;
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) return null;
+    const direction: CountDirection = o.direction === 'atMost' ? 'atMost' : 'atLeast';
+    return { kind: 'count', metric: o.metric, direction, count };
   }
   if (o.kind !== 'text') return null;
 
@@ -880,8 +919,26 @@ const condition = (v: unknown): Condition | null => {
 };
 
 /** Reads a rule. A rule with no conditions matches every post and is discarded */
+/**
+ * Whether a stored condition says something no longer expressible: an age on the young
+ * side, written either as "newer than an hour" or as "not older than an hour". Both are
+ * gone (see `Condition`).
+ *
+ * The rule carrying one is dropped whole. Reading it as "older" would turn the rule
+ * inside out, and dropping the condition alone would take a term out of an AND and leave
+ * the rule matching more posts than it was written for — a rule that hides would start
+ * hiding what it never touched. A rule that stops applying is the one outcome that takes
+ * nothing off the screen that the reader did not ask to lose.
+ */
+const saysYoungerThan = (v: unknown): boolean => {
+  const o = rec(v);
+  if (o.kind !== 'age') return false;
+  return o.direction === 'newer' ? o.negate !== true : o.negate === true;
+};
+
 const rule = (v: unknown): Rule | null => {
   const o = rec(v);
+  if (arr(o.conditions).some(saysYoungerThan)) return null;
   const conditions = arr(o.conditions).map(condition).filter(isPresent);
   if (conditions.length === 0) return null;
 
