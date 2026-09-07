@@ -1,32 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { limitFor, needsFrame, setsHeight, slack, wrapsBox } from './frame.ts';
+import { cappedPadding, marksFrames, percentageIn, setsHeight, slack, wrapsBox } from './frame.ts';
 import { fillAll, type AppearanceNode } from '../settings/schema.ts';
 
 const appearance = (media: Partial<AppearanceNode['media']>): AppearanceNode =>
   fillAll({ global: { appearance: { media } } }).global.appearance;
-
-test('上限より高いメディアにだけ外枠の印が要る', () => {
-  assert.equal(needsFrame(200, 100), true);
-  assert.equal(needsFrame(101, 100), true);
-});
-
-test('上限と同じか、それより低ければ印を付けない', () => {
-  // `height` is applied to the frame, so marking one would stretch shorter media out
-  assert.equal(needsFrame(100, 100), false);
-  assert.equal(needsFrame(50, 100), false);
-});
-
-test('高さ 0 は「まだ描かれていない」。畳むときでも印を付けない', () => {
-  // It stays 0 until the image has finished loading
-  assert.equal(needsFrame(0, 0), false);
-  assert.equal(needsFrame(0, 100), false);
-});
-
-test('畳むとき（上限 0）は、高さのあるメディアすべてに印が要る', () => {
-  assert.equal(needsFrame(1, 0), true);
-  assert.equal(needsFrame(300, 0), true);
-});
 
 test('外枠の許容幅は、割合と最低値の大きいほう', () => {
   // Small media still gets 10px; large media gets 5%
@@ -66,20 +44,50 @@ test('余白が読めない値でも、高さを決めているとは言わな�
   assert.equal(setsHeight('auto', 'auto', 200), false);
 });
 
-test('メディアを表示しない指定は、上限 0（すべての外枠が対象）', () => {
-  assert.equal(limitFor(appearance({ style: 'hidden', maxThumbHeight: 120 })), 0);
+test('メディアを表示しない指定は、上限が無くても外枠に印が要る', () => {
+  // Hiding the box alone leaves the frame holding the space
+  assert.equal(marksFrames(appearance({ style: 'hidden', maxThumbHeight: null })), true);
+  assert.equal(marksFrames(appearance({ style: 'text', maxThumbHeight: null })), true);
 });
 
-test('上限だけを指定していれば、その値', () => {
-  assert.equal(limitFor(appearance({ style: 'show', maxThumbHeight: 120 })), 120);
+test('上限だけを指定していても、外枠に印が要る', () => {
+  assert.equal(marksFrames(appearance({ style: 'show', maxThumbHeight: 120 })), true);
 });
 
 test('説明つきの指定でも、画像は出ているので上限はそのまま効く', () => {
-  // It reads like `text` in the list, but the picture stays. Taken for hidden, the
-  // height limit would come off the very pictures it is still showing
-  assert.equal(limitFor(appearance({ style: 'caption', maxThumbHeight: 120 })), 120);
+  // It reads like `text` in the list, but the picture stays
+  assert.equal(marksFrames(appearance({ style: 'caption', maxThumbHeight: 120 })), true);
+  assert.equal(marksFrames(appearance({ style: 'caption', maxThumbHeight: null })), false);
 });
 
 test('どちらも指定していなければ、印は要らない', () => {
-  assert.equal(limitFor(appearance({})), null);
+  assert.equal(marksFrames(appearance({})), false);
+});
+
+test('X が書く2つの形から、幅に対する割合を読む', () => {
+  assert.equal(percentageIn('56.25%'), 56.25);
+  // A row of pictures with gaps between them: most of the frames holding more than one
+  assert.equal(percentageIn('calc(79.8223% - 3.193px)'), 79.8223);
+  assert.equal(percentageIn('calc(20% - 3px)'), 20);
+});
+
+test('割合で決まっていない高さは、割合ではないと答える', () => {
+  assert.equal(percentageIn('168px'), null);
+  assert.equal(percentageIn(''), null);
+  assert.equal(percentageIn('auto'), null);
+  assert.equal(percentageIn('0%'), null);
+});
+
+test('割合の余白は、X が書いたものを包んで上限を足す', () => {
+  assert.equal(cappedPadding('56.25%', 200), 'min(56.25%, 200px)');
+  // What X asked for is kept whole, so the browser goes on resolving it against the width
+  assert.equal(
+    cappedPadding('calc(79.8223% - 3.193px)', 200),
+    'min(calc(79.8223% - 3.193px), 200px)'
+  );
+});
+
+test('長さで書かれた余白には何もしない。max-height が押さえる側', () => {
+  assert.equal(cappedPadding('168px', 200), null);
+  assert.equal(cappedPadding('', 200), null);
 });

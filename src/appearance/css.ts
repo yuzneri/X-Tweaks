@@ -624,16 +624,34 @@ const columnRules = (
       rule(within(scope, [TARGETS.media]), `max-height: ${maxHeight} !important; overflow: hidden !important;`)
     );
     /*
-     * The frame gets its height replaced outright (not `max-height`).
-     * Removing the `aspect-ratio` and `padding-bottom` that create the height leaves
-     * it at 0, since the contents are absolutely positioned, and `max-height` then
-     * determines no height at all.
+     * The frame is held to the limit rather than given it. The shape X drew it with is
+     * left where it is: take the `aspect-ratio` and the `padding-bottom` away and the
+     * frame falls to nothing, its contents being absolutely positioned — which is why
+     * this replaced the height outright before, and why a picture already shorter than
+     * the limit was stretched up to it.
+     *
+     * `max-height` holds a frame drawn from `aspect-ratio`, and one drawn from nothing
+     * but its contents. A frame drawn from a percentage `padding-bottom` pays it no
+     * attention, and is capped where it is written instead (`appearance/apply.ts`).
+     *
+     * The width is held where it was. A box with a ratio and a height it cannot exceed
+     * takes its width from the ratio instead, which turns a wide picture held to 200px
+     * into a 200px square with the rest of the column empty beside it (measured).
+     *
+     * `width`, not `min-width`. X lays several pictures out as a row, and a frame in a row
+     * takes its width from the row rather than from this — while a picture standing on its
+     * own keeps the width it had. A `min-width` clamps a row's frames as well, and on a
+     * two-up row it threw the second picture clear of the column (measured).
+     *
+     * Held lightly: of the frames drawn from a ratio in the pages this was checked
+     * against, every one was inside a row, where this changes nothing either way. It is
+     * here for the frame standing on its own, which is where a ratio and a capped height
+     * would leave a square with the column empty beside it.
      */
     rules.push(
       rule(
         within(scope, [TARGETS.mediaFrame]),
-        `height: ${maxHeight} !important; padding-bottom: 0 !important; ` +
-          `aspect-ratio: auto !important; overflow: hidden !important;`
+        `max-height: ${maxHeight} !important; width: 100% !important; overflow: hidden !important;`
       )
     );
     // Shrink the contents along with it, keeping the rounded corners of the inner container

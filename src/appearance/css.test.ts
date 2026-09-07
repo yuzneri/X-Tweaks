@@ -217,14 +217,22 @@ test('画像の高さの上限は、中の img ではなく箱に当てる', () 
   // Without hiding the overflow, an image spilling out of the box overlaps the post below
   assert.match(heightLine, /max-height: 120px !important; overflow: hidden !important;/);
 
-  // Shrinking the box alone leaves the frame occupying its original space, so a marked
-  // frame gets its height replaced outright
+  // Shrinking the box alone leaves the frame occupying its original space, so the frame
+  // is held to the limit too — held, not given: a picture already shorter than the limit
+  // is left as X drew it
   const frameLine = css.split('\n').find((line) => line.includes('data-xpro-media'))!;
   assert.ok(frameLine.startsWith('[data-xpro-column="0"] [data-xpro-media]'), '外枠がカラムの印の外にある');
-  assert.match(frameLine, /height: 120px !important/);
-  // Unless both mechanisms creating the height are removed, the frame keeps its space
-  assert.match(frameLine, /padding-bottom: 0 !important/);
-  assert.match(frameLine, /aspect-ratio: auto !important/);
+  assert.match(frameLine, /max-height: 120px !important/);
+  // A box with a ratio takes its width from that ratio once its height is capped, which
+  // would leave a wide picture as a small square with the column empty beside it.
+  // `width` rather than `min-width`: a row of pictures is laid out as flex items, and a
+  // flex item's width comes from the row — a `min-width` would clamp those too
+  assert.match(frameLine, /width: 100% !important/);
+  assert.doesNotMatch(frameLine, /min-width/);
+  // The shape X drew the frame with stays where it is. Taken away, the frame falls to
+  // nothing (its contents are absolutely positioned) and nothing decides its height
+  assert.doesNotMatch(frameLine, /padding-bottom: 0/);
+  assert.doesNotMatch(frameLine, /aspect-ratio: auto/);
   // The frame's contents shrink along with it, so the rounded corners of the inner
   // container are not cut off
   assert.match(css, /\[data-xpro-media\] \* \{ max-height: 100% !important; \}/);
