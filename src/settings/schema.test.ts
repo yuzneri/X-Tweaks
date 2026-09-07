@@ -1031,6 +1031,7 @@ const LAYOUT_FIELDS = [
   'maxLines',
   'wordsShown',
   'collapseNewlines',
+  'rawCounts',
   'timeFormat',
   'cardStyle',
   'quoteStyle',

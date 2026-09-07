@@ -119,6 +119,15 @@ export const isCompact = (compact: boolean | null): boolean => compact === true;
 export const collapsesNewlines = (collapse: boolean | null): boolean => collapse === true;
 
 /**
+ * Whether a reaction count X has rounded off is shown as the number it is.
+ *
+ * X writes the full number into the button's label whatever it shows beside the icon
+ * ("22万", "221.3K"), so nothing has to be counted — only put where it can be read
+ * (`appearance/counts.ts`).
+ */
+export const showsRawCounts = (raw: boolean | null): boolean => raw === true;
+
+/**
  * The default is the opposite of the other switches. Unreadable colors are an accident
  * nobody asked for, so the default is the side that fixes itself when left alone.
  */
@@ -481,6 +490,8 @@ export type AppearanceNode = {
   wordsShown: number | null;
   /** Drops the line breaks written into the body, turning each into a single space */
   collapseNewlines: boolean | null;
+  /** Shows a rounded reaction count ("22万") as the number it is. Unset keeps X's own */
+  rawCounts: boolean | null;
   colors: {
     background: string | null;
     text: string | null;
@@ -1021,6 +1032,7 @@ export const fillNode = (v: unknown): SettingsNode => {
       maxLines: size(appearance.maxLines),
       wordsShown: size(appearance.wordsShown),
       collapseNewlines: bool(appearance.collapseNewlines),
+      rawCounts: bool(appearance.rawCounts),
       colors: {
         background: hexColor(colors.background),
         text: hexColor(colors.text),
@@ -1244,6 +1256,8 @@ export const layoutKey = (appearance: AppearanceNode): string =>
     appearance.maxLines,
     appearance.wordsShown,
     appearance.collapseNewlines,
+    // The number takes more room than the rounded form it replaces, so a post can wrap differently
+    appearance.rawCounts,
     appearance.timeFormat,
     appearance.cardStyle,
     appearance.quoteStyle,
@@ -1275,6 +1289,7 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.maxLines !== null ||
   appearance.wordsShown !== null ||
   appearance.collapseNewlines !== null ||
+  appearance.rawCounts !== null ||
   appearance.timeFormat !== null ||
   appearance.cardStyle !== null ||
   appearance.quoteStyle !== null ||

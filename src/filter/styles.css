@@ -211,3 +211,18 @@
 .xpro-caption-more:hover {
   text-decoration: underline;
 }
+
+/*
+ * A reaction count written out in full stands in place of X's own, rounded one
+ * ("22万" → "221,250"). X's element is hidden rather than removed, so dropping the
+ * marker brings it straight back.
+ *
+ * It lives here rather than in the appearance's stylesheet because it follows the
+ * marker rather than the setting. That stylesheet is rewritten the moment the settings
+ * change, while the number this hides in favour of is taken out on the next settling —
+ * tied to the setting, a post would show both numbers at once in between, and on a page
+ * where nothing is happening it would show them until something did.
+ */
+[data-xpro-count] > *:not(.xpro-count) {
+  display: none !important;
+}

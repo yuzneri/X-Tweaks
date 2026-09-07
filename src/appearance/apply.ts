@@ -23,6 +23,9 @@ import {
   showsOwnAltButton,
   VIDEO,
   X_SHOW_MORE,
+  COUNT_TARGETS,
+  COUNT_TEXT,
+  countInLabel,
 } from '../filter/post.ts';
 import { descriptionOf, learnGenericAlts, type PhotoAlt } from './alt.ts';
 import { changedCells, changeEverything, noticeChange, watchChanges } from './changed.ts';
@@ -36,6 +39,7 @@ import {
   layoutKey,
   mediaStyleOf,
   quoteStyleOf,
+  showsRawCounts,
   timeFormatOf,
   type AppearanceNode,
   type AttachmentStyle,
@@ -60,6 +64,7 @@ import {
   type LineParts,
 } from './card.ts';
 import { timeTextFrom } from './time.ts';
+import { rawCountFor } from './counts.ts';
 import { cappedPadding, marksFrames, percentageIn, setsHeight, wrapsBox } from './frame.ts';
 import type { Messages } from '../i18n/index.ts';
 import { composeColors, pageColor } from './compose-colors.ts';
@@ -82,6 +87,8 @@ import {
   OPENED_ATTR,
   OPENED_CLASS,
   MEDIA_FRAME_ATTR,
+  COUNT_ATTR,
+  COUNT_CLASS,
   TIME_ATTR,
   TODAY_ATTR,
   MEDIA_TARGETS,
@@ -681,6 +688,71 @@ export const clearAltTitles = (): void =>
     picture.removeAttribute(ALT_ATTR);
     picture.removeAttribute('title');
   });
+
+/** Takes our number back out of a box, marker and all, leaving X's own element as it was */
+const unstampCount = (box: Element): void => {
+  box.removeAttribute(COUNT_ATTR);
+  box.querySelector(`:scope > .${COUNT_CLASS}`)?.remove();
+};
+
+const clearCounts = (): void => document.querySelectorAll(`[${COUNT_ATTR}]`).forEach(unstampCount);
+
+/** X's own element in that box: the one child that is not the number we put there */
+const shownCountIn = (box: Element): Element | null =>
+  Array.from(box.children).find((el) => !el.classList.contains(COUNT_CLASS)) ?? null;
+
+/**
+ * Writes a reaction count X rounded off ("22万") as the number it is.
+ *
+ * X's own element is left where it is and hidden by CSS, and a copy of it — the same
+ * element with the same classes, carrying the number instead — goes in beside it. Copying
+ * rather than drawing an `::after` on the box is what keeps the number the size X's own
+ * count is: X styles it on the element inside the box (see `COUNT_CLASS`).
+ *
+ * The number is read from the button's label rather than counted (`filter/post.ts`), and
+ * only the counts X actually rounded are written (`appearance/counts.ts`) — on a timeline
+ * that is a handful of posts, so the walk leaves almost all of them untouched.
+ */
+const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null): void => {
+  /** The boxes written this round. What carries a marker outside them has it taken off */
+  const marked = new Set<Element>();
+
+  for (const { element, appearance } of columnsOnScreen(columns)) {
+    if (!showsRawCounts(appearance.rawCounts)) continue;
+    for (const root of rootsIn(element, changed)) {
+      root.querySelectorAll(COUNT_TARGETS).forEach((holder) => {
+        const box = holder.querySelector(COUNT_TEXT);
+        if (!box) return;
+        const shown = shownCountIn(box);
+        const raw = rawCountFor(
+          shown?.textContent ?? '',
+          countInLabel(holder.getAttribute('aria-label'))
+        );
+        if (raw === null || !shown) return;
+        marked.add(box);
+        if (!box.hasAttribute(COUNT_ATTR)) box.setAttribute(COUNT_ATTR, '');
+        // A copy of X's own element, so the number is drawn in the size, weight and colour
+        // X gives the count it stands in for
+        let ours = box.querySelector(`:scope > .${COUNT_CLASS}`);
+        if (!ours) {
+          ours = shown.cloneNode(false) as Element;
+          ours.classList.add(COUNT_CLASS);
+          box.append(ours);
+        }
+        // Written only where it would say something else: a count changes when X recounts,
+        // and rewriting the same number costs a redraw of that post for nothing
+        if (ours.textContent !== raw) ours.textContent = raw;
+      });
+    }
+  }
+
+  for (const where of sweepIn(changed)) {
+    where.querySelectorAll(`[${COUNT_ATTR}]`).forEach((box) => {
+      if (marked.has(box)) return;
+      unstampCount(box);
+    });
+  }
+};
 
 const clearTimes = (): void =>
   document.querySelectorAll(`[${TIME_ATTR}]`).forEach((el) => {
@@ -2021,6 +2093,13 @@ export const stampMediaFrames = (): void => {
     timed('· times', () => restampTimes(lastColumns, lastMessages!, changed));
   } else {
     clearTimes();
+  }
+  // The counts written out in full are set again on the same occasion, and stripped
+  // once no scope asks for them
+  if (lastColumns.some((column) => showsRawCounts(column.appearance.rawCounts))) {
+    timed('· counts', () => restampCounts(lastColumns, changed));
+  } else {
+    clearCounts();
   }
   // Whether even one column needs markers. Which ones do lives in `frame.ts` alone
   const needsFrames = lastColumns.some((column) => marksFrames(column.appearance));

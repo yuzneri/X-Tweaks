@@ -79,6 +79,7 @@ const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   maxLines: inherit(tiers, (node) => node.appearance.maxLines, 'maxLines'),
   wordsShown: inherit(tiers, (node) => node.appearance.wordsShown, 'wordsShown'),
   collapseNewlines: inherit(tiers, (node) => node.appearance.collapseNewlines),
+  rawCounts: inherit(tiers, (node) => node.appearance.rawCounts),
   colors: {
     background: inherit(tiers, (node) => node.appearance.colors.background, 'colors.background'),
     text: inherit(tiers, (node) => node.appearance.colors.text, 'colors.text'),

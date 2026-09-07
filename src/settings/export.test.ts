@@ -68,6 +68,7 @@ const fullNode = () => ({
     maxLines: 8,
     wordsShown: 120,
     collapseNewlines: true,
+    rawCounts: true,
     colors: {
       background: '#001122',
       text: '#eeeeee',

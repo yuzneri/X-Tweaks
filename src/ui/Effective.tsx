@@ -6,6 +6,7 @@ import {
   appearanceApplies,
   cardStyleOf,
   collapsesNewlines,
+  showsRawCounts,
   filterApplies,
   isCompact,
   mediaStyleOf,
@@ -130,6 +131,13 @@ const appearanceRows = (
         ? m.appearance.collapseNewlinesOn
         : m.appearance.collapseNewlinesOff,
       tier: of((n) => n.appearance.collapseNewlines),
+    },
+    {
+      label: m.appearance.rawCounts,
+      value: showsRawCounts(effective.rawCounts)
+        ? m.appearance.rawCountsOn
+        : m.appearance.rawCountsOff,
+      tier: of((n) => n.appearance.rawCounts),
     },
     {
       label: m.appearance.media.style,

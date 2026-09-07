@@ -681,6 +681,10 @@ export const en = {
     collapseNewlines: 'Line breaks in the post text',
     collapseNewlinesOn: 'Fold each into a space',
     collapseNewlinesOff: 'As they are',
+    /** X rounds the big counts off ("221.3K"); the number itself is in the button's label all along */
+    rawCounts: 'Reply, repost, like and view counts',
+    rawCountsOn: 'The number itself',
+    rawCountsOff: 'As X rounds it',
     colors: {
       legend: 'Colors',
       columnHeader: 'Behind the column name',

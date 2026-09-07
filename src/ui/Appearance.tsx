@@ -9,6 +9,7 @@ import {
   cardStyleOf,
   ACCOUNT_COLORS,
   collapsesNewlines,
+  showsRawCounts,
   COLUMN_COLORS,
   emptyNode,
   HIGHLIGHT_BASES,
@@ -382,6 +383,22 @@ export const Appearance = ({
             label={m.appearance.collapseNewlines}
             on={m.appearance.collapseNewlinesOn}
             off={m.appearance.collapseNewlinesOff}
+          />
+        </label>
+
+        {/*
+          The counts under a post, written out rather than rounded. Placed after the body's
+          own items: it is the last thing about the post's own text
+        */}
+        <label class="row">
+          <span>{m.appearance.rawCounts}</span>
+          <BoolSelect
+            value={node.rawCounts}
+            effective={showsRawCounts(above.rawCounts)}
+            onChange={(rawCounts) => patch({ rawCounts })}
+            label={m.appearance.rawCounts}
+            on={m.appearance.rawCountsOn}
+            off={m.appearance.rawCountsOff}
           />
         </label>
 

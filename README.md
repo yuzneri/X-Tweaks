@@ -51,6 +51,7 @@ The same items can also be set in any wider scope.
 - **Post text line limit**: a post past the limit opens with “Show more”
 - **Characters shown of a description or quote**: how much of a picture’s description, a quoted post or a card’s headline goes on screen (80 when unset)
 - **Line breaks in the post text**: each is folded into a single space
+- **Reply, repost, like and view counts**: X rounds the big ones off (“221.3K”); this shows the number itself. The counts X already writes out are left alone
 - **Photos and videos**: as they are / as they are with a description / as their description / as a mark (📷 🎬) / not shown at all
 - **Largest thumbnail height**
 - **Link cards and articles**: as they are / as text (🔗 📄) / as a mark / not shown at all

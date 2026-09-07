@@ -108,6 +108,27 @@ export const TIME_ATTR = 'data-xpro-time';
  */
 export const TODAY_ATTR = 'data-xpro-today';
 
+/**
+ * The marker on a reaction count written out in full. It goes on the box X animates the
+ * number inside, and says only that our own number is in there — the number itself is in
+ * the element beside X's (`COUNT_CLASS`).
+ *
+ * Only the counts X has rounded off carry one (`appearance/counts.ts`), so most posts on a
+ * timeline have none.
+ */
+export const COUNT_ATTR = 'data-xpro-count';
+
+/**
+ * The class on the number written out in full.
+ *
+ * It is a copy of X's own element, class list and all, with the number in place of the
+ * rounded form (`appearance/apply.ts`). Drawing it as an `::after` on the box instead —
+ * the way the absolute time is drawn — came out too big: X's count is styled on the
+ * element *inside* the box (13px against the box's 15px, measured), and a pseudo-element
+ * cannot inherit from a child. Copying the element takes every one of those styles with it.
+ */
+export const COUNT_CLASS = 'xpro-count';
+
 /** The marker on the bar carrying the column name. Used to narrow it down to one */
 export const HEADER_ATTR = 'data-xpro-header';
 
