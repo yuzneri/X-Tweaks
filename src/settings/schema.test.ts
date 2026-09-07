@@ -778,8 +778,8 @@ test('保存された寸法は正の整数だけを受ける', () => {
 });
 
 test('性質を選ぶと、その性質だからこそ指定できる対象が増える', () => {
-  // With no trait picked, only the three every post always has
-  assert.deepEqual(targetsFor(null), ['text', 'screenName', 'displayName']);
+  // With no trait picked, only the ones every post always has
+  assert.deepEqual(targetsFor(null), ['text', 'screenName', 'displayName', 'language']);
 
   // Relations to other posts
   assert.ok(targetsFor('repost').includes('repostedBy'));

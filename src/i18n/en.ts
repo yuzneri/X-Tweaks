@@ -50,6 +50,9 @@ export const en = {
     article: 'Article',
     ad: 'Ad',
     media: 'Photo or video',
+    verified: 'Verified account',
+    /** A URL in the text, which is a different thing from the card X may draw under it */
+    link: 'With a link in the text',
   },
 
   /**
@@ -556,6 +559,8 @@ export const en = {
       cardTitle: 'the card headline',
       spaceName: 'the Space name',
       articleText: 'the article headline and intro',
+      /** X's own reading of what language a post is in, as a code ("en", "ja") */
+      language: 'the language',
     },
     /** An empty box means not filtering on that target */
     anyPlaceholder: 'any',

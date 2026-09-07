@@ -60,6 +60,12 @@ const PROFILE_LINK = 'a[role="link"][href^="https://x.com/"]';
 /** X calls this Birdwatch internally, and that name is still in the marker */
 const COMMUNITY_NOTE = '[data-testid="birdwatch-pivot"]';
 
+/**
+ * X's verified badge. The marker is X's own and does not change with the interface
+ * language, unlike the label beside it ("認証済みアカウント"). Which kind of badge it is
+ * (blue, gold, grey) is not told apart: they are one marker here
+ */
+const VERIFIED_BADGE = '[data-testid="icon-verified"]';
 
 /**
  * The arrow that only appears on notes awaiting a rating.
@@ -409,6 +415,32 @@ const bodyLinksOf = (bodies: Element[]): { hashtag: number; mention: number; lin
 };
 
 /**
+ * The language X read the post as, as the code it writes on the body ("ja", "en"). It also
+ * uses codes of its own for a post with no real text to go by ("qme" and the like), which
+ * are passed on as they are: what they mean is X's to say, and a rule can match them.
+ *
+ * Read from the post's own body, the quoted one left out, so a Japanese post quoting an
+ * English one is Japanese.
+ */
+const languageIn = (bodies: Element[]): string[] => {
+  const lang = bodies[0]?.getAttribute('lang');
+  return lang ? [lang] : [];
+};
+
+/**
+ * Whether the author's name carries X's verified badge.
+ *
+ * Held to the name area of the post itself: a quoted post has a name area of its own, and
+ * searching the whole post would answer for whoever was quoted.
+ */
+const isVerifiedIn = (tweet: Element, quote: Element | null): boolean => {
+  const name = Array.from(tweet.querySelectorAll(USER_NAME)).find(
+    (el) => quote === null || !quote.contains(el)
+  );
+  return name?.querySelector(VERIFIED_BADGE) != null;
+};
+
+/**
  * What there is to count about the post.
  *
  * The reactions are read off the labels, and the quote frame is left out for the same
@@ -615,6 +647,10 @@ export const markTargets = (cell: Element, target: MatchTarget): MarkTarget[] =>
     // No `default` here: leaving a new target out should fall to the type checker
     case 'repostedBy':
       return [];
+    // The language is X's reading of the post rather than anything written in it, so
+    // there is nothing on screen to paint
+    case 'language':
+      return [];
     // Text from embedded things is used for filtering only. It is reached by child
     // index, so the painted position shifts easily
     case 'pollChoice':
@@ -760,6 +796,7 @@ export const readPost = (cell: Element): Post | null => {
       cardTitle: cardTextsIn(tweet, (card) => card.title),
       spaceName: spaceNameIn(tweet),
       articleText: articleTextIn(tweet),
+      language: languageIn(bodies),
     },
     isRepost: tweet.querySelector(SOCIAL_CONTEXT) !== null,
     // A quote is spotted by a second author avatar, the quoted post's, being present
@@ -772,6 +809,8 @@ export const readPost = (cell: Element): Post | null => {
     hasArticle: tweet.querySelector(ARTICLE) !== null,
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
+    isVerified: isVerifiedIn(tweet, quote),
+    hasBodyLink: inBody.link > 0,
     postedAt: postedAtOf(tweet, quote),
     counts: countsOf(tweet, quote, bodies, inBody),
   };

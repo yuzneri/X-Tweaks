@@ -31,6 +31,8 @@ export const ja: Messages = {
     article: '記事',
     ad: '広告',
     media: '画像・動画',
+    verified: '認証済みアカウント',
+    link: '本文にリンクあり',
   },
 
   countMetrics: {
@@ -460,6 +462,7 @@ export const ja: Messages = {
       cardTitle: 'カードの見出し',
       spaceName: 'スペースの名前',
       articleText: '記事の見出しと書き出し',
+      language: '投稿の言語',
     },
     anyPlaceholder: 'すべて',
     any: 'すべて',

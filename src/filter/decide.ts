@@ -48,6 +48,10 @@ export type Post = {
   /** The preview shown for an ordinary pasted URL */
   hasLinkCard: boolean;
   isAd: boolean;
+  /** Whether X's verified badge stands beside the author's name */
+  isVerified: boolean;
+  /** Whether the text holds a pasted URL, whether or not X drew a card under it */
+  hasBodyLink: boolean;
   /**
    * When it was posted (epoch milliseconds). null when unreadable.
    * It is the post's own time rather than the quoted post's, and on a repost it is the
@@ -220,6 +224,8 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
   linkCard: (post) => post.hasLinkCard,
   ad: (post) => post.isAd,
   media: (post) => post.hasMedia,
+  verified: (post) => post.isVerified,
+  link: (post) => post.hasBodyLink,
 };
 
 /**

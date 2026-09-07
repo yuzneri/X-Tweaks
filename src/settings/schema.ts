@@ -34,6 +34,8 @@ export const TRAIT_KEYS = [
   'article',
   'ad',
   'media',
+  'verified',
+  'link',
 ] as const;
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
@@ -216,6 +218,7 @@ export const MATCH_TARGETS = [
   'cardTitle',
   'spaceName',
   'articleText',
+  'language',
 ] as const;
 export type MatchTarget = (typeof MATCH_TARGETS)[number];
 
@@ -245,11 +248,12 @@ export const EMPHASIZABLE_TARGETS = [
 export const canEmphasize = (target: MatchTarget): boolean =>
   (EMPHASIZABLE_TARGETS as readonly string[]).includes(target);
 
-/** Every post always has these three places */
+/** Every post always has these four places */
 export const COMMON_TARGETS = [
   'text',
   'screenName',
   'displayName',
+  'language',
 ] as const satisfies readonly MatchTarget[];
 
 /**
@@ -271,6 +275,8 @@ export const TARGETS_BY_TRAIT = {
   article: ['articleText'],
   ad: [],
   media: [],
+  verified: [],
+  link: [],
 } as const satisfies Record<TraitKey, readonly MatchTarget[]>;
 
 export const targetsFor = (trait: TraitKey | null): readonly MatchTarget[] =>

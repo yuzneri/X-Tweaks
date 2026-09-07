@@ -64,6 +64,7 @@ const post = (patch: PostPatch = {}): Post => ({
     cardTitle: some(patch.cardTitle, []),
     spaceName: some(patch.spaceName, []),
     articleText: some(patch.articleText, []),
+    language: some(patch.language, ['ja']),
   },
   isRepost: patch.isRepost ?? false,
   isQuote: patch.isQuote ?? false,
@@ -75,6 +76,8 @@ const post = (patch: PostPatch = {}): Post => ({
   hasArticle: patch.hasArticle ?? false,
   hasLinkCard: patch.hasLinkCard ?? false,
   isAd: patch.isAd ?? false,
+  isVerified: patch.isVerified ?? false,
+  hasBodyLink: patch.hasBodyLink ?? false,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
   counts: {
