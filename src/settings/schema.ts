@@ -307,10 +307,22 @@ export const splitDuration = (minutes: number): { value: number; unit: AgeUnit }
 };
 
 /**
- * The reaction counts a post carries. They are the option names on the settings screen and
+ * What there is to count about a post. They are the option names on the settings screen and
  * also appear in a condition's description.
+ *
+ * The first four are the reactions X shows under a post; the rest are counted in the body
+ * itself. Both kinds answer the same question ("how many"), so they share the one condition
+ * rather than each having a shape of its own.
  */
-export const COUNT_METRICS = ['reply', 'repost', 'like', 'view'] as const;
+export const COUNT_METRICS = [
+  'reply',
+  'repost',
+  'like',
+  'view',
+  'textLength',
+  'hashtag',
+  'mention',
+] as const;
 export type CountMetric = (typeof COUNT_METRICS)[number];
 
 /**

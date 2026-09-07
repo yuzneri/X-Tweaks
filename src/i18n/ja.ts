@@ -38,6 +38,9 @@ export const ja: Messages = {
     repost: 'リポスト',
     like: 'いいね',
     view: '表示',
+    textLength: '本文の文字数',
+    hashtag: 'ハッシュタグの数',
+    mention: 'メンションの数',
   },
 
   conditions: {

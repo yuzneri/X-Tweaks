@@ -55,9 +55,10 @@ export type Post = {
    */
   postedAt: number | null;
   /**
-   * How many reactions of each kind the post shows. null where the count is not on the
-   * post at all, which is not the same as zero: X shows no number for the views of some
-   * posts, while replies, reposts and likes say "0" outright
+   * What there is to count about the post. null where the number is not on the post at
+   * all, which is not the same as zero: X shows no number for the views of some posts,
+   * while replies, reposts and likes say "0" outright. What is counted in the body
+   * (the characters, the hashtags, the mentions) is never null — an empty body is 0
    */
   counts: Record<CountMetric, number | null>;
 };

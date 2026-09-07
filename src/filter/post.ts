@@ -60,6 +60,7 @@ const PROFILE_LINK = 'a[role="link"][href^="https://x.com/"]';
 /** X calls this Birdwatch internally, and that name is still in the marker */
 const COMMUNITY_NOTE = '[data-testid="birdwatch-pivot"]';
 
+
 /**
  * The arrow that only appears on notes awaiting a rating.
  * Being a decorative icon it is a weak marker, but the wording changes with the UI
@@ -298,7 +299,8 @@ const postedAtOf = (tweet: Element, quote: Element | null): number | null => {
 };
 
 /**
- * Where each count is written.
+ * Where the counts X shows under a post are written. The ones counted in the body have no
+ * marker of their own — they are counted from the text (`countsOf`).
  *
  * The pair in a line is the same button in its two states: pressing it swaps the marker
  * (`like` becomes `unlike`), and the count is on either. Views are not a button at all —
@@ -313,12 +315,12 @@ const postedAtOf = (tweet: Element, quote: Element | null): number | null => {
  * ブックマーク、…") — but that label leaves out whatever stands at zero, so which number is
  * which cannot be told without knowing X's wording in the language it is showing.
  */
-export const COUNT_MARKERS: Record<CountMetric, string> = {
+export const COUNT_MARKERS = {
   reply: '[data-testid="reply"]',
   repost: '[data-testid="retweet"], [data-testid="unretweet"]',
   like: '[data-testid="like"], [data-testid="unlike"]',
   view: 'a[href$="/analytics"]',
-};
+} as const;
 
 /**
  * Everything carrying a count, as one selector. What the appearance walks when it writes
@@ -355,22 +357,86 @@ export const countInLabel = (label: string | null | undefined): number | null =>
 };
 
 /**
- * What the post shows for each kind of reaction. The quote frame is left out for the same
- * reason `postedAtOf` leaves it out: where a quoted post carries an action bar of its own,
- * those are the quoted post's numbers.
+ * What a link X wrote into the body points at, by the shape of its address.
+ *
+ * The path is what it goes by rather than the host: X Pro writes some of a post's links
+ * to `pro.x.com` and some to `x.com` (measured on one page: 95 against 107), so a host
+ * would answer for only half of them.
+ *
+ * A pasted URL is always shortened to `t.co`, whatever it points at, which is what tells
+ * one from a hashtag or a mention — both of those are X's own addresses.
+ * null for anything else, an address X wrote for its own purposes included.
  */
-const countsOf = (tweet: Element, quote: Element | null): Record<CountMetric, number | null> => {
-  const read = (metric: CountMetric): number | null => {
-    const marked = Array.from(tweet.querySelectorAll(COUNT_MARKERS[metric])).find(
+export const bodyLinkKind = (href: string): 'hashtag' | 'mention' | 'link' | null => {
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  if (url.hostname === 't.co') return 'link';
+  if (url.hostname !== 'x.com' && !url.hostname.endsWith('.x.com')) return null;
+  const parts = url.pathname.split('/').filter((part) => part !== '');
+  if (parts[0] === 'hashtag') return 'hashtag';
+  // A mention is a link to somebody, which is one step and no further ("/alice").
+  // A post's own address ("/alice/status/123") is two steps and is not one
+  return parts.length === 1 ? 'mention' : null;
+};
+
+/**
+ * The post's own body, the quoted post's left out. The same exclusion `postedAtOf` makes,
+ * and for the same reason: what is counted should be what this post says, not what it quotes
+ */
+const ownBodiesIn = (tweet: Element, quote: Element | null): Element[] =>
+  Array.from(tweet.querySelectorAll(TWEET_TEXT)).filter(
+    (el) => quote === null || !quote.contains(el)
+  );
+
+/**
+ * What the body holds, gone through once and sorted by what each link points at.
+ * The pasted links are counted too, for the "has a link" trait — a post can carry one
+ * without X drawing a card under it, which is what that trait is for
+ */
+const bodyLinksOf = (bodies: Element[]): { hashtag: number; mention: number; link: number } => {
+  const counts = { hashtag: 0, mention: 0, link: 0 };
+  for (const body of bodies) {
+    for (const link of body.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+      const kind = bodyLinkKind(link.href);
+      if (kind) counts[kind] += 1;
+    }
+  }
+  return counts;
+};
+
+/**
+ * What there is to count about the post.
+ *
+ * The reactions are read off the labels, and the quote frame is left out for the same
+ * reason `postedAtOf` leaves it out: where a quoted post carries an action bar of its own,
+ * those are the quoted post's numbers. What is counted in the body is counted from the
+ * text this post wrote, which is why an empty body is 0 rather than "cannot be read".
+ */
+const countsOf = (
+  tweet: Element,
+  quote: Element | null,
+  bodies: Element[],
+  inBody: { hashtag: number; mention: number }
+): Record<CountMetric, number | null> => {
+  const read = (marker: string): number | null => {
+    const marked = Array.from(tweet.querySelectorAll(marker)).find(
       (el) => quote === null || !quote.contains(el)
     );
     return marked ? countInLabel(marked.getAttribute('aria-label')) : null;
   };
   return {
-    reply: read('reply'),
-    repost: read('repost'),
-    like: read('like'),
-    view: read('view'),
+    reply: read(COUNT_MARKERS.reply),
+    repost: read(COUNT_MARKERS.repost),
+    like: read(COUNT_MARKERS.like),
+    view: read(COUNT_MARKERS.view),
+    // The characters X itself wrote, counted the same way the text conditions read them
+    textLength: bodies.reduce((total, body) => total + ownTextOf(body).length, 0),
+    hashtag: inBody.hashtag,
+    mention: inBody.mention,
   };
 };
 
@@ -675,6 +741,9 @@ export const readPost = (cell: Element): Post | null => {
   const quote = quoteFrameOf(tweet);
   const replyLinks = replyLinksOf(tweet);
   const followsThread = followsThreadLine(cell);
+  // The body is walked once: the counts, the language and the link trait all come from it
+  const bodies = ownBodiesIn(tweet, quote);
+  const inBody = bodyLinksOf(bodies);
 
   return {
     values: {
@@ -704,6 +773,6 @@ export const readPost = (cell: Element): Post | null => {
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
     postedAt: postedAtOf(tweet, quote),
-    counts: countsOf(tweet, quote),
+    counts: countsOf(tweet, quote, bodies, inBody),
   };
 };

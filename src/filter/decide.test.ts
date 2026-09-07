@@ -77,7 +77,16 @@ const post = (patch: PostPatch = {}): Post => ({
   isAd: patch.isAd ?? false,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
-  counts: { reply: 0, repost: 0, like: 0, view: 0, ...patch.counts },
+  counts: {
+    reply: 0,
+    repost: 0,
+    like: 0,
+    view: 0,
+    textLength: 0,
+    hashtag: 0,
+    mention: 0,
+    ...patch.counts,
+  },
 });
 
 /** Without an explicit order, one is built from the existing rules in the default order (normalization's job in the real code) */

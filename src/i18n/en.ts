@@ -61,6 +61,9 @@ export const en = {
     repost: 'reposts',
     like: 'likes',
     view: 'views',
+    textLength: 'characters of text',
+    hashtag: 'hashtags',
+    mention: 'mentions',
   },
 
   /**
