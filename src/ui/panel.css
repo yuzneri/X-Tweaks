@@ -411,6 +411,46 @@
 }
 
 /*
+ * A number box and the two buttons that step it (`ui/Rules.tsx`).
+ *
+ * The three sit in one container so the row treats them as a single control, the way it
+ * treats a text box: the container takes the growth and the box inside it takes the rest.
+ */
+.xpro-ui .number-box {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.xpro-ui .number-box input[type="text"] {
+  min-width: 0;
+}
+
+/*
+ * Square, and no wider than the character on them. They are the same height as the box
+ * beside them, which `align-items: stretch` above gives them
+ */
+.xpro-ui button.step {
+  flex: 0 0 auto;
+  width: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.xpro-ui button.step:hover {
+  border-color: var(--accent);
+}
+
+/*
  * The controls are a size down from the body text (the mock's proportions). A row is
  * label and control side by side, and at the same size the control competes with the
  * name of the thing it sets.

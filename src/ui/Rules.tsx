@@ -33,6 +33,7 @@ import {
   splitDuration,
 } from '../settings/schema.ts';
 import { ActionBadge, ActionSelect, ColorField, RULE_ACTIONS } from './fields.tsx';
+import { stepped } from './step.ts';
 import { useReorder } from './reorder.ts';
 import { useMessages } from './messages.tsx';
 import type { Messages } from '../i18n/index.ts';
@@ -289,6 +290,47 @@ const validate = (
   };
 };
 
+type NumberBoxProps = {
+  /** What is being counted. It names the box and both buttons */
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+};
+
+/**
+ * A box for a whole number, with a button either side to step it.
+ *
+ * The box itself stays `type="text"`: a `number` box answers with an empty value when what
+ * was typed is not a number, and an empty box here means "do not filter on this", so a
+ * mistyped one would quietly stop filtering rather than say so (`ui/fields.tsx` keeps the
+ * sizes as text for the same reason). The buttons give what a number box is wanted for
+ * without giving that up.
+ */
+const NumberBox = ({ label, value, onChange, onSubmit }: NumberBoxProps) => {
+  const m = useMessages();
+  return (
+    <span class="number-box">
+      <input
+        type="text"
+        inputMode="numeric"
+        aria-label={label}
+        placeholder={m.rules.anyPlaceholder}
+        value={value}
+        onInput={(e) => onChange(e.currentTarget.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
+      />
+      {/* Named with what is counted, so each button says what it does on its own */}
+      <button type="button" class="step" aria-label={m.rules.stepDown(label)} onClick={() => onChange(stepped(value, -1))}>
+        −
+      </button>
+      <button type="button" class="step" aria-label={m.rules.stepUp(label)} onClick={() => onChange(stepped(value, 1))}>
+        ＋
+      </button>
+    </span>
+  );
+};
+
 /** Shown in the same shape for traits and for text */
 const NegateBox = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => {
   const m = useMessages();
@@ -367,14 +409,11 @@ const CountRow = ({ metric, input, onChange, onSubmit }: CountRowProps) => {
   return (
     <div class="row add condition">
       <span class="field-label">{label}</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        aria-label={label}
-        placeholder={m.rules.anyPlaceholder}
+      <NumberBox
+        label={label}
         value={input.value}
-        onInput={(e) => onChange({ ...input, value: e.currentTarget.value })}
-        onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
+        onChange={(value) => onChange({ ...input, value })}
+        onSubmit={onSubmit}
       />
       {/* No "Not" box here: "or more" and "or fewer" already say both sides of a number */}
       <select
@@ -481,14 +520,11 @@ const RuleForm = ({
       {/* How old the post is, measured from the moment of judging */}
       <div class="row add condition">
         <span class="field-label">{m.rules.ageLabel}</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          aria-label={m.rules.ageLabel}
-          placeholder={m.rules.anyPlaceholder}
+        <NumberBox
+          label={m.rules.ageLabel}
           value={draft.age.value}
-          onInput={(e) => onDraftChange({ ...draft, age: { ...draft.age, value: e.currentTarget.value } })}
-          onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
+          onChange={(value) => onDraftChange({ ...draft, age: { ...draft.age, value } })}
+          onSubmit={onSubmit}
         />
         <select
           aria-label={m.rules.ageLabel}

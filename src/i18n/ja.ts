@@ -478,6 +478,8 @@ export const ja: Messages = {
     ageLabel: '投稿の古さ',
     ageUnits: AGE_UNITS,
     ageError: '1以上の整数を入力してください',
+    stepUp: (name) => `${name}を増やす`,
+    stepDown: (name) => `${name}を減らす`,
     countDirections: { atLeast: '以上', atMost: '以下' },
     countError: '0以上の整数を入力してください',
     enabled: '有効',

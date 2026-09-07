@@ -583,6 +583,9 @@ export const en = {
     ageLabel: 'Post age',
     ageUnits: AGE_UNITS,
     ageError: 'Enter a whole number of 1 or more',
+    /** The buttons either side of a number box. Named with what is counted, to stand on their own */
+    stepUp: (name: string) => `Increase ${name}`,
+    stepDown: (name: string) => `Decrease ${name}`,
     /** Both take the number itself in, so they read "or more" and "or fewer" (see `COUNT_DIRECTIONS`) */
     countDirections: { atLeast: 'or more', atMost: 'or fewer' } as {
       atLeast: string;
