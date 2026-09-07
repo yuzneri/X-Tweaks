@@ -23,6 +23,7 @@ export default {
     'build.mjs',
     'render-icons.mjs',
     'render-store.mjs',
+    'render-applied.mjs',
     'web-ext-config.mjs',
     '.gitignore',
     // The browser reads the PNGs only. The SVG they come from, and the one image for the store
