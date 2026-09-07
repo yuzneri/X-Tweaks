@@ -34,6 +34,7 @@ export const TRAIT_KEYS = [
   'article',
   'ad',
   'media',
+  'mediaWithoutAlt',
   'verified',
   'link',
 ] as const;
@@ -219,6 +220,7 @@ export const MATCH_TARGETS = [
   'spaceName',
   'articleText',
   'language',
+  'altText',
 ] as const;
 export type MatchTarget = (typeof MATCH_TARGETS)[number];
 
@@ -274,7 +276,9 @@ export const TARGETS_BY_TRAIT = {
   space: ['spaceName'],
   article: ['articleText'],
   ad: [],
-  media: [],
+  media: ['altText'],
+  // The pictures are there by definition, so their descriptions can be asked about
+  mediaWithoutAlt: ['altText'],
   verified: [],
   link: [],
 } as const satisfies Record<TraitKey, readonly MatchTarget[]>;

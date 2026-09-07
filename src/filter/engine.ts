@@ -45,12 +45,18 @@ let current: Settings | null = null;
 
 let messages: Messages = messagesFor('en');
 
+/** X's own words for a picture nobody described, as the settings hold them */
+let genericAlts: ReadonlySet<string> = new Set();
+
 /** The effective settings per column, so the merge across tiers and regex compilation are not repeated per post */
 const effective = new Map<string, { filter: CompiledFilter; look: Look }>();
 
 /** On receiving settings, rebuilds the language, the effective settings and the appearance together */
 const adopt = (settings: Settings): void => {
   current = settings;
+  // X's own words for an undescribed picture, which the judging needs to tell a
+  // description from one (`filter/post.ts`). Built here rather than per post
+  genericAlts = new Set(settings.genericAlts);
   messages = messagesFor(localeOf(settings.language));
   // The match-reason text comes from the dictionary, so a language change means a rebuild
   effective.clear();
@@ -247,7 +253,7 @@ const judge = (cell: Element): boolean => {
    */
   const t0 = performance.now();
   const known = reads.get(cell);
-  const post = known ?? readPost(cell);
+  const post = known ?? readPost(cell, genericAlts);
   if (!post) return false;
   if (!known) {
     reads.set(cell, post);

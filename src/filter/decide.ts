@@ -50,6 +50,8 @@ export type Post = {
   isAd: boolean;
   /** Whether X's verified badge stands beside the author's name */
   isVerified: boolean;
+  /** Whether a picture of the post's own stands there with nothing written about it */
+  hasUndescribedMedia: boolean;
   /** Whether the text holds a pasted URL, whether or not X drew a card under it */
   hasBodyLink: boolean;
   /**
@@ -224,6 +226,7 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
   linkCard: (post) => post.hasLinkCard,
   ad: (post) => post.isAd,
   media: (post) => post.hasMedia,
+  mediaWithoutAlt: (post) => post.hasUndescribedMedia,
   verified: (post) => post.isVerified,
   link: (post) => post.hasBodyLink,
 };

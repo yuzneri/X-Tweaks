@@ -50,6 +50,7 @@ export const en = {
     article: 'Article',
     ad: 'Ad',
     media: 'Photo or video',
+    mediaWithoutAlt: 'Photo or video nobody described',
     verified: 'Verified account',
     /** A URL in the text, which is a different thing from the card X may draw under it */
     link: 'With a link in the text',
@@ -561,6 +562,8 @@ export const en = {
       articleText: 'the article headline and intro',
       /** X's own reading of what language a post is in, as a code ("en", "ja") */
       language: 'the language',
+      /** What somebody wrote about a picture. X's own word for an undescribed one is not one */
+      altText: 'a picture’s description',
     },
     /** An empty box means not filtering on that target */
     anyPlaceholder: 'any',

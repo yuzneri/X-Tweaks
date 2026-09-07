@@ -65,6 +65,7 @@ const post = (patch: PostPatch = {}): Post => ({
     spaceName: some(patch.spaceName, []),
     articleText: some(patch.articleText, []),
     language: some(patch.language, ['ja']),
+    altText: some(patch.altText, []),
   },
   isRepost: patch.isRepost ?? false,
   isQuote: patch.isQuote ?? false,
@@ -77,6 +78,7 @@ const post = (patch: PostPatch = {}): Post => ({
   hasLinkCard: patch.hasLinkCard ?? false,
   isAd: patch.isAd ?? false,
   isVerified: patch.isVerified ?? false,
+  hasUndescribedMedia: patch.hasUndescribedMedia ?? false,
   hasBodyLink: patch.hasBodyLink ?? false,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
@@ -317,6 +319,36 @@ test('古さだけのルールでは「強調」を選べない（塗る先が�
   // What gets painted is where a text condition matched, and age has no characters to correspond to
   const condition = { kind: 'age', minutes: 60 } as const;
   assert.equal(canEmphasizeWith(condition), false);
+});
+
+/* --- 投稿そのものについて分かること --- */
+
+test('言語は X が判定したコードで当たる', () => {
+  const f = filter({
+    rules: [rule({ conditions: [text({ target: 'language', mode: 'exact', pattern: 'en' })] })],
+  });
+  assert.ok(judge(post({ language: 'en' }), f));
+  assert.equal(judge(post({ language: 'ja' }), f), null);
+  // 本文の無い投稿は言語を持たないので当たらない
+  assert.equal(judge(post({ language: null }), f), null);
+});
+
+test('「説明のない画像」は、説明の無い画像があるときだけ当たる', () => {
+  const f = filter({ rules: [rule({ conditions: [traitOf('mediaWithoutAlt')] })] });
+  assert.ok(judge(post({ hasMedia: true, hasUndescribedMedia: true }), f));
+  // 説明の付いた画像だけの投稿にも、画像の無い投稿にも当たらない
+  assert.equal(judge(post({ hasMedia: true, altText: '桜の写真' }), f), null);
+  assert.equal(judge(post(), f), null);
+});
+
+test('認証済みと本文のリンクは、それぞれ独立した性質', () => {
+  const verified = filter({ rules: [rule({ conditions: [traitOf('verified')] })] });
+  const link = filter({ rules: [rule({ conditions: [traitOf('link')] })] });
+  assert.ok(judge(post({ isVerified: true }), verified));
+  assert.equal(judge(post({ hasBodyLink: true }), verified), null);
+  assert.ok(judge(post({ hasBodyLink: true }), link));
+  // リンクカードは別物。カードの出ないリンクを捕まえるための性質
+  assert.equal(judge(post({ hasLinkCard: true }), link), null);
 });
 
 /* --- 反応の件数 --- */

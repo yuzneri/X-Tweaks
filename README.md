@@ -25,9 +25,9 @@ The first rule that matches from the top decides, and each rule can be switched 
 
 Conditions:
 
-- **Text**: the post text, the quoted text, the user ID, the display name, the reposter’s user ID, the quoted user ID and display name, the reply-to user ID, a poll choice, the link domain, the card headline, the Space name, the article headline and intro, the language X read the post as (“ja”, “en”)
+- **Text**: the post text, the quoted text, the user ID, the display name, the reposter’s user ID, the quoted user ID and display name, the reply-to user ID, a poll choice, the link domain, the card headline, the Space name, the article headline and intro, the language X read the post as (“ja”, “en”), a picture’s description
 - **How to match**: Contains, Matches exactly, Regular expression, Is the author
-- **What the post is**: Repost, Quote, Reply, With a Community Note, With a Community Note to rate, With a poll (open or finished), With a link card, With a Space, With an Article, Ad or promoted post, With a photo or video, Verified account, With a link in the text
+- **What the post is**: Repost, Quote, Reply, With a Community Note, With a Community Note to rate, With a poll (open or finished), With a link card, With a Space, With an Article, Ad or promoted post, With a photo or video, Verified account, With a link in the text, Photo or video nobody described
 - **Post age**: written as “older than 1 hour” (in minutes, hours or days). It is answered as the post is read, so only the old side is offered
 - **How many**: the replies, reposts, likes and views, and the characters, hashtags and mentions in the text, written as “100 or more” or “5 or fewer”. A count X does not show matches no such condition
 - **Negation**: the text and “what the post is” conditions can be inverted. The age and the counts have no inverted form — one names a side already, and the other has two

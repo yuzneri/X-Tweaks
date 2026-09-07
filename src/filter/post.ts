@@ -5,6 +5,7 @@
  */
 import { ATTACHMENT_CLASS } from '../appearance/card.ts';
 import { canEmphasize, type CountMetric, type MatchTarget } from '../settings/schema.ts';
+import { descriptionOf } from '../appearance/alt.ts';
 import type { Post } from './decide.ts';
 
 /** The unit that gets collapsed. It sits outside the post proper, so the gap between posts folds with it */
@@ -428,6 +429,27 @@ const languageIn = (bodies: Element[]): string[] => {
 };
 
 /**
+ * What was written about the post's own pictures.
+ *
+ * X puts its own word there for a picture nobody described ("画像", "Image"), and that word
+ * is not a description. Which words those are is not something that can be listed in
+ * advance — they follow the language X is shown in — so they are learned from the pages
+ * read and passed in (`appearance/alt.ts`, `settings/schema.ts`).
+ *
+ * The quoted post's pictures are left out, as the appearance leaves them out: they belong
+ * to the post being quoted rather than to this one.
+ */
+const mediaDescriptionsIn = (
+  tweet: Element,
+  quote: Element | null,
+  generic: ReadonlySet<string>
+): (string | null)[] =>
+  Array.from(tweet.querySelectorAll(MEDIA))
+    // One video answers to two markers, so only the outer one is taken (`isOutermostMedia`)
+    .filter((media) => (quote === null || !quote.contains(media)) && isOutermostMedia(media))
+    .map((media) => descriptionOf(altTextOf(media), generic));
+
+/**
  * Whether the author's name carries X's verified badge.
  *
  * Held to the name area of the post itself: a quoted post has a name area of its own, and
@@ -651,6 +673,10 @@ export const markTargets = (cell: Element, target: MatchTarget): MarkTarget[] =>
     // there is nothing on screen to paint
     case 'language':
       return [];
+    // A description is shown under a picture only where the appearance puts it there, and
+    // that line is the extension's own writing rather than X's
+    case 'altText':
+      return [];
     // Text from embedded things is used for filtering only. It is reached by child
     // index, so the painted position shifts easily
     case 'pollChoice':
@@ -766,8 +792,12 @@ const isAdIn = (cell: Element, tweet: Element): boolean => {
  * Turns a post cell into something judgeable. Returns null for items without the post
  * marker (notifications, trends) and for posts still mid-render whose author is not in
  * yet (the latter get picked up again on the next change).
+ *
+ * `generic` is X's own words for a picture nobody described, which decide whether a
+ * picture counts as described (`appearance/alt.ts`). Left out, every picture reads as
+ * described — which is what the search side wants, having no settings to learn them from.
  */
-export const readPost = (cell: Element): Post | null => {
+export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()): Post | null => {
   const tweet = cell.querySelector(TWEET);
   if (!tweet) return null;
 
@@ -780,6 +810,7 @@ export const readPost = (cell: Element): Post | null => {
   // The body is walked once: the counts, the language and the link trait all come from it
   const bodies = ownBodiesIn(tweet, quote);
   const inBody = bodyLinksOf(bodies);
+  const described = mediaDescriptionsIn(tweet, quote, generic);
 
   return {
     values: {
@@ -797,6 +828,7 @@ export const readPost = (cell: Element): Post | null => {
       spaceName: spaceNameIn(tweet),
       articleText: articleTextIn(tweet),
       language: languageIn(bodies),
+      altText: described.filter((text): text is string => text !== null),
     },
     isRepost: tweet.querySelector(SOCIAL_CONTEXT) !== null,
     // A quote is spotted by a second author avatar, the quoted post's, being present
@@ -810,6 +842,9 @@ export const readPost = (cell: Element): Post | null => {
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
     isVerified: isVerifiedIn(tweet, quote),
+    // A post with no picture is not one: the trait is about a picture standing there
+    // with nothing said about it
+    hasUndescribedMedia: described.some((text) => text === null),
     hasBodyLink: inBody.link > 0,
     postedAt: postedAtOf(tweet, quote),
     counts: countsOf(tweet, quote, bodies, inBody),
