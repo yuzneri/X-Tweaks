@@ -118,10 +118,16 @@ let watching = false;
  * Starts the watch. Called once, before the first pass runs.
  *
  * The attributes are named one by one rather than watched wholesale: X writes to `class`
- * and `style` constantly and none of the passes reads either, while the ones below are read —
+ * and `style` constantly and watching either would cost more than it is worth, while the
+ * ones below are read —
  * the description written for a picture (`alt`, `aria-label`), the time a post was made
  * (`datetime`), the picture itself (`src`), what X calls a thing (`data-testid`), where a
  * link goes (`href`) and what a thing is for (`role`) — seven in all.
+ *
+ * `style` is not on the list even though one thing of ours is written there — the cap on a
+ * frame's own padding (`appearance/apply.ts`). X rewriting that would take our cap off
+ * without a word, and the safety round below is what puts it back, within a couple of
+ * seconds. Watching `style` to shorten that would mean hearing about every write X makes.
  *
  * The last two are here because a post is read through them — which post a picture belongs
  * to, who wrote it, whether a poll is open — and what is read is kept until the post is
