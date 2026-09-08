@@ -5,7 +5,6 @@
  */
 import {
   columnElements,
-  COLUMN_SELECTOR,
   drawerColumnIds,
   scopeElementOf,
   scopeOfColumn,
@@ -52,7 +51,7 @@ let triggered: string | null = null;
 export const rememberTrigger = (target: Element | null): void => {
   // A press on an inserted item itself does not overwrite it, so the header pressed just before is kept
   if (!target || target.closest(`[${MARK}]`)) return;
-  const columns = Array.from(document.querySelectorAll(COLUMN_SELECTOR));
+  const columns = columnElements();
   const found = columns.find((candidate) => scopeElementOf(candidate, columns).contains(target));
   if (!found) return;
   column = found;

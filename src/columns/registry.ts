@@ -91,9 +91,14 @@ const askMainWorld = (timeoutMs = 3000): Promise<ColumnResponse> =>
  * that list rather than by searching the ancestor, because the search gets dearer the
  * further up the walk goes: at the top it is the whole deck. Measured on a real deck of
  * nine columns (`test/pro_ad.htm`): 0.92ms to answer for all of them by searching, 0.37ms
- * by asking the list. A list that does not hold `columnEl` would answer the question
- * wrongly, so it is required rather than defaulted — and a default would be worked out
- * afresh on every call, which is what this is getting away from.
+ * by asking the list.
+ *
+ * It must be *every* column body: one missing from the list is one the walk cannot see,
+ * and the range would climb straight past that column and swallow it. Whether `columnEl`
+ * itself is in the list makes no difference — an ancestor holds it either way — which is
+ * why the question is asked as "any of the others". It is required rather than defaulted
+ * because a default would be worked out afresh on every call, which is the cost this is
+ * getting away from.
  */
 const columnScopeOf = (columnEl: Element, all: readonly Element[], maxDepth = 10): Element => {
   let scope = columnEl;
