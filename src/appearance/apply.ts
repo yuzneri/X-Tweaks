@@ -695,7 +695,22 @@ const unstampCount = (box: Element): void => {
   box.querySelector(`:scope > .${COUNT_CLASS}`)?.remove();
 };
 
-const clearCounts = (): void => document.querySelectorAll(`[${COUNT_ATTR}]`).forEach(unstampCount);
+/**
+ * Whether a number of ours may still be standing in the page.
+ *
+ * It starts as "may be": an extension updated over an open tab leaves whatever the copy
+ * before it wrote, and that has to be swept up once. After a sweep that has taken
+ * everything off, there is nothing to look for until something is written again — and
+ * looking anyway costs a walk of the whole page (measured on `test/pro_ad.htm`, 23,235
+ * elements: 0.24ms), on every settling, for a reader who never asked for this at all.
+ */
+let mayHoldCounts = true;
+
+const clearCounts = (): void => {
+  if (!mayHoldCounts) return;
+  document.querySelectorAll(`[${COUNT_ATTR}]`).forEach(unstampCount);
+  mayHoldCounts = false;
+};
 
 /** X's own element in that box: the one child that is not the number we put there */
 const shownCountIn = (box: Element): Element | null =>
@@ -731,6 +746,9 @@ const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null
         if (raw === null || !shown) return;
         marked.add(box);
         if (!box.hasAttribute(COUNT_ATTR)) box.setAttribute(COUNT_ATTR, '');
+        // Something of ours is in the page now, so it has to be swept up when this is
+        // switched off again
+        mayHoldCounts = true;
         // A copy of X's own element, so the number is drawn in the size, weight and colour
         // X gives the count it stands in for
         let ours = box.querySelector(`:scope > .${COUNT_CLASS}`);
