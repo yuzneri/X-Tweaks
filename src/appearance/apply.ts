@@ -271,6 +271,21 @@ const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
 };
 
 /**
+ * Whether a marker of ours may still be standing in the page, per pass.
+ *
+ * Every settling asks each `clear…` below to take off what a pass nobody is asking for any
+ * more left behind, and each of them walks the whole page to do it — measured on
+ * `test/pro_ad.htm` (23,235 elements) at 0.24ms an ask. Three passes switched off is three
+ * walks of the page, every settling, for a reader who never turned any of them on. So each
+ * is asked only while the pass that writes those markers has written some.
+ *
+ * They start as "may be": an extension updated over an open tab is left with whatever the
+ * copy before it wrote, and that has to be swept up once. The pass that marks sets its own
+ * back to "may be" as it marks.
+ */
+const mayHold = { counts: true, times: true, frames: true };
+
+/**
  * Every marker off, and everything they were carrying with them.
  *
  * Called where no scope wants frames marked at all — the settings cleared, or the
@@ -278,11 +293,14 @@ const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
  * left behind, it holds a picture short with no rule of ours to explain it, and nothing
  * short of reloading the page would take it off.
  */
-const clearMediaFrames = (): void =>
+const clearMediaFrames = (): void => {
+  if (!mayHold.frames) return;
   document.querySelectorAll(`[${MEDIA_FRAME_ATTR}]`).forEach((el) => {
     el.removeAttribute(MEDIA_FRAME_ATTR);
     capFrame(el, null);
   });
+  mayHold.frames = false;
+};
 
 /**
  * The posts in one scope that this round has to look at, and where to search for what
@@ -695,21 +713,10 @@ const unstampCount = (box: Element): void => {
   box.querySelector(`:scope > .${COUNT_CLASS}`)?.remove();
 };
 
-/**
- * Whether a number of ours may still be standing in the page.
- *
- * It starts as "may be": an extension updated over an open tab leaves whatever the copy
- * before it wrote, and that has to be swept up once. After a sweep that has taken
- * everything off, there is nothing to look for until something is written again — and
- * looking anyway costs a walk of the whole page (measured on `test/pro_ad.htm`, 23,235
- * elements: 0.24ms), on every settling, for a reader who never asked for this at all.
- */
-let mayHoldCounts = true;
-
 const clearCounts = (): void => {
-  if (!mayHoldCounts) return;
+  if (!mayHold.counts) return;
   document.querySelectorAll(`[${COUNT_ATTR}]`).forEach(unstampCount);
-  mayHoldCounts = false;
+  mayHold.counts = false;
 };
 
 /** X's own element in that box: the one child that is not the number we put there */
@@ -746,9 +753,6 @@ const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null
         if (raw === null || !shown) return;
         marked.add(box);
         if (!box.hasAttribute(COUNT_ATTR)) box.setAttribute(COUNT_ATTR, '');
-        // Something of ours is in the page now, so it has to be swept up when this is
-        // switched off again
-        mayHoldCounts = true;
         // A copy of X's own element, so the number is drawn in the size, weight and colour
         // X gives the count it stands in for
         let ours = box.querySelector(`:scope > .${COUNT_CLASS}`);
@@ -764,6 +768,10 @@ const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null
     }
   }
 
+  // Something of ours stands in the page, so it has to be swept up when this is switched
+  // off again (`mayHold`)
+  if (marked.size > 0) mayHold.counts = true;
+
   for (const where of sweepIn(changed)) {
     where.querySelectorAll(`[${COUNT_ATTR}]`).forEach((box) => {
       if (marked.has(box)) return;
@@ -772,11 +780,14 @@ const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null
   }
 };
 
-const clearTimes = (): void =>
+const clearTimes = (): void => {
+  if (!mayHold.times) return;
   document.querySelectorAll(`[${TIME_ATTR}]`).forEach((el) => {
     el.removeAttribute(TIME_ATTR);
     el.removeAttribute(TODAY_ATTR);
   });
+  mayHold.times = false;
+};
 
 /**
  * Renders a post's time in absolute form and sets it as a marker on the `time`'s parent.
@@ -819,6 +830,10 @@ const restampTimes = (
   });
     }
   }
+
+  // Something of ours stands in the page, so it has to be swept up when every tier goes
+  // back to "as X shows it" (`mayHold`)
+  if (marked.size > 0) mayHold.times = true;
 
   // What was marked under a setting that no longer asks for it, or in a scope that is no
   // longer one, is stripped. Everything else is left exactly as it was
@@ -890,6 +905,10 @@ const restampMediaFrames = (
   }
 
   counted('frames marked', wanted.size);
+
+  // Something of ours stands in the page, so it has to be swept up when every tier drops
+  // the limit (`mayHold`)
+  if (wanted.size > 0) mayHold.frames = true;
 
   /*
    * Taken off the frames that are no longer wanted, and put on the ones that are. What X
