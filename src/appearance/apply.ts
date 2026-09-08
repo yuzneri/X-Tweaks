@@ -113,9 +113,12 @@ export const stampColumns = (): void => {
   const live: Element[] = [];
   const on = surface();
 
-  on.scopeElements().forEach((element) => {
-    const value = columnKey(on.scopeOfElement(element));
-    const scope = on.rangeOf(element);
+  // Enumerated once and handed back in: which range a scope covers is a question about
+  // where the others are (`columns/registry.ts`)
+  const elements = on.scopeElements();
+  elements.forEach((element) => {
+    const value = columnKey(on.scopeOfElement(element, elements));
+    const scope = on.rangeOf(element, elements);
     if (scope.getAttribute(COLUMN_ATTR) !== value) scope.setAttribute(COLUMN_ATTR, value);
     live.push(scope);
 
@@ -268,6 +271,22 @@ const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
     found.push({ element, appearance });
   });
   return found;
+};
+
+/**
+ * The scopes on screen, worked out at most once in a round and handed to every pass that
+ * wants them — as `changed` is asked once and handed to all of them.
+ *
+ * Finding them means a walk of the whole page for the marker, and the passes all want the
+ * same answer: measured on a real deck of 9 columns (`test/pro_ad.htm`, 23,235 elements)
+ * at 0.46ms an ask, which the six passes between them were paying six times over.
+ *
+ * Worked out on being asked rather than up front, so a round in which every pass is
+ * switched off pays nothing.
+ */
+const columnsThisRound = (columns: ColumnAppearance[]): (() => MarkedColumn[]) => {
+  let found: MarkedColumn[] | null = null;
+  return () => (found ??= columnsOnScreen(columns));
 };
 
 /**
@@ -735,11 +754,11 @@ const shownCountIn = (box: Element): Element | null =>
  * only the counts X actually rounded are written (`appearance/counts.ts`) — on a timeline
  * that is a handful of posts, so the walk leaves almost all of them untouched.
  */
-const restampCounts = (columns: ColumnAppearance[], changed: Set<Element> | null): void => {
+const restampCounts = (columns: MarkedColumn[], changed: Set<Element> | null): void => {
   /** The boxes written this round. What carries a marker outside them has it taken off */
   const marked = new Set<Element>();
 
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     if (!showsRawCounts(appearance.rawCounts)) continue;
     for (const root of rootsIn(element, changed)) {
       root.querySelectorAll(COUNT_TARGETS).forEach((holder) => {
@@ -795,7 +814,7 @@ const clearTimes = (): void => {
  * A redraw by X takes the marker with it, but this runs on every settling, so it is set again.
  */
 const restampTimes = (
-  columns: ColumnAppearance[],
+  columns: MarkedColumn[],
   messages: Messages,
   changed: Set<Element> | null
 ): void => {
@@ -803,7 +822,7 @@ const restampTimes = (
   /** The times marked this round. What carries a marker outside them has it taken off */
   const marked = new Set<Element>();
 
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     // Under "both" only the clock time is added. X already shows either a relative
     // time or a month and day, so the clock time is what is missing; adding the date
     // as well steals width from the ID and hides it in narrow columns
@@ -851,14 +870,14 @@ const restampTimes = (
  * over from a tighter limit would keep that frame shrunk.
  */
 const restampMediaFrames = (
-  columns: ColumnAppearance[],
+  columns: MarkedColumn[],
   changed: Set<Element> | null,
   measuring: boolean
 ): void => {
   /** The frames that should carry the marker at the end of this round, and what caps each */
   const wanted = new Map<Element, number | null>();
 
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     // Which scopes want their frames marked at all lives in `frame.ts` alone
     if (!marksFrames(appearance)) continue;
     const limit = appearance.media.maxThumbHeight;
@@ -1502,7 +1521,7 @@ const insertionPoint = (line: Line, cell: Element): Element =>
  * what they stand for was, so nothing is left saying nothing.
  */
 const restampAttachments = (
-  columns: ColumnAppearance[],
+  columns: MarkedColumn[],
   messages: Messages,
   readLinkColor: () => string | null,
   generic: ReadonlySet<string>,
@@ -1511,7 +1530,7 @@ const restampAttachments = (
   /** The lines and the sources that belong to this round. Anything else is left over */
   const live = new Set<Element>();
 
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     /*
      * The scopes with a post opened stand down, as they do in the CSS (`OPENED_ATTR`):
      * that post is there to be read, and its card stays on screen. Putting a line in as
@@ -1661,7 +1680,7 @@ const clearAttachments = (
  * to be read alongside.
  */
 const restampCaptions = (
-  columns: ColumnAppearance[],
+  columns: MarkedColumn[],
   messages: Messages,
   readLinkColor: () => string | null,
   changed: Set<Element> | null
@@ -1696,7 +1715,7 @@ const restampCaptions = (
    * column's own setting (`wordsShown`). Gathering every column's pictures in one sweep
    * would leave each of them to be traced back to a column afterwards.
    */
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     if (mediaStyleOf(appearance.media.style) !== 'caption') continue;
     for (const root of rootsIn(element, changed)) {
       root.querySelectorAll(MEDIA_ANYWHERE).forEach((picture) => {
@@ -1964,7 +1983,7 @@ const overflowsLimit = (
  * limit for that cell alone.
  */
 const addShowMore = (
-  columns: ColumnAppearance[],
+  columns: MarkedColumn[],
   messages: Messages,
   readLinkColor: () => string | null,
   changed: Set<Element> | null,
@@ -1982,7 +2001,7 @@ const addShowMore = (
     existing: HTMLElement | null;
     wanted: boolean | null;
   }[] = [];
-  for (const { element, appearance } of columnsOnScreen(columns)) {
+  for (const { element, appearance } of columns) {
     // A scope with a post opened has no limit to open out of, and neither has one with
     // the posts packed (see `wantsShowMore`). Asked once here rather than per body
     const wants = !element.hasAttribute(OPENED_ATTR) && !isCompact(appearance.compact);
@@ -2120,6 +2139,11 @@ export const stampMediaFrames = (): void => {
    */
   const measuring = mayMeasure();
   if (measuring) noted('measured');
+  /*
+   * Which scopes are on screen, likewise asked once and handed to every pass. Worked out
+   * on the first pass that wants it, so a round with every pass switched off pays nothing
+   */
+  const onScreen = columnsThisRound(lastColumns);
   // The time markers are set again on the same occasion. When every tier says
   // "as X shows it", they are stripped so that no marker of ours is left in X's DOM
   // even though no rule targets them
@@ -2127,21 +2151,21 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => timeFormatOf(column.appearance.timeFormat) !== 'relative')
   ) {
-    timed('· times', () => restampTimes(lastColumns, lastMessages!, changed));
+    timed('· times', () => restampTimes(onScreen(), lastMessages!, changed));
   } else {
     clearTimes();
   }
   // The counts written out in full are set again on the same occasion, and stripped
   // once no scope asks for them
   if (lastColumns.some((column) => showsRawCounts(column.appearance.rawCounts))) {
-    timed('· counts', () => restampCounts(lastColumns, changed));
+    timed('· counts', () => restampCounts(onScreen(), changed));
   } else {
     clearCounts();
   }
   // Whether even one column needs markers. Which ones do lives in `frame.ts` alone
   const needsFrames = lastColumns.some((column) => marksFrames(column.appearance));
   if (needsFrames) {
-    timed('· media frames', () => restampMediaFrames(lastColumns, changed, measuring));
+    timed('· media frames', () => restampMediaFrames(onScreen(), changed, measuring));
   } else {
     // Once every tier drops the limit, strip the markers set earlier too.
     // Turning the extension off replaces the settings with empty ones, which arrives here
@@ -2172,7 +2196,7 @@ export const stampMediaFrames = (): void => {
      */
     listenToXShowMore();
     timed('· lines', () =>
-      restampAttachments(lastColumns, lastMessages!, readLinkColor, genericAlts, changed)
+      restampAttachments(onScreen(), lastMessages!, readLinkColor, genericAlts, changed)
     );
   } else {
     clearAttachments();
@@ -2187,7 +2211,7 @@ export const stampMediaFrames = (): void => {
     lastMessages &&
     lastColumns.some((column) => mediaStyleOf(column.appearance.media.style) === 'caption')
   ) {
-    timed('· captions', () => restampCaptions(lastColumns, lastMessages!, readLinkColor, changed));
+    timed('· captions', () => restampCaptions(onScreen(), lastMessages!, readLinkColor, changed));
   } else {
     clearCaptions();
   }
@@ -2202,7 +2226,7 @@ export const stampMediaFrames = (): void => {
   ) {
     listenToXShowMore();
     timed('· show more', () =>
-      addShowMore(lastColumns, lastMessages!, readLinkColor, changed, measuring)
+      addShowMore(onScreen(), lastMessages!, readLinkColor, changed, measuring)
     );
   } else {
     // Once every tier drops the limit, remove the buttons added earlier too

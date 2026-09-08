@@ -85,12 +85,22 @@ const askMainWorld = (timeoutMs = 3000): Promise<ColumnResponse> =>
  * avatar as the column's account. The latter is what stops that.
  * maxDepth is insurance for a structure where neither condition holds; normally it is
  * never reached.
+ *
+ * `all` is every column body on the page, which the caller has in hand — this is asked
+ * about each of them in turn. Whether an ancestor holds a second column is answered from
+ * that list rather than by searching the ancestor, because the search gets dearer the
+ * further up the walk goes: at the top it is the whole deck. Measured on a real deck of
+ * nine columns (`test/pro_ad.htm`): 0.92ms to answer for all of them by searching, 0.37ms
+ * by asking the list. A list that does not hold `columnEl` would answer the question
+ * wrongly, so it is required rather than defaulted — and a default would be worked out
+ * afresh on every call, which is what this is getting away from.
  */
-const columnScopeOf = (columnEl: Element, maxDepth = 10): Element => {
+const columnScopeOf = (columnEl: Element, all: readonly Element[], maxDepth = 10): Element => {
   let scope = columnEl;
   let parent = columnEl.parentElement;
   for (let depth = 0; parent && depth < maxDepth; depth++) {
-    if (parent.querySelectorAll(COLUMN_SELECTOR).length > 1) break;
+    const above = parent;
+    if (all.some((other) => other !== columnEl && above.contains(other))) break;
     scope = parent;
     if (scope.querySelector(TITLE_SELECTOR)) break;
     parent = parent.parentElement;
@@ -103,8 +113,8 @@ const columnScopeOf = (columnEl: Element, maxDepth = 10): Element => {
  * avatar in the column header. Author avatars listed in the column body carry the
  * same marker, so the body is excluded from the search.
  */
-const accountOf = (columnEl: Element): string | null => {
-  const scope = columnScopeOf(columnEl);
+const accountOf = (columnEl: Element, all: readonly Element[]): string | null => {
+  const scope = columnScopeOf(columnEl, all);
   const avatar = Array.from(scope.querySelectorAll(AVATAR_NAME)).find(
     (el) => !el.closest(COLUMN_SELECTOR)
   );
@@ -119,13 +129,19 @@ const accountOf = (columnEl: Element): string | null => {
  * the header's box appears first and its contents arrive a few hundred ms later.
  * null is returned so the recording side can treat it as "not known".
  */
-const titleOf = (columnEl: Element): string | null => {
-  const title = columnScopeOf(columnEl).querySelector(TITLE_SELECTOR);
+const titleOf = (columnEl: Element, all: readonly Element[]): string | null => {
+  const title = columnScopeOf(columnEl, all).querySelector(TITLE_SELECTOR);
   const text = title?.textContent?.trim();
   return text ? text.slice(0, 40) : null;
 };
 
-const columnElements = (): Element[] => Array.from(document.querySelectorAll(COLUMN_SELECTOR));
+/**
+ * Every column body on the page. Exported because the questions below are asked *about*
+ * this list — which range a column covers is a question about where the others are
+ * (`columnScopeOf`) — so whoever asks holds it rather than having each question find it again
+ */
+export const columnElements = (): Element[] =>
+  Array.from(document.querySelectorAll(COLUMN_SELECTOR));
 
 /** Links on the deck rail. `manage` and `new` are mixed in, so only readable ids are taken */
 const DECK_LINK = 'a[href*="/i/decks/"]';
@@ -196,17 +212,17 @@ const stampIds = async (attempts = 3, waitMs = 400): Promise<void> => {
 };
 
 /** Derives the scope from a column element. Without a marker, `columnId` is null (the column tier does not apply) */
-const readScope = (column: Element): ColumnScope => ({
+const readScope = (column: Element, all: readonly Element[]): ColumnScope => ({
   columnId: column.getAttribute(COLUMN_ID_ATTR),
-  account: accountOf(column),
+  account: accountOf(column, all),
   // This module is X Pro's alone, so the site is not something to work out
   surface: 'pro',
 });
 
-const scopeOfElement = (column: Element): ColumnScope => {
+const scopeOfElement = (column: Element, all: readonly Element[]): ColumnScope => {
   const known = resolved.get(column);
   if (known) return known;
-  const scope = readScope(column);
+  const scope = readScope(column, all);
   resolved.set(column, scope);
   return scope;
 };
@@ -216,8 +232,12 @@ const scopeOfElement = (column: Element): ColumnScope => {
  * be called on every settling. Names arrive late even when the set of columns is
  * unchanged, so re-reading is necessary.
  */
-export const detect = (): ScopeInfo[] =>
-  columnElements().map((element) => ({ ...scopeOfElement(element), title: titleOf(element) }));
+export const detect = (): ScopeInfo[] => {
+  // Asked once and handed to each column: working out a column's range is a question
+  // about where the others are (`columnScopeOf`)
+  const all = columnElements();
+  return all.map((element) => ({ ...scopeOfElement(element, all), title: titleOf(element, all) }));
+};
 
 /**
  * Resolves the list of columns again. Called when the arrangement of columns changes.
@@ -238,7 +258,10 @@ export const refresh = async (): Promise<ScopeInfo[]> => {
 export const scopeOf = (cell: Element): ColumnScope => {
   const column = cell.closest(COLUMN_SELECTOR);
   if (!column) return EMPTY;
-  return scopeOfElement(column);
+  const known = resolved.get(column);
+  // Asked of every post that arrives, so the remembered answer is looked at before the
+  // columns are: reading one afresh is a question about where all of them are
+  return known ?? scopeOfElement(column, columnElements());
 };
 
 /**
@@ -267,8 +290,12 @@ export const scopeSettled = (cell: Element): boolean => {
  * Takes the scope from a column element itself.
  * Used to decide which column's settings an item inserted into the column options belongs to.
  */
-export const scopeOfColumn = (column: Element): ColumnScope => scopeOfElement(column);
-export const scopes = (): ColumnScope[] => columnElements().map(scopeOfElement);
+export const scopeOfColumn = (column: Element, all: readonly Element[]): ColumnScope =>
+  scopeOfElement(column, all);
+export const scopes = (): ColumnScope[] => {
+  const all = columnElements();
+  return all.map((element) => scopeOfElement(element, all));
+};
 
 /**
  * Asks which column each open column-options drawer belongs to.
@@ -285,4 +312,5 @@ export const drawerColumnIds = async (): Promise<(string | null)[]> => {
   }
 };
 
-export const scopeElementOf = (column: Element): Element => columnScopeOf(column);
+export const scopeElementOf = (column: Element, all: readonly Element[]): Element =>
+  columnScopeOf(column, all);

@@ -82,13 +82,17 @@ export type Surface = {
   hasColumns: boolean;
   /** One element per scope on screen. The appearance walks these to place its markers */
   scopeElements: () => Element[];
-  /** The scope of one of those elements */
-  scopeOfElement: (element: Element) => ColumnScope;
+  /**
+   * The scope of one of those elements. `all` is what `scopeElements` just answered:
+   * where a scope ends can be a question about where the others are (X Pro works a
+   * column's range out that way), and the caller has the list in hand already
+   */
+  scopeOfElement: (element: Element, all: readonly Element[]) => ColumnScope;
   /**
    * The range the appearance may paint: it holds the scope's header and its posts, but
-   * not the neighbouring scope's.
+   * not the neighbouring scope's. `all` is as above.
    */
-  rangeOf: (element: Element) => Element;
+  rangeOf: (element: Element, all: readonly Element[]) => Element;
   /** The bar carrying the scope's name, painted separately. null where the surface has none */
   bandOf: (range: Element) => Element | null;
   /** Whether the element already marked as the bar is still the right one */

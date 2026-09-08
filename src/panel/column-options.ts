@@ -4,6 +4,7 @@
  * kind it is gets told apart by whether a column-options row (`OPTION_ITEM`) is inside.
  */
 import {
+  columnElements,
   COLUMN_SELECTOR,
   drawerColumnIds,
   scopeElementOf,
@@ -52,10 +53,10 @@ export const rememberTrigger = (target: Element | null): void => {
   // A press on an inserted item itself does not overwrite it, so the header pressed just before is kept
   if (!target || target.closest(`[${MARK}]`)) return;
   const columns = Array.from(document.querySelectorAll(COLUMN_SELECTOR));
-  const found = columns.find((candidate) => scopeElementOf(candidate).contains(target));
+  const found = columns.find((candidate) => scopeElementOf(candidate, columns).contains(target));
   if (!found) return;
   column = found;
-  triggered = scopeOfColumn(found).columnId;
+  triggered = scopeOfColumn(found, columns).columnId;
 };
 
 /**
@@ -73,7 +74,7 @@ const asked = new WeakSet<Element>();
 
 /** The columnId of the column currently pressed. When the element is unusable, the value from the press is used */
 const triggeredColumnId = (): string | null =>
-  (column?.isConnected ? scopeOfColumn(column).columnId : null) ?? triggered;
+  (column?.isConnected ? scopeOfColumn(column, columnElements()).columnId : null) ?? triggered;
 
 /**
  * Decides whose settings to open from the item that was pressed.
