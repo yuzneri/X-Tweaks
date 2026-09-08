@@ -90,12 +90,22 @@ export const MEASURE_MS = 400;
 export const MEASURE_MAX_MS = 3000;
 
 /**
+ * How much of the time measuring may take, which is half of what the judging may.
+ *
+ * Its rounds are the long ones — a real timeline in Firefox spent 50 to 92ms on one, most
+ * of it the browser working out a page X had written to — and a round that long is several
+ * frames the page cannot answer in. What waits on it is a picture keeping its full height
+ * and a "show more" arriving, half a second later at worst; what waits on a settling is
+ * whether a post is shown at all, which is why that one keeps the larger share.
+ */
+const MEASURE_SHARE = 0.1;
+
+/**
  * How long to leave before measuring again, given what the last round of it cost.
  *
- * The same arithmetic as `nextWait`, and for the same reason: the page keeps the greater
- * share of the time whatever it turns out to hold. A page where measuring is cheap is
- * measured often; one where it costs a fifth of a second is measured a few times a
- * minute, and what waits for it is a picture keeping its full height a moment longer.
+ * The same arithmetic as `nextWait`: the page keeps the greater share of the time whatever
+ * it turns out to hold. A page where measuring is cheap is measured often; one where it
+ * costs a fifth of a second is measured a few times a minute.
  */
 export const measureAgainIn = (took: number): number =>
-  Math.min(MEASURE_MAX_MS, Math.max(MEASURE_MS, Math.round(took / SHARE)));
+  Math.min(MEASURE_MAX_MS, Math.max(MEASURE_MS, Math.round(took / MEASURE_SHARE)));

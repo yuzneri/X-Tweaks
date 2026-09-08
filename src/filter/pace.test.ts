@@ -48,11 +48,14 @@ test('立て続けに来た変更は、窓が閉じるまで待つ', () => {
 
 test('測るのが安いページは、こまめに測る', () => {
   assert.equal(measureAgainIn(0), MEASURE_MS);
-  assert.equal(measureAgainIn(50), MEASURE_MS);
+  // The floor holds until a round costs a tenth of it
+  assert.equal(measureAgainIn(MEASURE_MS * 0.1), MEASURE_MS);
 });
 
-test('測るのが高いページは、そのぶん間を空ける', () => {
-  assert.equal(measureAgainIn(200), 1000);
+test('測るのが高いページは、その回の10倍だけ間を空ける', () => {
+  // Measured on a real timeline: a round of 90ms earns the page nearly a second
+  assert.equal(measureAgainIn(90), 900);
+  assert.equal(measureAgainIn(200), 2000);
   // However slow it gets, a new picture is not left uncapped for ever
   assert.equal(measureAgainIn(10_000), MEASURE_MAX_MS);
 });
