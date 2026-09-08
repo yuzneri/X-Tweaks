@@ -25,6 +25,8 @@ import { currentMessages, start, updateSettings } from './filter/engine.ts';
 import { applyIn } from './filter/pace.ts';
 import { clearAltTitles, stampAltTitles, useGenericAlts } from './appearance/apply.ts';
 import { clearComposeMarks, markComposeForms } from './appearance/compose-mark.ts';
+import { atAQuietMoment } from './quiet.ts';
+import { timed } from './diagnostics.ts';
 import { open as openPanel, toggle as togglePanel } from './panel/panel.tsx';
 import { OPEN_PANEL } from './panel/message.ts';
 import { watchTrigger } from './panel/trigger.ts';
@@ -273,6 +275,32 @@ const main = async (): Promise<void> => {
     log(paused ? 'Paused; nothing is applied' : 'Resumed', summarize(current));
   });
 
+  /** Whether the mark on the compose forms is already waiting to be set */
+  let markingComposeSoon = false;
+  /**
+   * Sets the mark saying which account a compose form posts as, once the page is quiet.
+   *
+   * Which of the boxes inside a form X paints is a question about how they are drawn, so
+   * working it out reads their sizes back (`appearance/compose-mark.ts`). A settling is
+   * the worst moment to ask: it is the first reading since X wrote to the page, so the
+   * whole page's layout is worked out inside the round — measured on a saved x.com page
+   * of nine posts at 0.3ms with the page settled against 14ms with something written to
+   * it since, and on a real timeline it was the largest part of a settling. Asked once
+   * the page has been drawn there is nothing outstanding to pay for (`quiet.ts`).
+   *
+   * A frame or two late is not something a reader can see: the mark decides a colour,
+   * and the form it colours has just appeared.
+   */
+  const markComposeFormsSoon = (): void => {
+    if (markingComposeSoon) return;
+    markingComposeSoon = true;
+    atAQuietMoment(() => {
+      markingComposeSoon = false;
+      // The pause may have arrived while this was waiting, and it takes the marks off
+      if (!paused) markComposeForms();
+    });
+  };
+
   await start(effectiveSettings(current, paused), {
     log,
     logStyled,
@@ -308,7 +336,9 @@ const main = async (): Promise<void> => {
     },
     onSettle: () => {
       const messages = currentMessages();
-      surface.insertEntryPoints(messages);
+      // Timed one by one: this hook carries half a dozen jobs of different kinds, and a
+      // round that ran long says nothing useful while they are added up as one
+      timed('· entry points', () => surface.insertEntryPoints(messages));
       // While paused nothing the extension does applies, so the switches are taken out
       // rather than left showing values that would not take effect
       if (paused) {
@@ -327,7 +357,7 @@ const main = async (): Promise<void> => {
         clearComposeMarks();
         return;
       }
-      insertComposeSwitches(messages);
+      timed('· compose switches', () => insertComposeSwitches(messages));
       /*
        * The search form. Asked on every settling for the reason the compose switches are:
        * X redraws the rail as the page is used, and moving between views changes which of
@@ -336,7 +366,7 @@ const main = async (): Promise<void> => {
        */
       if (surface.id === 'x') {
         if (effectiveSettings(current, paused).search.form) {
-          insertSearchForm(messages);
+          timed('· search form', () => insertSearchForm(messages));
           /*
            * The four the form ticks that X has no operator for. Asked on every settling
            * because the results arrive as the reader scrolls, and the answer changes as
@@ -345,7 +375,9 @@ const main = async (): Promise<void> => {
            */
           const exclusions = currentExclusions();
           if (onSearchResults() && excludesAnything(exclusions)) {
-            applySearchExclusions(exclusions, termsOf(currentForm()));
+            timed('· search exclusions', () =>
+              applySearchExclusions(exclusions, termsOf(currentForm()))
+            );
           } else {
             // Off the results, and with nothing ticked, every mark is let go of — so the
             // posts put away on a search come back the moment the reader leaves it
@@ -362,14 +394,16 @@ const main = async (): Promise<void> => {
        * its columns current on its own, and writes the same mark on the button it uses
        * for a column, so the site has to be asked here rather than left to the selector
        */
-      if (surface.id === 'x') takeNewPosts();
+      if (surface.id === 'x') timed('· new posts', takeNewPosts);
       /*
        * Which account the form on screen will post as. Asked on every settling because X
        * opens and closes the form as it is used, and on X Pro the account inside it can
        * be changed while it stands open. The rules it answers are already written
-       * (`appearance/apply.ts`), so marking is all that is left to do here
+       * (`appearance/apply.ts`), so marking is all that is left to do here — but not in
+       * this round: it reads the page back, which is not something a settling should do
+       * (see `markComposeFormsSoon`)
        */
-      markComposeForms();
+      markComposeFormsSoon();
       /*
        * The tooltip carrying what a picture is of. Set here rather than with the markers
        * driven by the settings, for the same reason it is cleared above.
@@ -379,7 +413,7 @@ const main = async (): Promise<void> => {
        * it — and so that it can be read and corrected on the settings screen. Nothing
        * comes back once it is known, so this saves once and then never again.
        */
-      const learned = stampAltTitles();
+      const learned = timed('· picture tooltips', stampAltTitles);
       if (learned) {
         save({ ...current, genericAlts: [...learned] }).catch(
           warnSaveFailed("X's own word for a picture")
