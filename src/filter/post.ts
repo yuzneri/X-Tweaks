@@ -236,8 +236,14 @@ export const authorOf = (root: Element): string | null =>
  * where the search starts, and the appearance reads it from a quote frame. The name area lists the display name, the `@`ID and the
  * time, so the first text not starting with `@` is taken.
  */
-export const displayNameOf = (root: Element): string | null => {
-  const nameEl = root.querySelector(USER_NAME);
+export const displayNameOf = (root: Element): string | null =>
+  displayNameIn(root.querySelector(USER_NAME));
+
+/**
+ * The same, from a name area already found. Reading a post asks for that area anyway —
+ * the badge stands in it — and finding it twice means walking the whole post twice.
+ */
+const displayNameIn = (nameEl: Element | null): string | null => {
   if (!nameEl) return null;
   for (const span of nameEl.querySelectorAll('span')) {
     const text = span.textContent?.trim();
@@ -247,15 +253,6 @@ export const displayNameOf = (root: Element): string | null => {
 };
 
 const some = (value: string | null): string[] => (value === null ? [] : [value]);
-
-/**
- * The body text. For a quote, the quoted post's body is added to the list.
- * They are listed one by one rather than concatenated: concatenating would keep
- * "matches exactly" from ever holding on a post with a quote, and it would also
- * disagree with the unit emphasis paints (one element at a time).
- */
-const textOf = (root: Element): string[] =>
-  Array.from(root.querySelectorAll(TWEET_TEXT), ownTextOf);
 
 /**
  * The text nodes X itself wrote in that element, in the order they are read.
@@ -335,6 +332,26 @@ export const COUNT_MARKERS = {
  */
 export const COUNT_TARGETS = Object.values(COUNT_MARKERS).join(', ');
 
+/** The counts X shows under a post, as against the ones counted in what it says */
+type Reaction = keyof typeof COUNT_MARKERS;
+const REACTIONS = Object.keys(COUNT_MARKERS) as Reaction[];
+
+/**
+ * The row of buttons under a post, which is where every count it shows sits.
+ *
+ * Named by the reply button rather than by the role alone because an ad carries a second
+ * `group`, around the pictures, and it comes first (seen on `test/pro_ad.htm`: 2 posts of
+ * 99). The appearance names the same row the same way (`appearance/css.ts`).
+ *
+ * It is what the counts are looked for within: searching the whole post for them costs
+ * more the bigger the post is, and this row is five elements however big it gets.
+ *
+ * The appearance does not hold itself to the row when it writes the counts out in full
+ * (`appearance/apply.ts`): a rounded number is worth spelling out wherever it stands,
+ * a quoted post's included, while the judging is about this post's own numbers.
+ */
+const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
+
 /**
  * The box X animates a count inside. Its text is the count as X shows it, rounded off
  * where X rounds ("22万"), and X's own element is what the appearance hides to put the
@@ -390,14 +407,46 @@ export const bodyLinkKind = (href: string): 'hashtag' | 'mention' | 'link' | nul
   return parts.length === 1 ? 'mention' : null;
 };
 
+/** The body text of a post, gone through once. Everything that reads the words works from here */
+type Bodies = {
+  /**
+   * What the post says, one element at a time, the quoted post's words among them.
+   * They are listed rather than concatenated: concatenating would keep "matches exactly"
+   * from ever holding on a post with a quote, and it would also disagree with the unit
+   * emphasis paints (one element at a time).
+   */
+  all: string[];
+  /** The quoted post's words alone, in the same shape */
+  quoted: string[];
+  /** The elements the post itself wrote, the quoted post's left out */
+  own: Element[];
+  /** How many characters the post itself wrote */
+  ownLength: number;
+};
+
 /**
- * The post's own body, the quoted post's left out. The same exclusion `postedAtOf` makes,
- * and for the same reason: what is counted should be what this post says, not what it quotes
+ * Reads the bodies once and sorts them by whose they are. The quoted post's are told
+ * apart the same way `postedAtOf` tells its time apart, and for the same reason: what is
+ * counted should be what this post says, not what it quotes.
+ *
+ * Read in one pass because every one of these costs a walk of the text nodes
+ * (`ownTextOf`), which is the dearest thing done to a post: asked separately, the words
+ * of a quoted post were walked twice and the post's own three times over.
  */
-const ownBodiesIn = (tweet: Element, quote: Element | null): Element[] =>
-  Array.from(tweet.querySelectorAll(TWEET_TEXT)).filter(
-    (el) => quote === null || !quote.contains(el)
-  );
+const bodiesOf = (tweet: Element, quote: Element | null): Bodies => {
+  const bodies: Bodies = { all: [], quoted: [], own: [], ownLength: 0 };
+  for (const body of tweet.querySelectorAll(TWEET_TEXT)) {
+    const text = ownTextOf(body);
+    bodies.all.push(text);
+    if (quote !== null && quote.contains(body)) {
+      bodies.quoted.push(text);
+      continue;
+    }
+    bodies.own.push(body);
+    bodies.ownLength += text.length;
+  }
+  return bodies;
+};
 
 /**
  * What the body holds, gone through once and sorted by what each link points at.
@@ -440,27 +489,36 @@ const languageIn = (bodies: Element[]): string[] => {
  * to the post being quoted rather than to this one.
  */
 const mediaDescriptionsIn = (
-  tweet: Element,
+  media: Element[],
   quote: Element | null,
   generic: ReadonlySet<string>
 ): (string | null)[] =>
-  Array.from(tweet.querySelectorAll(MEDIA))
+  media
     // One video answers to two markers, so only the outer one is taken (`isOutermostMedia`)
-    .filter((media) => (quote === null || !quote.contains(media)) && isOutermostMedia(media))
-    .map((media) => descriptionOf(altTextOf(media), generic));
+    .filter((el) => (quote === null || !quote.contains(el)) && isOutermostMedia(el))
+    .map((el) => descriptionOf(altTextOf(el), generic));
 
 /**
- * Whether the author's name carries X's verified badge.
+ * The first of those in the post itself, the quoted post's skipped.
  *
- * Held to the name area of the post itself: a quoted post has a name area of its own, and
- * searching the whole post would answer for whoever was quoted.
+ * A quoted post carries a name area, and sometimes a row of buttons, of its own; taking
+ * whichever comes first would answer for whoever was quoted. The same exclusion
+ * `postedAtOf` makes with the time.
  */
-const isVerifiedIn = (tweet: Element, quote: Element | null): boolean => {
-  const name = Array.from(tweet.querySelectorAll(USER_NAME)).find(
-    (el) => quote === null || !quote.contains(el)
-  );
-  return name?.querySelector(VERIFIED_BADGE) != null;
+const ownIn = (tweet: Element, quote: Element | null, selector: string): Element | null => {
+  // With nothing quoted there is nothing to skip, and the first answer is the answer.
+  // Most posts are this, and asking for every match would search the whole post for the
+  // sake of a list nothing reads past the head of
+  if (quote === null) return tweet.querySelector(selector);
+  for (const el of tweet.querySelectorAll(selector)) {
+    if (!quote.contains(el)) return el;
+  }
+  return null;
 };
+
+/** The row of buttons the post's own counts sit in */
+const barIn = (tweet: Element, quote: Element | null): Element | null =>
+  ownIn(tweet, quote, ACTION_BAR);
 
 /**
  * What there is to count about the post.
@@ -473,22 +531,42 @@ const isVerifiedIn = (tweet: Element, quote: Element | null): boolean => {
 const countsOf = (
   tweet: Element,
   quote: Element | null,
-  bodies: Element[],
+  bodies: Bodies,
   inBody: { hashtag: number; mention: number }
 ): Record<CountMetric, number | null> => {
-  const read = (marker: string): number | null => {
-    const marked = Array.from(tweet.querySelectorAll(marker)).find(
-      (el) => quote === null || !quote.contains(el)
-    );
-    return marked ? countInLabel(marked.getAttribute('aria-label')) : null;
+  const reactions: Record<Reaction, number | null> = {
+    reply: null,
+    repost: null,
+    like: null,
+    view: null,
   };
+  /*
+   * The four numbers sit side by side in the row of buttons, so that row is what is
+   * searched — and in one pass, sorted afterwards. Asked one marker at a time against the
+   * whole post, reading them walked a post of hundreds of elements four times over.
+   *
+   * A post showing no row at all is searched whole, as it used to be: the row is how X
+   * lays a post out today, and a post whose counts turn up somewhere else should read as
+   * the numbers it shows rather than as no numbers at all.
+   */
+  const within = barIn(tweet, quote) ?? tweet;
+  const read = new Set<Reaction>();
+  for (const marked of within.querySelectorAll(COUNT_TARGETS)) {
+    if (quote !== null && quote.contains(marked)) continue;
+    for (const metric of REACTIONS) {
+      // The first of each is the post's own: a marker met a second time belongs to
+      // something nested, and is not what this post shows for it
+      if (read.has(metric) || !marked.matches(COUNT_MARKERS[metric])) continue;
+      read.add(metric);
+      reactions[metric] = countInLabel(marked.getAttribute('aria-label'));
+      // One element is one count: the markers name different buttons
+      break;
+    }
+  }
   return {
-    reply: read(COUNT_MARKERS.reply),
-    repost: read(COUNT_MARKERS.repost),
-    like: read(COUNT_MARKERS.like),
-    view: read(COUNT_MARKERS.view),
+    ...reactions,
     // The characters X itself wrote, counted the same way the text conditions read them
-    textLength: bodies.reduce((total, body) => total + ownTextOf(body).length, 0),
+    textLength: bodies.ownLength,
     hashtag: inBody.hashtag,
     mention: inBody.mention,
   };
@@ -805,19 +883,25 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
   if (!author) return null;
 
   const quote = quoteFrameOf(tweet);
+  // The name area answers both whose post it is and whether X vouches for them
+  const nameArea = ownIn(tweet, quote, USER_NAME);
   const replyLinks = replyLinksOf(tweet);
   const followsThread = followsThreadLine(cell);
-  // The body is walked once: the counts, the language and the link trait all come from it
-  const bodies = ownBodiesIn(tweet, quote);
-  const inBody = bodyLinksOf(bodies);
-  const described = mediaDescriptionsIn(tweet, quote, generic);
+  // The body is walked once: the words, the counts, the language and the link trait all
+  // come from it
+  const bodies = bodiesOf(tweet, quote);
+  const inBody = bodyLinksOf(bodies.own);
+  // Asked for once as well: what hangs off the post answers both "is there a picture"
+  // and "was anything written about it"
+  const media = Array.from(tweet.querySelectorAll(MEDIA));
+  const described = mediaDescriptionsIn(media, quote, generic);
 
   return {
     values: {
-      text: textOf(tweet),
-      quotedText: quote ? textOf(quote) : [],
+      text: bodies.all,
+      quotedText: bodies.quoted,
       screenName: [author],
-      displayName: some(displayNameOf(tweet)),
+      displayName: some(displayNameIn(nameArea)),
       repostedBy: some(repostedByOf(tweet)),
       quotedScreenName: some(quote ? authorOf(quote) : null),
       quotedDisplayName: some(quote ? displayNameOf(quote) : null),
@@ -827,21 +911,21 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
       cardTitle: cardTextsIn(tweet, (card) => card.title),
       spaceName: spaceNameIn(tweet),
       articleText: articleTextIn(tweet),
-      language: languageIn(bodies),
+      language: languageIn(bodies.own),
       altText: described.filter((text): text is string => text !== null),
     },
     isRepost: tweet.querySelector(SOCIAL_CONTEXT) !== null,
     // A quote is spotted by a second author avatar, the quoted post's, being present
     isQuote: tweet.querySelectorAll(AUTHOR_AVATAR).length > 1,
     isReply: replyLinks.length > 0 || followsThread,
-    hasMedia: tweet.querySelector(MEDIA) !== null,
+    hasMedia: media.length > 0,
     communityNote: communityNoteOf(tweet),
     poll: pollOf(tweet),
     hasSpace: tweet.querySelector(SPACE) !== null,
     hasArticle: tweet.querySelector(ARTICLE) !== null,
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
-    isVerified: isVerifiedIn(tweet, quote),
+    isVerified: nameArea?.querySelector(VERIFIED_BADGE) != null,
     // A post with no picture is not one: the trait is about a picture standing there
     // with nothing said about it
     hasUndescribedMedia: described.some((text) => text === null),
