@@ -10,6 +10,7 @@
  * saved, or the boxes ticked in the search form for this visit alone.
  */
 import { CELL_SELECTOR, readPost } from '../filter/post.ts';
+import type { Post } from '../filter/decide.ts';
 import { VIEW_PREFIX, viewKeyOf } from '../surface/view.ts';
 import { isExcluded, type Exclusions, type Result, type Terms } from './exclude.ts';
 
@@ -36,14 +37,29 @@ export const onSearchResults = (): boolean =>
  * them at all, and where the word falls among the elements X split the text into is not
  * something it has any use for.
  */
-const resultOf = (post: {
-  isRepost: boolean;
-  values: { text: string[]; screenName: string[]; displayName: string[] };
-}): Result => ({
+const resultOf = (post: Post): Result => ({
   isRepost: post.isRepost,
   text: post.values.text.join(' '),
   displayName: post.values.displayName[0] ?? '',
   handle: post.values.screenName[0] ?? '',
+  /*
+   * The hashtags are counted rather than looked for in the words. What is counted is what
+   * X itself marked as a tag (`filter/post.ts`), so a `#` that X does not treat as one —
+   * `C#`, a `#1` counting something, the fragment on the end of an address, a `#` written
+   * tight against something else as in `【#C106 …】` — is not one here either.
+   *
+   * Agreeing with the site is the whole point of the boundary: X neither links those nor
+   * finds them by searching for the tag (checked against X's own search, 2026-09-04). This
+   * used to be worked out from the words with a regular expression written to that same
+   * end; going by X's own links is that intention, exactly.
+   */
+  counts: {
+    hashtag: post.counts.hashtag,
+    reply: post.counts.reply,
+    repost: post.counts.repost,
+    like: post.counts.like,
+    view: post.counts.view,
+  },
 });
 
 /**

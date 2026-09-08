@@ -76,6 +76,48 @@
   outline-offset: -1px;
 }
 
+/*
+ * A number box and the two buttons that step it.
+ *
+ * The box keeps the full width of a field, the buttons sit beside it. They step the value
+ * rather than the box being a `type="number"`: an empty box here means "leave this one
+ * alone", and a number box empties itself on anything it cannot read, which would say the
+ * same thing (`ui/step.ts`).
+ */
+.xpro-search-number {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.xpro-search-step {
+  flex: 0 0 auto;
+  /* The box centres what is on it rather than leaving the character where the browser's
+     own styling for a button puts it (see the same rule in `ui/panel.css`) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border, rgb(47, 51, 54));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.xpro-search-step:hover {
+  border-color: rgb(29, 155, 240);
+}
+
+.xpro-search-step:focus-visible {
+  outline: 2px solid rgb(29, 155, 240);
+  outline-offset: -1px;
+}
+
 /* A checkbox and its words on one line, the words carrying the width */
 .xpro-search-check {
   display: flex;

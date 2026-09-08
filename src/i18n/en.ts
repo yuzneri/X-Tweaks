@@ -390,9 +390,22 @@ export const en = {
        */
       leaveOutNote: 'Done to the results on screen.',
       excludeReposts: 'Hide reposts',
-      excludeHashtags: 'Hide posts with a hashtag',
       excludeNameOnly: 'Hide posts that matched the display name only',
       excludeHandleOnly: 'Hide posts that matched the user ID only',
+      /**
+       * The ones said with a number: a post with that many or more is hidden.
+       * X's search asks for a least (the fields above); these are the side it cannot ask for
+       */
+      excludeAtLeast: {
+        hashtag: 'Hide from this many hashtags',
+        reply: 'Hide from this many replies',
+        repost: 'Hide from this many reposts',
+        like: 'Hide from this many likes',
+        view: 'Hide from this many views',
+      },
+      /** The buttons either side of a number box, named with what the box counts */
+      stepUp: (name: string) => `Increase ${name}`,
+      stepDown: (name: string) => `Decrease ${name}`,
     },
 
     /** The folded groups. Folded because the rail is narrow and the open form is tall */

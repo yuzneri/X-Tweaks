@@ -13,15 +13,24 @@ import {
   type Terms,
 } from './exclude.ts';
 
-const post = (patch: Partial<Result> = {}): Result => ({
+type PostPatch = Partial<Omit<Result, 'counts'>> & { counts?: Partial<Result['counts']> };
+
+const post = (patch: PostPatch = {}): Result => ({
   isRepost: false,
   text: '',
   displayName: '',
   handle: '',
   ...patch,
+  counts: { hashtag: 0, reply: 0, repost: 0, like: 0, view: 0, ...patch.counts },
 });
 
-const off = (patch: Partial<Exclusions> = {}): Exclusions => ({ ...noExclusions(), ...patch });
+/** 除外の指定。数は `atLeast` に入るので、そこだけ別に混ぜる */
+const off = (
+  patch: Partial<Omit<Exclusions, 'atLeast'>> & { atLeast?: Partial<Exclusions['atLeast']> } = {}
+): Exclusions => {
+  const base = noExclusions();
+  return { ...base, ...patch, atLeast: { ...base.atLeast, ...patch.atLeast } };
+};
 const terms = (patch: Partial<Terms> = {}): Terms => ({ ...noTerms(), ...patch });
 
 test('何も指定しなければ、何も除かない', () => {
@@ -34,27 +43,50 @@ test('リポストを除く', () => {
   assert.equal(isExcluded(post({ isRepost: false }), off({ reposts: true }), noTerms()), false);
 });
 
-test('ハッシュタグを含む投稿を除く', () => {
-  assert.equal(isExcluded(post({ text: 'いい天気 #散歩' }), off({ hashtags: true }), noTerms()), true);
-  assert.equal(isExcluded(post({ text: '#朝から 散歩' }), off({ hashtags: true }), noTerms()), true);
-  assert.equal(isExcluded(post({ text: 'いい天気' }), off({ hashtags: true }), noTerms()), false);
+test('ハッシュタグが指定の数以上なら除く', () => {
+  const from1 = off({ atLeast: { hashtag: 1 } });
+  assert.equal(isExcluded(post({ counts: { hashtag: 1 } }), from1, noTerms()), true);
+  assert.equal(isExcluded(post({ counts: { hashtag: 0 } }), from1, noTerms()), false);
+
+  // 3つ以上と言えば、2つの投稿は残る
+  const from3 = off({ atLeast: { hashtag: 3 } });
+  assert.equal(isExcluded(post({ counts: { hashtag: 3 } }), from3, noTerms()), true);
+  assert.equal(isExcluded(post({ counts: { hashtag: 2 } }), from3, noTerms()), false);
 });
 
-test('タグでない # は拾わない', () => {
-  // 語の途中の # はタグの形をしていない
-  const タグでない = ['C# を書いた', '詳しくは https://example.com/a#section', '第#1回'];
-  for (const text of タグでない) {
-    assert.equal(isExcluded(post({ text }), off({ hashtags: true }), noTerms()), false, text);
-  }
+test('タグかどうかは X が決める（数える対象が X 自身のタグリンク）', () => {
+  // 「C# を書いた」のような # は X がタグにしないので、数にも入らない。
+  // 本文を見て判断していた頃と違い、境界を自前で決める必要が無くなった
+  assert.equal(
+    isExcluded(post({ text: 'C# を書いた', counts: { hashtag: 0 } }), off({ atLeast: { hashtag: 1 } }), noTerms()),
+    false
+  );
 });
 
-test('# だけで続く語が無ければ拾わない', () => {
-  assert.equal(isExcluded(post({ text: 'しるし # だけ' }), off({ hashtags: true }), noTerms()), false);
+test('反応の数が指定以上なら除く', () => {
+  // Xの検索は下限（min_faves など）しか言えないので、上限をこちらで受け持つ
+  const from100 = off({ atLeast: { like: 100 } });
+  assert.equal(isExcluded(post({ counts: { like: 100 } }), from100, noTerms()), true);
+  assert.equal(isExcluded(post({ counts: { like: 99 } }), from100, noTerms()), false);
+  // 種類ごとに独立している
+  assert.equal(isExcluded(post({ counts: { repost: 500 } }), from100, noTerms()), false);
 });
 
-test('リポスト除去とハッシュタグ除去は、検索語を知らなくても効く', () => {
-  // トレンドから来た検索結果でも、この2つはクエリに依らず判定できる
+test('Xが数字を出していない件数では除かない', () => {
+  // 「出していない」は「0」ではない。読めたものだけで判断する
+  assert.equal(
+    isExcluded(post({ counts: { view: null } }), off({ atLeast: { view: 1 } }), noTerms()),
+    false
+  );
+});
+
+test('リポストと数の指定は、検索語を知らなくても効く', () => {
+  // トレンドから来た検索結果でも、これらはクエリに依らず判定できる
   assert.equal(isExcluded(post({ isRepost: true }), off({ reposts: true }), noTerms()), true);
+  assert.equal(
+    isExcluded(post({ counts: { like: 10 } }), off({ atLeast: { like: 5 } }), noTerms()),
+    true
+  );
 });
 
 test('表示名にだけ当たった投稿を除く', () => {
@@ -137,7 +169,9 @@ test('印を書き出して読み戻すと、同じものになる', () => {
     noExclusions(),
     off({ reposts: true }),
     off({ nameOnly: true, handleOnly: true }),
-    off({ reposts: true, hashtags: true, nameOnly: true, handleOnly: true }),
+    off({ reposts: true, nameOnly: true, handleOnly: true }),
+    off({ atLeast: { hashtag: 3 } }),
+    off({ reposts: true, atLeast: { hashtag: 1, reply: 2, repost: 30, like: 400, view: 5000 } }),
   ];
   for (const exclusions of cases) {
     assert.deepEqual(exclusionsFrom(namedExclusions(exclusions)), exclusions);
@@ -161,6 +195,32 @@ test('知っている名前だけを拾い、残りは捨てる', () => {
 
 test('印はすべて書き出せる', () => {
   // 印を足して namedExclusions の名前に足し忘れると、その印が引き継がれない
-  const all = off({ reposts: true, hashtags: true, nameOnly: true, handleOnly: true });
-  assert.deepEqual(namedExclusions(all).split(' ').sort(), Object.keys(noExclusions()).sort());
+  const all = off({
+    reposts: true,
+    nameOnly: true,
+    handleOnly: true,
+    atLeast: { hashtag: 1, reply: 1, repost: 1, like: 1, view: 1 },
+  });
+  const written = namedExclusions(all).split(' ');
+  assert.deepEqual(
+    written.map((word) => word.split(':')[0]).sort(),
+    ['handleOnly', 'hashtag', 'like', 'nameOnly', 'reply', 'repost', 'reposts', 'view']
+  );
+});
+
+test('旧い hashtags（真偽値だった頃の名前）は「1つ以上」として読む', () => {
+  // 開いたままのタブが持っている指定を、この変更で落とさないため
+  assert.equal(exclusionsFrom('reposts hashtags').atLeast.hashtag, 1);
+  assert.equal(exclusionsFrom('reposts hashtags').reposts, true);
+  // 数を伴う新しい書き方はそのまま読む
+  assert.equal(exclusionsFrom('hashtag:3').atLeast.hashtag, 3);
+  // 数の無い新しい名前は指定なし
+  assert.equal(exclusionsFrom('hashtag').atLeast.hashtag, null);
+});
+
+test('読めない数は指定なしとして読む', () => {
+  for (const text of ['like:0', 'like:-3', 'like:1.5', 'like:あ', 'like:', 'like']) {
+    assert.equal(exclusionsFrom(text).atLeast.like, null, text);
+  }
+  assert.equal(exclusionsFrom('like:100').atLeast.like, 100);
 });

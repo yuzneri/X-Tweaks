@@ -121,16 +121,18 @@ The rest sit in groups that start folded:
 
 ### Leaving posts out of the results
 
-Four things X’s search cannot be asked for, done to the results after they arrive.
+What X’s search cannot be asked for, done to the results after they arrive.
 They sit inside “Filters”, and take effect on a search’s results.
 They are not saved, but they are carried for as long as the tab is open.
 
 - Reposts
-- Posts with a hashtag
 - Posts that matched the display name only
 - Posts that matched the user ID only
+- Posts with that many or more hashtags, replies, reposts, likes or views
 
-The last two need to know what was searched for, and an account the query names outright is never left out.
+The two name ones need to know what was searched for, and an account the query names outright is never left out.
+The numbers are the upper side: X’s search can only be asked for a least (the “How much it got” fields), so the two together bound a post from both sides — and views X will not count at all, which leaves this the only way to say anything about them.
+Hashtags are counted as X itself marks them, so a `C#` is not one.
 
 ### The form and X’s search box
 

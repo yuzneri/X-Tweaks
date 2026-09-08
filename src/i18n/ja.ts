@@ -313,9 +313,17 @@ export const ja: Messages = {
       leaveOutNote:
         '表示された結果に対して行います。',
       excludeReposts: 'リポストを非表示',
-      excludeHashtags: 'ハッシュタグを含む投稿を非表示',
       excludeNameOnly: '表示名のみに引っかかった投稿を非表示',
       excludeHandleOnly: 'ユーザーIDのみに引っかかった投稿を非表示',
+      excludeAtLeast: {
+        hashtag: 'ハッシュタグがこの数以上を非表示',
+        reply: 'リプライがこの数以上を非表示',
+        repost: 'リポストがこの数以上を非表示',
+        like: 'いいねがこの数以上を非表示',
+        view: '表示がこの数以上を非表示',
+      },
+      stepUp: (name) => `${name}を増やす`,
+      stepDown: (name) => `${name}を減らす`,
     },
 
     groups: {

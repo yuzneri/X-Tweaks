@@ -1,66 +1,101 @@
 /**
- * The four ways of putting a post out of sight that X has no operator for.
+ * The ways of putting a post out of sight that X has no operator for.
  *
- * X's search cannot say "no reposts", "nothing with a hashtag in it", or "not the ones
- * that only matched somebody's name". These are decided here, after the results arrive,
- * by looking at what is on screen.
+ * X's search cannot say "no reposts", "nothing with three hashtags in it", "nothing with a
+ * thousand likes", or "not the ones that only matched somebody's name". These are decided
+ * here, after the results arrive, by looking at what is on screen.
  *
- * **None of this is saved.** The four are carried no further than the tab they were ticked
- * in (`state.ts`): running a search takes the reader to a new page, and arriving there with
- * the ticks gone would mean ticking them again after every search. Close the tab and they
- * are off again. That is what keeps this from turning into a second filter feature — the
- * extension already has one of those, held per column and per view, for what is meant to
- * last.
+ * **None of this is saved.** What is asked for here is carried no further than the tab it
+ * was asked in (`state.ts`): running a search takes the reader to a new page, and arriving
+ * there with the boxes cleared would mean filling them in after every search. Close the tab
+ * and they are empty again. That is what keeps this from turning into a second filter
+ * feature — the extension already has one of those, held per column and per view, for what
+ * is meant to last.
  */
 
-/** What the reader asked to leave out. All four start off */
+/**
+ * What is counted, and the number at which a post is left out: a post with that many or
+ * more goes.
+ *
+ * All of them are the side X has no operator for. Its search asks for a *least* — the
+ * "How much it got" fields build `min_faves` and the rest — and cannot ask for a most, so
+ * that is what these say. The two together bound a post from both sides.
+ * Views X will not count at all, so this is the only way to say anything about them.
+ */
+export const THRESHOLDS = ['hashtag', 'reply', 'repost', 'like', 'view'] as const;
+export type Threshold = (typeof THRESHOLDS)[number];
+
+/** What the reader asked to leave out. Everything starts off, the numbers as `null` */
 export type Exclusions = {
   /** Posts somebody reposted rather than wrote */
   reposts: boolean;
-  /** Posts with a hashtag anywhere in them */
-  hashtags: boolean;
   /** Posts where the words searched for appear only in the author's display name */
   nameOnly: boolean;
   /** The same, for the author's @name */
   handleOnly: boolean;
+  /** How many is too many, per thing counted. `null` leaves that one alone */
+  atLeast: Record<Threshold, number | null>;
 };
 
 export const noExclusions = (): Exclusions => ({
   reposts: false,
-  hashtags: false,
   nameOnly: false,
   handleOnly: false,
+  atLeast: { hashtag: null, reply: null, repost: null, like: null, view: null },
 });
 
 export const excludesAnything = (exclusions: Exclusions): boolean =>
-  exclusions.reposts || exclusions.hashtags || exclusions.nameOnly || exclusions.handleOnly;
+  exclusions.reposts ||
+  exclusions.nameOnly ||
+  exclusions.handleOnly ||
+  THRESHOLDS.some((name) => exclusions.atLeast[name] !== null);
 
-/** The four, named. The names are what is written down and read back (`namedExclusions`) */
-const NAMES = ['reposts', 'hashtags', 'nameOnly', 'handleOnly'] as const;
+/** The switches, named. The names are what is written down and read back (`namedExclusions`) */
+const NAMES = ['reposts', 'nameOnly', 'handleOnly'] as const;
 
 /**
- * The ticked ones, written as their names.
+ * What was asked for, written as names, a number after the ones that carry one
+ * ("reposts like:1000").
  *
- * Written as names rather than as JSON because of what reads it back: the text is kept
+ * Written this way rather than as JSON because of what reads it back: the text is kept
  * where the page itself can reach it (`state.ts`), so whatever comes back is not to be
- * trusted. A list of names has nothing to go wrong with — a word that is not one of the
- * four is simply not one of the four.
+ * trusted. Names and whole numbers have nothing to go wrong with — a word that is not one
+ * of these is simply not one of these.
  */
 export const namedExclusions = (exclusions: Exclusions): string =>
-  NAMES.filter((name) => exclusions[name]).join(' ');
+  [
+    ...NAMES.filter((name) => exclusions[name]),
+    ...THRESHOLDS.flatMap((name) => {
+      const least = exclusions.atLeast[name];
+      return least === null ? [] : [`${name}:${least}`];
+    }),
+  ].join(' ');
 
 /**
  * Reads back what `namedExclusions` wrote, and refuses everything else.
  *
  * Nothing here can throw and nothing here can be surprised: anything that is not one of
- * the four names leaves that one off, and text of any shape at all — empty, absent,
- * something else's — gives the four turned off.
+ * these names leaves that one off, and text of any shape at all — empty, absent,
+ * something else's — gives everything turned off.
  */
 export const exclusionsFrom = (text: string | null): Exclusions => {
   const named = new Set((text ?? '').split(/\s+/));
   const exclusions = noExclusions();
   for (const name of NAMES) {
     if (named.has(name)) exclusions[name] = true;
+  }
+  for (const name of THRESHOLDS) {
+    /*
+     * The hashtags were a switch before they were a number, written as `hashtags`. A tab
+     * left open across the change carries that word, and reading it as "one or more" keeps
+     * what was ticked ticked rather than quietly letting those posts back in
+     */
+    if (name === 'hashtag' && named.has('hashtags')) exclusions.atLeast.hashtag = 1;
+    const written = [...named].find((word) => word.startsWith(`${name}:`))?.slice(name.length + 1);
+    const least = Number(written);
+    if (written !== undefined && written !== '' && Number.isInteger(least) && least >= 1) {
+      exclusions.atLeast[name] = least;
+    }
   }
   return exclusions;
 };
@@ -76,6 +111,12 @@ export type Result = {
   displayName: string;
   /** Without the `@` */
   handle: string;
+  /**
+   * What there is to count about the post, as `filter/post.ts` read it. `null` where X
+   * shows no number for it, which is not the same as none: a post whose views are not
+   * shown is left where it is rather than judged as though it had none
+   */
+  counts: Record<Threshold, number | null>;
 };
 
 /**
@@ -105,21 +146,15 @@ export const noTerms = (): Terms => ({ words: [], named: [] });
 const norm = (value: string): string => value.trim().toLowerCase();
 
 /**
- * Whether the post carries a hashtag.
+ * Whether the post has as many of something as the reader said was too many.
  *
- * A `#` that starts a word, which is the shape a tag takes. A bare `#` anywhere would
- * also catch `C#`, a `#1` counting something, and the fragment on the end of an address —
- * none of which a reader asking for no hashtags means.
- *
- * **The boundary is X's own, not this extension's.** A `#` written tight against something
- * else, as in `【#C106 …】`, is not a tag to X either: X neither links it nor finds it by
- * searching for the tag. Leaving such a post in is agreeing with the site rather than
- * missing one (checked against X's own search, 2026-09-04).
- *
- * Read off the post's words rather than off X's tag links, those being what has already
- * been read for the filter (`hide.ts`).
+ * A count X does not show (the views of some posts) leaves the post alone: "not shown" is
+ * not "none", and a post is only put out of sight on something actually read.
  */
-const hasHashtag = (post: Result): boolean => /(^|\s)#\S/u.test(post.text);
+const tooMany = (post: Result, name: Threshold, least: number | null): boolean => {
+  const count = post.counts[name];
+  return least !== null && count !== null && count >= least;
+};
 
 /**
  * Whether every word searched for is missing from the post's own text.
@@ -143,11 +178,11 @@ const isNamed = (value: string, named: string[]): boolean =>
  * Whether this post should be put out of sight.
  *
  * The two name rules need to know what was searched for, and do nothing without it. The
- * other two do not, and hold whatever the search was.
+ * rest do not, and hold whatever the search was.
  */
 export const isExcluded = (post: Result, exclusions: Exclusions, terms: Terms): boolean => {
   if (exclusions.reposts && post.isRepost) return true;
-  if (exclusions.hashtags && hasHashtag(post)) return true;
+  if (THRESHOLDS.some((name) => tooMany(post, name, exclusions.atLeast[name]))) return true;
 
   const words = terms.words.map(norm).filter((word) => word !== '');
   if (words.length === 0) return false;

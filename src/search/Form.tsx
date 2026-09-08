@@ -25,7 +25,14 @@ import {
   type SearchForm,
   type SearchScopes,
 } from './query.ts';
-import { excludesAnything, noExclusions, type Exclusions } from './exclude.ts';
+import {
+  excludesAnything,
+  noExclusions,
+  THRESHOLDS,
+  type Exclusions,
+  type Threshold,
+} from './exclude.ts';
+import { stepped } from '../ui/step.ts';
 import { mirror } from './mirror.ts';
 import {
   clear,
@@ -161,26 +168,56 @@ const Accounts = ({
 );
 
 /** A number field. Empty is "not asked", which is why the value stays a string */
+/**
+ * A box for a whole number, with a button either side to step it.
+ *
+ * The look is this form's own (`search/styles.css`) while the stepping is the settings
+ * screen's (`ui/step.ts`): the two are drawn by different stylesheets, so what they share
+ * is the arithmetic rather than the markup.
+ */
 const Number_ = ({
   label,
+  words,
   value,
   onInput,
 }: {
   label: string;
+  /** The dictionary this form was handed. The buttons are named with what the box counts */
+  words: Messages['search']['fields'];
   value: string;
   onInput: (value: string) => void;
-}) => (
-  <label class="xpro-search-field">
-    <span class="xpro-search-label">{label}</span>
-    <input
-      type="number"
-      min="0"
-      class="xpro-search-input"
-      value={value}
-      onInput={(event) => onInput(event.currentTarget.value)}
-    />
-  </label>
-);
+}) => {
+  return (
+    <label class="xpro-search-field">
+      <span class="xpro-search-label">{label}</span>
+      <span class="xpro-search-number">
+        <input
+          type="text"
+          inputMode="numeric"
+          class="xpro-search-input"
+          value={value}
+          onInput={(event) => onInput(event.currentTarget.value)}
+        />
+        <button
+          type="button"
+          class="xpro-search-step"
+          aria-label={words.stepDown(label)}
+          onClick={() => onInput(stepped(value, -1))}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          class="xpro-search-step"
+          aria-label={words.stepUp(label)}
+          onClick={() => onInput(stepped(value, 1))}
+        >
+          ＋
+        </button>
+      </span>
+    </label>
+  );
+};
 
 /**
  * One end of the span: a day, and a time of day within it.
@@ -251,14 +288,40 @@ export const SearchFormView = ({ messages }: Props) => {
   };
 
   /*
-   * The four X has no operator for. They change nothing about the query: what they do is
-   * done to the results already on screen, by `hide.ts`, and only while this page is open
+   * What X has no operator for. They change nothing about the query: what they do is done
+   * to the results already on screen, by `hide.ts`, and only while this page is open
    */
   const [exclusions, setExclusions] = useState<Exclusions>(currentExclusions);
   const patchExclusions = (part: Partial<Exclusions>): void => {
     const next = { ...currentExclusions(), ...part };
     updateExclusions(next);
     setExclusions(next);
+  };
+  /**
+   * What is in the number boxes, as it was typed.
+   *
+   * What is carried between pages is the numbers alone, so the boxes cannot be drawn from
+   * that: a `0` on the way to `05` is not a number this asks for, and drawing it back would
+   * take the character off the screen as it was typed. What was typed lives here, and only
+   * what can be read out of it reaches the exclusions.
+   */
+  const [atLeastText, setAtLeastText] = useState<Record<Threshold, string>>(() => {
+    const { atLeast } = currentExclusions();
+    const text = {} as Record<Threshold, string>;
+    for (const name of THRESHOLDS) text[name] = atLeast[name] === null ? '' : String(atLeast[name]);
+    return text;
+  });
+
+  /**
+   * One of the numbers. An empty box, and anything not readable as a whole number of at
+   * least one, leaves that one alone — the same as never having filled it in
+   */
+  const patchAtLeast = (name: Threshold, value: string): void => {
+    setAtLeastText((text) => ({ ...text, [name]: value }));
+    const written = value.trim();
+    const least = Number(written);
+    const usable = written !== '' && Number.isInteger(least) && least >= 1 ? least : null;
+    patchExclusions({ atLeast: { ...currentExclusions().atLeast, [name]: usable } });
   };
 
   const m = messages.search.fields;
@@ -474,7 +537,7 @@ export const SearchFormView = ({ messages }: Props) => {
           <span>{m.nearbyOnly}</span>
         </label>
         {/*
-          The four X has no operator for. They ask the same kind of question as the rest of
+          What X has no operator for. They ask the same kind of question as the rest of
           this group, which is why they stand in it, but they are answered here rather than
           by X — so they are marked off by the note, and by being the only part of the form
           that comes and goes: off a search's results there is nothing for them to act on,
@@ -485,7 +548,6 @@ export const SearchFormView = ({ messages }: Props) => {
           {(
             [
               ['reposts', m.excludeReposts],
-              ['hashtags', m.excludeHashtags],
               ['nameOnly', m.excludeNameOnly],
               ['handleOnly', m.excludeHandleOnly],
             ] as const
@@ -499,22 +561,38 @@ export const SearchFormView = ({ messages }: Props) => {
               <span>{label}</span>
             </label>
           ))}
+          {/*
+            The ones said with a number: a post with that many or more goes. Empty leaves
+            that one alone, which is what an empty box says everywhere else in this form
+          */}
+          {THRESHOLDS.map((name) => (
+            <Number_
+              key={name}
+              words={m}
+              label={m.excludeAtLeast[name]}
+              value={atLeastText[name]}
+              onInput={(value) => patchAtLeast(name, value)}
+            />
+          ))}
         </div>
       </Group>
 
       <Group label={g.engagement} filled={filled.engagement}>
         <Number_
           label={m.minReplies}
+          words={m}
           value={form.minReplies}
           onInput={(minReplies) => patch({ minReplies })}
         />
         <Number_
           label={m.minFaves}
+          words={m}
           value={form.minFaves}
           onInput={(minFaves) => patch({ minFaves })}
         />
         <Number_
           label={m.minRetweets}
+          words={m}
           value={form.minRetweets}
           onInput={(minRetweets) => patch({ minRetweets })}
         />
