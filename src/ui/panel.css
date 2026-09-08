@@ -434,6 +434,13 @@
  */
 .xpro-ui button.step {
   flex: 0 0 auto;
+  /* The box centres what is on it, rather than the character being left where the
+     browser's own styling for a button puts it. Chromium centres it either way (measured);
+     the report of it sitting to the left came from elsewhere, and saying it here rather
+     than relying on what a button inherits leaves nothing to differ over */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 26px;
   padding: 0;
   border: 1px solid var(--border);
