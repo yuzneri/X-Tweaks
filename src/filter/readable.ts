@@ -4,7 +4,12 @@
  * looks lives in `styles.css`. Rather than enumerating targets it measures each
  * element that directly holds text, so it does not depend on X's selectors.
  */
-import { backgroundBehind, backgroundOver, layersWithin } from '../appearance/background.ts';
+import {
+  backgroundBehind,
+  backgroundOver,
+  layersWithin,
+  type Within,
+} from '../appearance/background.ts';
 import { COLUMN_ATTR } from '../appearance/css.ts';
 import { fixIfWorsened, parseCssColor, BLACK, type Rgb } from '../appearance/contrast.ts';
 
@@ -126,9 +131,34 @@ export const markReadableWaiting = (): number => {
     return behind === null ? null : { column, behind };
   };
 
+  /**
+   * What was found between an element and its scope, per column.
+   *
+   * Shared across the posts in that column on purpose: what lies between a post and the
+   * column is the containers X wraps its timeline in, and they are the same for every post
+   * in it. Read once here rather than once per post — and within a post the two readings
+   * it needs (with the highlight and without) walk the same containers, so the second is
+   * answered from the first.
+   */
+  const withinScope = new Map<Element, Map<Element, Within>>();
+  const seenIn = (column: Element): Map<Element, Within> => {
+    const known = withinScope.get(column);
+    if (known) return known;
+    const fresh = new Map<Element, Within>();
+    withinScope.set(column, fresh);
+    return fresh;
+  };
+
   let worked = 0;
   const wanted: { element: Element; fg: string }[] = [];
   const marks: { cell: Element; color: string; behind: string; any: boolean }[] = [];
+  /** The posts this round actually has to look at, and what each is being judged against */
+  const toRead: {
+    cell: Element;
+    color: string;
+    behind: string;
+    scope: { column: Element; behind: Rgb } | null;
+  }[] = [];
   for (const [cell, color] of posts) {
     /*
      * What is behind the scope is asked for first, because it is half of the marker: one
@@ -141,8 +171,18 @@ export const markReadableWaiting = (): number => {
     // Already worked out, under this colour and over this backdrop
     if (already === done(color, behind, true) || already === done(color, behind, false)) continue;
     worked += 1;
-    clearReadable(cell);
-    const found = readCell(cell, scope);
+    toRead.push({ cell, color, behind, scope });
+  }
+  /*
+   * Every post's own colours come off before any of them is read. Taking one post's off
+   * between two readings is a write between two reads, and the browser answers the second
+   * by working the page's styles out again — which is the very thing this round was put
+   * off to a quiet moment to avoid. Measured on the real site at about 10ms a post
+   * (6 posts, 60ms) with the two interleaved.
+   */
+  for (const { cell } of toRead) clearReadable(cell);
+  for (const { cell, color, behind, scope } of toRead) {
+    const found = readCell(cell, scope, scope === null ? null : seenIn(scope.column));
     if (found === null) continue;
     wanted.push(...found);
     marks.push({ cell, color, behind, any: found.length > 0 });
@@ -161,7 +201,8 @@ export const markReadableWaiting = (): number => {
  */
 const readCell = (
   cell: Element,
-  scope: { column: Element; behind: Rgb } | null
+  scope: { column: Element; behind: Rgb } | null,
+  inScope: Map<Element, Within> | null
 ): { element: Element; fg: string }[] | null => {
   /*
    * What is behind the post, with the highlight laid on it and without it. Worked out
@@ -170,14 +211,22 @@ const readCell = (
    */
   const parent = cell.parentElement;
   const behind =
-    scope === null ? backgroundBehind(cell) : backgroundOver(layersWithin(cell, scope.column), scope.behind);
+    scope === null
+      ? backgroundBehind(cell)
+      : backgroundOver(layersWithin(cell, scope.column, inScope ?? undefined), scope.behind);
   const behindWithout =
     scope === null || parent === null
       ? backgroundBehind(cell, cell)
-      : backgroundOver(layersWithin(parent, scope.column), scope.behind);
+      : backgroundOver(layersWithin(parent, scope.column, inScope ?? undefined), scope.behind);
   if (behind === null || behindWithout === null) return null;
 
   const wanted: { element: Element; fg: string }[] = [];
+  /**
+   * What was found between an element and the post, per element on the way. The words in
+   * a post sit under the same handful of containers, and reading those back once each
+   * rather than once per word is most of what this pass costs (`appearance/background.ts`)
+   */
+  const seen = new Map<Element, Within>();
   for (const element of wordsIn(cell)) {
     const current = parseCssColor(getComputedStyle(element).color);
     if (current === null) continue;
@@ -186,7 +235,7 @@ const readCell = (
      * background skipped). What is between this element and the post is the same for
      * both, so it is read once and laid over each backdrop in turn
      */
-    const between = layersWithin(element, cell);
+    const between = layersWithin(element, cell, seen);
     const after = backgroundOver(between, behind);
     const before = backgroundOver(between, behindWithout);
     const fg = fixIfWorsened(before, after, current);

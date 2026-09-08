@@ -53,19 +53,38 @@ const over = (base: Rgb, stack: readonly Rgba[]): Rgb => {
  * Read once and used for both answers a highlighted post needs — how its words look with
  * the highlight and how they looked without it — because the two differ only in what is
  * behind the post, never in what is inside it (`filter/readable.ts`).
+ *
+ * `seen` remembers what was found for each element on the way up, so that asking about a
+ * second element under the same containers stops at the first one already answered for.
+ * Every word in a post shares most of its walk with the others, and reading a colour back
+ * out of the page is the dear part: measured on a real deck (`readable.mjs`), twenty posts
+ * read 637 colours with nothing remembered and 249 with. The map must not outlive the
+ * round — it is what the page looks like now, not a fact about the elements.
  */
 export type Within = { opaque: Rgb } | { layers: Rgba[] };
 
-export const layersWithin = (element: Element, within: Element): Within => {
-  const layers: Rgba[] = [];
-  for (let el: Element | null = element; el !== null && el !== within; el = el.parentElement) {
-    const color = parseCssColor(getComputedStyle(el).backgroundColor);
-    if (color === null || color.a === 0) continue;
-    // An opaque color below `within` hides everything above it, that one alone decides
-    if (color.a === 1) return { opaque: over({ r: color.r, g: color.g, b: color.b }, layers) };
-    layers.push(color);
-  }
-  return { layers };
+export const layersWithin = (
+  element: Element,
+  within: Element,
+  seen?: Map<Element, Within>
+): Within => {
+  const known = seen?.get(element);
+  if (known) return known;
+  if (element === within || element.parentElement === null) return { layers: [] };
+
+  const color = parseCssColor(getComputedStyle(element).backgroundColor);
+  const above = layersWithin(element.parentElement, within, seen);
+  const found = color === null || color.a === 0 ? above : laidOver(color, above);
+  seen?.set(element, found);
+  return found;
+};
+
+/** One colour in front of what was found above it */
+const laidOver = (color: Rgba, above: Within): Within => {
+  // An opaque color below `within` hides everything above it, that one alone decides
+  if (color.a === 1) return { opaque: { r: color.r, g: color.g, b: color.b } };
+  if ('opaque' in above) return { opaque: layer(above.opaque, color) };
+  return { layers: [color, ...above.layers] };
 };
 
 /** What such a reading means over a given backdrop */
