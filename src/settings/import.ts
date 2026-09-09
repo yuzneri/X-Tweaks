@@ -1,7 +1,6 @@
 /**
- * Importing the settings. Everything about whether it can be read is checked before
- * storage is touched.
- * Handed unreadable JSON, the existing settings do not change at all.
+ * Importing the settings. Everything about whether it can be read is checked before storage
+ * is touched, so unreadable JSON leaves existing settings unchanged.
  */
 import { EXPORT_APP } from './export.ts';
 import {
@@ -25,11 +24,10 @@ export type ImportError =
 export type ImportResult = { ok: true; settings: Settings } | { ok: false; error: ImportError };
 
 /**
- * Gives that tier's rules new ids, updating the references in the order at the same time.
- *
- * Rules sharing an id across tiers make one of them drop out of the merged order and
- * stop applying. That never happens when restoring one's own export, but it can once
- * someone else's settings are read or parts are cut and pasted together.
+ * Gives that tier's rules new ids, updating the order's references at the same time. Rules
+ * sharing an id across tiers make one drop out of the merged order and stop applying —
+ * never when restoring one's own export, but possible when reading someone else's settings
+ * or pasting parts together.
  */
 const reidentify = (node: SettingsNode): SettingsNode => {
   const renamed = new Map(node.filter.rules.map((rule) => [rule.id, newRuleId()]));
@@ -38,7 +36,7 @@ const reidentify = (node: SettingsNode): SettingsNode => {
     filter: {
       ...node.filter,
       rules: node.filter.rules.map((rule) => ({ ...rule, id: renamed.get(rule.id)! })),
-      // Normalization has already run, so the order points at each existing rule exactly once
+      // Already normalized, so the order points at each existing rule exactly once
       order: node.filter.order.map((id) => renamed.get(id)!),
     },
   };
@@ -64,10 +62,9 @@ const reidentifyAll = (settings: Settings): Settings => ({
 });
 
 /**
- * Builds settings from an exported string.
- *
- * A different version is not converted. Keeping normalization to a single shape carries
- * less risk of reading broken settings than writing conversions would.
+ * Builds settings from an exported string. A different version is not converted: one
+ * normalization shape carries less risk of reading broken settings than writing
+ * conversions would.
  */
 export const parseImport = (text: string): ImportResult => {
   let parsed: unknown;

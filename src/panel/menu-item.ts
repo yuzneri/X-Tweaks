@@ -1,10 +1,8 @@
 /**
- * The part of "put a way into the settings in X's menu" that is the same wherever the
- * menu is.
- *
- * X draws its menu items alike on both sites, so the item is built and the press is
- * received in one place. What differs is which menu is the right one and what its items
- * are made of, and that is each surface's menu module (`menu.ts`, `x-menu.ts`).
+ * The part of "put a way into the settings in X's menu" that is the same wherever the menu
+ * is. X draws its items alike on both sites, so the item is built and the press received
+ * in one place; which menu is the right one and what its items are made of is each
+ * surface's menu module (`menu.ts`, `x-menu.ts`).
  */
 
 /** The container X gives a menu, on both sites */
@@ -14,17 +12,16 @@ export const MENU = '[role="menu"]';
 export const MARK = 'data-xpro-menu-item';
 
 /**
- * Builds one item by cloning an existing one: the class names are obfuscated and cannot
- * be guessed, so the only way to look like the rest is to be one of them.
- *
- * The template's icon (`svg`) depicts another feature and is removed. The wrapping
- * elements are kept, so the text lines up with the items around it.
+ * Builds one item by cloning an existing one: the class names are obfuscated and cannot be
+ * guessed, so the only way to look like the rest is to be one of them. The template's icon
+ * (`svg`) depicts another feature and is removed; the wrapping elements are kept, so the
+ * text lines up with the items around it.
  */
 export const buildItem = (template: Element, label: string): HTMLElement => {
   const item = template.cloneNode(true) as HTMLElement;
   item.setAttribute(MARK, '');
-  // The address goes, wherever it sits. On one site the item is the link itself, on the
-  // other the link is wrapped in a row, and a live address would navigate away on the
+  // The address goes, wherever it sits — the item is the link itself on one site and the
+  // link is wrapped in a row on the other — since a live one would navigate away on the
   // press this item is meant to answer
   for (const el of [item, ...item.querySelectorAll('[href]')]) el.removeAttribute('href');
   for (const svg of item.querySelectorAll('svg')) svg.remove();
@@ -37,9 +34,8 @@ export const buildItem = (template: Element, label: string): HTMLElement => {
 };
 
 /**
- * Receives clicks on an inserted item through a capturing listener on document.
- * A listener on the item itself would not arrive when X stops the click in a capturing
- * listener further up.
+ * Receives clicks on an inserted item through a capturing listener on document. One on the
+ * item itself would not arrive when X stops the click further up in its own capture.
  */
 export const watch = (onClick: () => void): void => {
   document.addEventListener(

@@ -1,4 +1,4 @@
-/** Builds CSS from the appearance settings. Takes the effective values per column and returns a string */
+/** Builds CSS from the appearance settings: effective values per column in, a CSS string out */
 import {
   ARTICLE,
   CELL_SELECTOR,
@@ -33,37 +33,25 @@ import {
 export const COLUMN_ATTR = 'data-xpro-column';
 
 /**
- * Drops the characters that would end an attribute selector's string early.
- *
- * Every value written inside `[attr="…"]` goes through this. A screen name comes from
- * the page and holds neither, but a settings file taken in from elsewhere carries
- * whatever keys it likes (`nodeMap` in `settings/schema.ts` keeps them as they are), and
- * a `"` in one would close the selector and let the rest of the string be read as CSS of
- * its own.
+ * Drops characters that would end an attribute selector's string early. Every value inside
+ * `[attr="…"]` goes through this: a page's screen name holds neither, but a settings file
+ * from elsewhere can carry any key (`nodeMap` in `settings/schema.ts`), and a `"` would
+ * close the selector and expose the rest as CSS.
  */
 export const safeInSelector = (value: string): string => value.replace(/["\\]/g, '');
 
 /**
- * The marker put on the form a new post is written in, carrying the account it will post
- * as (written by `appearance/compose-mark.ts`).
- *
- * A marker rather than a selector reaching for the account: the form holds its author's
- * avatar, but it can hold other people's too — a quoted post brings one — and a selector
- * cannot say "the first one". Which avatar names the account is a question for the code
- * that walks the form, not for a stylesheet.
+ * The marker on the form a new post is written in, carrying the account it posts as (written
+ * by `appearance/compose-mark.ts`). A marker, not a selector: the form holds other avatars
+ * too (a quoted post brings one), and a selector cannot say "the first one".
  */
 export const COMPOSE_ATTR = 'data-xpro-compose';
 
 /**
- * The key an appearance is applied under.
- *
- * It is built from the most specific tier that could be resolved, so a column
- * whose `columnId` is unavailable but whose account resolved still gets the
- * settings effective up to the account tier.
- * Several columns may share a key (equal effective settings mean equal rules).
- *
- * `"` and `\` are dropped because this value is written as a string inside an
- * attribute selector.
+ * The key an appearance is applied under, built from the most specific tier resolved: a
+ * column with no `columnId` but a resolved account gets the account tier's settings. Columns
+ * with equal effective settings share a key. `"` and `\` are dropped as this is a string
+ * inside an attribute selector.
  */
 export const columnKey = (scope: ColumnScope): string => {
   if (scope.columnId !== null) return `c:${safeInSelector(scope.columnId)}`;
@@ -72,60 +60,43 @@ export const columnKey = (scope: ColumnScope): string => {
 };
 
 /**
- * The marker on a scope holding a post opened to be read (set by `appearance/apply.ts`
- * from what the surface says). That scope was opened in order to read and to reply, so
- * what makes a timeline quicker to skim is not enforced there: the line limit on the
- * body, the packing, and the dropping of line breaks all stand down.
- *
- * How a surface tells one is its own business — X Pro has the reply box appear in that
- * column alone, x.com has one timeline and goes by the address — so it arrives here as a
- * marker rather than as a selector of X's.
+ * The marker on a scope holding a post opened to be read (set by `appearance/apply.ts`).
+ * What only helps skimming — line limit, packing, dropping line breaks — stands down there.
+ * A marker, not a selector: X Pro shows the reply box in that column alone; x.com has one
+ * timeline and goes by the address.
  */
 export const OPENED_ATTR = 'data-xpro-opened';
 export type ColumnAppearance = { key: string; appearance: AppearanceNode };
 
-/**
- * The boxes holding images and videos. Also used where the markers are set
- * (`appearance/apply.ts`). What they look like is `filter/post.ts`'s to say, that being
- * the one place that knows the shape of X's DOM
- */
+/** The boxes for images and videos; also where markers are set (`appearance/apply.ts`) */
 export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
 
 export const MEDIA_FRAME_ATTR = 'data-xpro-media';
 
 /**
- * The marker holding a post's time in absolute form. It goes on the parent of the
- * `time`, not the `time` itself: on the parent, `::after` inherits the parent's
- * font size and color as they are, so nothing has to be measured.
+ * The marker holding a post's time in absolute form. Goes on `time`'s parent, not `time`
+ * itself: there `::after` inherits font size and colour as-is, so nothing needs measuring.
  */
 export const TIME_ATTR = 'data-xpro-time';
 
 /**
- * The marker for posts from today.
- * Under "both", today's posts show `absolute (X's relative)` while older ones show
- * the absolute form alone. Putting a relative time next to an older post is no
- * help in reading it.
+ * The marker for posts from today. Under "both", today's posts show
+ * `absolute (X's relative)`; older ones show the absolute form alone.
  */
 export const TODAY_ATTR = 'data-xpro-today';
 
 /**
- * The marker on a reaction count written out in full. It goes on the box X animates the
- * number inside, and says only that our own number is in there — the number itself is in
- * the element beside X's (`COUNT_CLASS`).
- *
- * Only the counts X has rounded off carry one (`appearance/counts.ts`), so most posts on a
- * timeline have none.
+ * The marker on a reaction count written out in full. Goes on the box X animates the number
+ * inside, saying only that our number is present — the number itself sits in the element
+ * beside X's (`COUNT_CLASS`). Only counts X rounded off carry one (`appearance/counts.ts`).
  */
 export const COUNT_ATTR = 'data-xpro-count';
 
 /**
- * The class on the number written out in full.
- *
- * It is a copy of X's own element, class list and all, with the number in place of the
- * rounded form (`appearance/apply.ts`). Drawing it as an `::after` on the box instead —
- * the way the absolute time is drawn — came out too big: X's count is styled on the
- * element *inside* the box (13px against the box's 15px, measured), and a pseudo-element
- * cannot inherit from a child. Copying the element takes every one of those styles with it.
+ * The class on the number written out in full: a copy of X's own element, class list and
+ * all, with the number swapped in (`appearance/apply.ts`). An `::after` on the box instead
+ * came out too big — X styles the count on the element *inside* the box (13px against the
+ * box's 15px, measured), and a pseudo-element cannot inherit from a child.
  */
 export const COUNT_CLASS = 'xpro-count';
 
@@ -136,9 +107,8 @@ export const HEADER_ATTR = 'data-xpro-header';
 export const OPENED_CLASS = 'xpro-lines-open';
 
 /**
- * The class on the "Show more" the line limit puts under a body it cut off.
- * Its look lives in `filter/styles.css`; here it counts as a link, so the link color
- * covers it as it covers X's own button of the same name.
+ * The class on the "Show more" the line limit puts under a cut-off body. Its look lives in
+ * `filter/styles.css`; here it counts as a link, so the link colour covers it too.
  */
 export const MORE_CLASS = 'xpro-more';
 
@@ -146,17 +116,15 @@ export const MORE_CLASS = 'xpro-more';
 export const CAPTION_CLASS = 'xpro-caption';
 
 /**
- * The class on the words inside a caption.
- *
- * They get an element of their own because the folding is done by `-webkit-line-clamp`,
- * which would fold the button that opens them away along with the text it is hiding.
+ * The class on the words inside a caption, given their own element because
+ * `-webkit-line-clamp` folding would take the button that opens them along with the text.
  */
 export const CAPTION_TEXT_CLASS = 'xpro-caption-text';
 
 /**
- * The class on the "Show more" under a folded caption. Apart from `MORE_CLASS`, whose
+ * The class on the "Show more" under a folded caption. Kept apart from `MORE_CLASS`, whose
  * look it shares: that one is swept away wherever no column sets a line limit, and a
- * caption's button has nothing to do with that limit.
+ * caption's button is unrelated to that limit.
  */
 export const CAPTION_MORE_CLASS = 'xpro-caption-more';
 
@@ -177,12 +145,9 @@ const LINK_COLORS = [
 ];
 
 /**
- * The avatar in a post.
- *
- * The one marker that sits in every post's own skeleton, so the packing takes its
- * bearings from it. X's class names are generated (`css-g5y9jx r-1iusvr4 …`) and a path
- * written as `> div > div` stops matching the moment the tree changes shape, without
- * anything looking broken.
+ * The avatar in a post: the one marker in every post's own skeleton, so packing takes its
+ * bearings from it. X's class names are generated (`css-g5y9jx r-1iusvr4 …`), and a path
+ * like `> div > div` stops matching the moment the tree changes shape without looking broken.
  */
 const AVATAR_BOX = '[data-testid="Tweet-User-Avatar"]';
 
@@ -190,88 +155,81 @@ const AVATAR_BOX = '[data-testid="Tweet-User-Avatar"]';
 const COMPACT_AVATAR_SIZE = 24;
 
 /**
- * How far from the right edge the buttons float when packed.
- *
- * The room taken by the "…" that opens a post's menu, measured on the real thing: a
- * 15px box with a 7px gap beside it. Being off here only shifts the buttons sideways.
+ * How far from the right edge the buttons float when packed: the room the "…" that opens a
+ * post's menu takes, measured as a 15px box with a 7px gap beside it. Being off only shifts
+ * the buttons sideways.
  */
 const COMPACT_ACTIONS_RIGHT = 24;
 
 /**
- * The room opened up to the left of the "…" for those buttons.
- *
- * Given as a margin on the "…" itself, which pushes the name and the time to give way.
- * X already cuts a long name with an ellipsis to fit the width it is given, so too much
- * room only cuts the name a little early, while too little lets the name run under the
- * buttons.
+ * The room opened left of the "…" for those buttons, as a margin on the "…" itself, pushing
+ * the name and time aside. X already ellipsis-cuts a long name to fit the width given, so too
+ * much room cuts it a little early, too little lets the name run under the buttons.
  */
 const COMPACT_ACTIONS_ROOM = 72;
 
 /** The button that opens a post's menu, at the right end of the name row */
 const POST_MENU = 'button[data-testid="caret"]';
 
-/**
- * The row of buttons under a post. Named here because both the row itself and its
- * contents are targeted.
- */
+/** The row of buttons under a post. Named here because both it and its contents are targeted */
 const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
 
 /** What the 10px above and below a post shrinks to when packed */
 const COMPACT_GAP = 2;
 
 /**
- * The marker on a card or an article whose text was moved into the post (set by
- * `appearance/apply.ts`). Only what was actually moved is hidden: hiding every card
- * would take the link with it wherever there was no body to move the text into.
+ * The marker on a card or article whose text was moved into the post (`appearance/apply.ts`).
+ * Only what was actually moved is hidden — hiding every card would take the link with it
+ * where there was no body to move the text into.
  */
 export const CARD_MOVED_ATTR = 'data-xpro-card-moved';
 
 /**
- * The marker on a post whose photos and videos were marked in its body (set by
- * `appearance/apply.ts`). The mark-only style hides them here alone: a post with no body
- * to put a mark in would otherwise be left with its media gone and nothing said about
- * it, which reads as an empty post.
+ * The marker on a post whose photos and videos were marked in its body (`appearance/apply.ts`).
+ * The mark-only style hides them here alone, so a post with no body for a mark is not left
+ * with its media gone and nothing said about it.
  */
 export const MEDIA_MARKED_ATTR = 'data-xpro-media-marked';
 
 const TARGETS = {
   text: ['[data-testid="tweetText"]'],
-  /** What is inside the body text. The spans carry their own styling, so they are set alongside the container */
+  /** Inside the body text; the spans carry their own styling, so they're set alongside it */
   insideText: ['[data-testid="tweetText"] *'],
   /*
-   * The body text excluding what is inside a quote. Where the line limit applies.
-   * A quote is part of the quoting post, so clamping it separately clamps twice
-   * and makes it hard to read.
+   * The body text excluding a quote, where the line limit applies: a quote is part of the
+   * quoting post, so clamping it separately clamps twice and is hard to read.
    */
   textOutsideQuote: ['[data-testid="tweetText"]:not([role="link"] [data-testid="tweetText"])'],
   /**
-   * The lines the extension puts at the end of a post. Under a line limit they stand
-   * outside the body, where the rules aimed at the body no longer reach them, so the size
-   * and the color of the text follow them here instead.
+   * The lines the extension appends to a post. Under a line limit they stand outside the
+   * body, unreached by the body's rules, so size and colour follow them here.
    */
   attachmentLine: [`.${ATTACHMENT_CLASS}`],
   name: ['[data-testid="User-Name"] span'],
   /**
-   * Timestamps, counts, reply targets, and the like. The words a line carries for a
-   * picture or a quoted post join them: they are dim for the same reason, being about the
-   * post rather than of it, and a column that recolors its secondary text means these too.
+   * Timestamps, counts, reply targets and the like — plus the words a picture or quoted
+   * post's line carries, dim for the same reason (about the post, not of it), so recolouring
+   * secondary text covers these too.
    */
   muted: [
     ...MUTED_COLORS.map((color) => `[style*="color: ${color}"]`),
     `.${ATTACHMENT_WORDS_CLASS}`,
   ],
-  /** The column name in the column header. The `h2` in that same header (the account name) is the dim text instead */
+  /** The column name in the header; the `h2` there (account name) is the dim text instead */
   columnTitle: ['[data-testid="column-title-wrapper"] h1'],
-  /** What sits inside a media frame. Used to fit it within the frame */
+  /** What sits inside a media frame, to fit it within the frame */
   insideFrame: [`[${MEDIA_FRAME_ATTR}] *`],
-  /** The bar showing the column name (the marker is set by `appearance/apply.ts`) */
+  /** The bar showing the column name (marker set by `appearance/apply.ts`) */
   columnHeader: [`[${HEADER_ATTR}]`],
-  /** The containers inside that bar. Made transparent so the bar's color is not covered */
+  /** The containers inside that bar, made transparent so the bar's color is not covered */
   headerInner: [
     `[${HEADER_ATTR}] div:has([data-testid="column-title-wrapper"])`,
     `[${HEADER_ATTR}] [data-testid="column-title-wrapper"]`,
   ],
-  /** The tab bar ("For you" and friends). It is the same component as the horizontal image lists, so tell them apart by the tabs */
+  /**
+   * The tab bar ("For you" etc), same component as the horizontal image lists, told apart
+   * by the tabs
+   */
   tabBar: ['[role="tablist"]:has([role="tab"])', 'nav:has([role="tab"])'],
   /** The black square X lays under avatar images */
   avatarBackdrop: ['[data-testid^="UserAvatar-Container"] div'],
@@ -280,13 +238,11 @@ const TARGETS = {
     '[data-testid="tweetText"] a',
     X_SHOW_MORE,
     `.${MORE_CLASS}`,
-    // The button that opens a folded caption. It reads as a link for the same reason
+    // The button opening a folded caption, reading as a link for the same reason
     `.${CAPTION_MORE_CLASS}`,
-    // The lines put into a post that do open something. They are `a` and would be
-    // covered by the rule above where they sit in a body, but a post with no body takes
-    // its line outside one.
-    // The ones with nowhere to go are left out: they are not links and are not painted
-    // like them
+    // Lines put into a post that do open something: `a`, covered above where they sit
+    // in a body. A post with no body takes its line outside one — left out, being
+    // neither links nor painted as such
     `a.${ATTACHMENT_CLASS}`,
     ...LINK_COLORS.map((color) => `a[style*="color: ${color}"]`),
   ],
@@ -295,41 +251,32 @@ const TARGETS = {
   /** The avatar, and the boxes nested inside it that each carry a size of their own */
   avatarBox: [AVATAR_BOX],
   insideAvatar: [`${AVATAR_BOX} *`],
-  /**
-   * The band above a post, where "X reposted" goes. It carries the padding that separates
-   * one post from the one above. Found as the element the post's own row follows.
-   */
+  /** The band above a post ("X reposted"), carrying the padding from the post above */
   postTop: [`div:has(+ div > div > ${AVATAR_BOX})`],
   insidePostTop: [`div:has(+ div > div > ${AVATAR_BOX}) *`],
-  /** The column beside the avatar: the name, the body, the media. It carries the padding below a post */
+  /** The column beside the avatar: name, body, media. Carries the padding below a post */
   postBody: [`div:has(> ${AVATAR_BOX}) + div`],
   /**
-   * The containers between the row of buttons and the column it sits in.
+   * The containers between the button row and the column it sits in. X gives nearly every
+   * container `position: relative`, so the nearest one, not the column, would decide where
+   * the buttons land once taken out of the flow; put back to `static` to hand that to the
+   * column (itself unmatched, reached by the descendant combinator).
    *
-   * X gives nearly every one of its containers `position: relative`, so the nearest one
-   * of them, not the column, would decide where the buttons land once they are taken out
-   * of the flow. They are put back to `static` to hand that job to the column.
-   * The column itself is not matched: it is reached by the descendant combinator.
-   *
-   * The row is named by `[role="group"]` alone rather than by `ACTION_BAR`, because a
-   * `:has()` inside another `:has()` is not valid and the whole rule would be thrown away.
-   * Matching one container too many only costs it its `position`, which it is not using.
+   * Named by `[role="group"]` alone, not `ACTION_BAR`: `:has()` cannot nest, so the whole
+   * rule would be thrown away. Matching one container too many only costs its unused `position`.
    */
   aboveActionBar: [`div:has(> ${AVATAR_BOX}) + div div:has([role="group"])`],
   /** The button that opens a post's menu. Made to give up room on its left */
   postMenu: [POST_MENU],
   /**
-   * The row of reply, repost and like buttons.
-   * Told apart by the buttons it holds: its `aria-label` reads "209 件の表示", which is
-   * worded and counted per UI language.
+   * The row of reply, repost and like buttons, told apart by `aria-label` reading
+   * "209 件の表示", worded per UI language
    */
   actionBar: [ACTION_BAR],
   /**
-   * Everything in that row other than repost and like.
-   *
-   * Written to cover both shapes X might use: each button wrapped in a container of its
-   * own, or the buttons sitting in the row directly. Matching only the first would hide
-   * the two buttons meant to be kept.
+   * Everything in that row but repost and like. Covers both shapes X might use — each button
+   * wrapped in its own container, or sitting in the row directly — since matching only the
+   * first would hide the two buttons meant to be kept.
    */
   otherActions: [
     `${ACTION_BAR} > *:not(:has([data-testid="retweet"])):not(:has([data-testid="like"]))` +
@@ -340,22 +287,19 @@ const TARGETS = {
   media: MEDIA_TARGETS,
   mediaFrame: [`[${MEDIA_FRAME_ATTR}]`],
   /**
-   * The frames a link card and an article are drawn in. Each carries its own border, so
-   * hiding these takes the frame along with the contents.
-   * An article's frame has no marker of its own, and is found as the element its cover
-   * image hangs directly off.
+   * The frames a link card and an article are drawn in, each with its own border, so hiding
+   * these takes the frame with the contents. An article's frame has no marker and is found
+   * as the element its cover image hangs directly off.
    */
   cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`],
   /** A card whose text is now in the post. What is left would only say it twice */
   movedCard: [`[${CARD_MOVED_ATTR}]`],
   /**
-   * The block of accounts X suggests following, cell by cell: the "Show more" that closes
-   * it (see `WHO_TO_FOLLOW_MORE`), the accounts above that link, and the heading above
-   * those. Each is tied to the link, so a run of accounts standing for anything else —
-   * the results of a search for people, say — is left alone.
-   *
-   * The empty cell X puts before the heading stays: it carries no mark of what follows
-   * it, and all it holds is a few pixels of height.
+   * The block of accounts X suggests following, cell by cell: the "Show more" that closes it
+   * (`WHO_TO_FOLLOW_MORE`), the accounts above it, and the heading above those — each tied to
+   * the link, so a run of accounts for anything else (search results for people) is left
+   * alone. The empty cell before the heading stays: it carries no mark of what follows and
+   * holds only a few pixels of height.
    */
   whoToFollow: [
     `${CELL_SELECTOR}:has(${WHO_TO_FOLLOW_MORE})`,
@@ -369,22 +313,16 @@ const TARGETS = {
 };
 
 /**
- * The same block of accounts as `TARGETS.whoToFollow`, as x.com draws it in the rail
- * beside the timeline: an `aside` of its own rather than cells in the timeline.
+ * The same block of accounts as `TARGETS.whoToFollow`, as x.com draws it in the rail beside
+ * the timeline: an `aside` of its own, not timeline cells. Not confined to a scope — the
+ * rail belongs to no view (`surface/x.ts`) and carries no marker; x.com shows one view at a
+ * time, so that view decides. X Pro has no such rail, so this matches nothing there.
  *
- * It is not confined to a scope, because the rail belongs to no view (`surface/x.ts`) and
- * carries no marker. x.com has one view on screen at a time, so the view being looked at
- * is the one that decides. X Pro has no such rail, and there this matches nothing.
- *
- * Told apart by the link that closes it, exactly as the timeline's own cells are
- * (`WHO_TO_FOLLOW_MORE`), so the rail and the timeline agree on what the block is. The
- * accounts alone would not do: x.com stacks a second block of accounts in the same rail —
- * the ones it calls relevant — and that one belongs to a switch of its own
- * (`RAIL_BLOCKS.relevantPeople`), not to this one. Matched on the accounts, the two cross
- * over and each switch takes away the block the other one names.
- *
- * What is hidden is the card around the `aside`: the `aside` alone would leave its border
- * behind with nothing inside.
+ * Told apart by the link that closes it, as the timeline's own cells are
+ * (`WHO_TO_FOLLOW_MORE`): the accounts alone would not do, since x.com stacks a second block
+ * of accounts in the same rail — the ones it calls relevant (`RAIL_BLOCKS.relevantPeople`) —
+ * and matching on the link is what keeps the two switches apart. What is hidden is the card
+ * around the `aside`, since the `aside` alone would leave its border behind, empty.
  */
 const WHO_TO_FOLLOW_RAIL = `[data-testid="sidebarColumn"] div:has(> div > aside ${WHO_TO_FOLLOW_MORE})`;
 
@@ -394,13 +332,10 @@ const within = (scope: string, targets: string[][]): string =>
 
 const rule = (selector: string, body: string): string => `${selector} { ${body} }`;
 
-/** Writes a string into CSS `content`. A single symbol in a dictionary message would break the rule, so escape it */
+/** Writes a string into CSS `content`; escaped since a symbol could break the rule */
 const cssString = (text: string): string => `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-/**
- * The rules for one column. Items left unset emit no lines at all:
- * "unset means X Pro's own look" is satisfied by writing no rule.
- */
+/** The rules for one column; items left unset emit no lines ("unset" means X Pro's own look) */
 const columnRules = (
   { key, appearance }: ColumnAppearance,
   parens: { open: string; close: string }
@@ -417,29 +352,24 @@ const columnRules = (
     rules.push(rule(scope, `width: ${width} !important; min-width: ${width} !important; max-width: ${width} !important;`));
   }
 
-  /**
-   * The scope with no post opened. What only serves skimming a timeline is confined to
-   * it (see `OPENED_ATTR`).
-   */
+  /** The scope with no post opened; skimming-only rules are confined to it (`OPENED_ATTR`) */
   const skimming = `${scope}:not([${OPENED_ATTR}])`;
 
   if (isCompact(appearance.compact)) {
     /*
-     * The band above a post carries the padding that separates it from the post above.
-     * Which element inside that band holds the padding is not fixed, so the whole branch
-     * is zeroed and the gap is put back on the band itself. That way the result is the
-     * same gap however deeply X nests it.
+     * The band above a post carries the padding separating it from the post above. Which
+     * element inside holds it is not fixed, so the whole branch is zeroed and the gap put
+     * back on the band itself, however deeply X nests it.
      */
     rules.push(rule(within(skimming, [TARGETS.postTop]), `padding-top: ${COMPACT_GAP}px !important;`));
     rules.push(rule(within(skimming, [TARGETS.insidePostTop]), 'padding-top: 0 !important;'));
     // Below a post the padding sits on the column beside the avatar, in one place
     rules.push(rule(within(skimming, [TARGETS.postBody]), `padding-bottom: ${COMPACT_GAP}px !important;`));
     /*
-     * The avatar is a nest of boxes, each carrying the same size, and some of them make
-     * their height out of `padding-bottom` (the trick for holding an aspect ratio).
-     * Replacing the outer size alone would leave the inner ones as they were, so they are
-     * all made to follow. The three width properties are needed for the same reason the
-     * column width needs them: X writes its own.
+     * The avatar is a nest of boxes carrying the same size, some making height out of
+     * `padding-bottom` (the aspect-ratio trick), so the outer size alone cannot be replaced —
+     * they all follow. The three width properties, as with the column width, are needed
+     * because X writes its own.
      */
     const avatar = `${COMPACT_AVATAR_SIZE}px`;
     rules.push(
@@ -457,57 +387,48 @@ const columnRules = (
       )
     );
     /*
-     * The row of buttons is floated up beside the name instead of being hidden.
-     *
-     * Hiding it outright took a whole line's worth of height, but it also took away the
-     * repost and the like: there was no way to act on a post at all. Floating it out of
-     * the flow keeps that height (nothing below moves up around it) while leaving the two
-     * buttons within reach, to the left of the "…" that opens the post's menu.
-     *
-     * The base is the column beside the avatar, not the name row: a base of the name row
-     * would confine the buttons to its height and leave nowhere to sit them.
+     * The button row floats up beside the name instead of being hidden — hiding it outright
+     * took a whole line's height and lost reply-and-like too. Floating keeps that height
+     * while leaving the two buttons reachable, left of the "…" that opens the post's menu.
+     * Based on the column beside the avatar, not the name row, which would confine them to
+     * its height with nowhere to sit.
      */
     rules.push(rule(within(skimming, [TARGETS.postBody]), 'position: relative !important;'));
     rules.push(rule(within(skimming, [TARGETS.aboveActionBar]), 'position: static !important;'));
     rules.push(
       rule(
         within(skimming, [TARGETS.actionBar]),
-        // The height is left to the buttons themselves. Pinned to a number, the row would
-        // stand taller than the line the "…" sits on and the two would not line up
+        // Height is left to the buttons: pinned to a number, the row would stand taller
+        // than the "…"'s line and the two would not line up
         `position: absolute !important; top: 0 !important; right: ${COMPACT_ACTIONS_RIGHT}px !important; ` +
           `left: auto !important; width: auto !important; height: auto !important; ` +
           `margin: 0 !important; justify-content: flex-end !important; align-items: center !important; ` +
           `gap: 12px !important;`
       )
     );
-    // Only the repost and the like are kept. Reply, the view count and the rest would not fit beside a name
+    // Only repost and like are kept; reply, the view count and the rest would not fit beside a name
     rules.push(rule(within(skimming, [TARGETS.otherActions]), 'display: none !important;'));
     /*
-     * Opens up the room they sit in, by pushing the "…" away from the name.
-     * Padding on the name row would not do: the "…" lives inside that row, so padding
-     * would carry it along and leave the buttons stranded to its right.
+     * Opens room for them by pushing the "…" away from the name. Padding on the name row
+     * would not do, since the "…" lives inside it and would strand the buttons to its right.
      */
     rules.push(
       rule(within(skimming, [TARGETS.postMenu]), `margin-left: ${COMPACT_ACTIONS_ROOM}px !important;`)
     );
 
     /*
-     * X's own "Show more" goes as well, for the reason the extension's own is not put in
-     * while the posts are packed (`appearance/apply.ts`): packing is for fitting more
-     * posts on screen, and a line of its own under every cut-off post works against that.
-     * What X cut is still read by opening the post, where nothing is packed.
+     * X's own "Show more" goes too, matching why the extension's own is not shown while packed
+     * (`appearance/apply.ts`): packing fits more posts on screen, and X's cut is still
+     * readable by opening the post.
      */
     rules.push(rule(within(skimming, [TARGETS.xShowMore]), 'display: none !important;'));
   }
 
   if (appearance.maxLines !== null) {
-    // A column with a post opened gets neither the limit nor "Show more"
     /*
-     * Lines are counted after wrapping on screen.
-     *
-     * The cut is done by `-webkit-line-clamp`, which cuts at line boundaries, so
-     * characters stay whole even when emoji make a line taller (cutting by height
-     * would slice the bottom off the last line).
+     * Lines are counted after wrapping on screen, cut by `-webkit-line-clamp`, which cuts at
+     * line boundaries so characters stay whole even when emoji make a line taller (cutting by
+     * height would slice the bottom off the last line).
      */
     rules.push(
       rule(
@@ -517,9 +438,9 @@ const columnRules = (
       )
     );
     /*
-     * Puts the container wrapping the body back to block.
-     * `-webkit-line-clamp` needs `display: -webkit-box`, but children of a flex
-     * container are blockified, so it has no effect where X puts the body inside a flex.
+     * Puts the body's wrapping container back to block: `-webkit-line-clamp` needs
+     * `display: -webkit-box`, but flex children are blockified, so it has no effect where X
+     * puts the body inside a flex.
      */
     rules.push(
       rule(
@@ -528,10 +449,9 @@ const columnRules = (
       )
     );
     /*
-     * Lifts the limit for posts opened via "Show more" only.
-     * The target has the same shape as the limit's rule (with the quote-excluding
-     * condition). `:not()` carries the specificity of its contents, so dropping the
-     * condition would let the limit win and the post would not open.
+     * Lifts the limit for posts opened via "Show more" only. Same shape as the limit's rule
+     * (with the quote-excluding condition), since dropping that would let `:not()`'s
+     * specificity win and the post would not open.
      */
     rules.push(
       rule(
@@ -543,11 +463,9 @@ const columnRules = (
       )
     );
     /*
-     * Lifts the clamping on the container wrapping the body as well.
-     * X sometimes clamps lines on the outer container rather than on the body
-     * itself, and lifting it on the body alone leaves the post closed. Only the
-     * line-count properties are lifted; display and overflow are left untouched
-     * (touching them breaks X's layout).
+     * Lifts the clamping on the wrapping container too: X sometimes clamps on the outer
+     * container rather than the body itself. Only the line-count properties are lifted;
+     * display and overflow are left alone (touching them breaks X's layout).
      */
     rules.push(
       rule(
@@ -558,14 +476,10 @@ const columnRules = (
   }
 
   /*
-   * Dropping the line breaks written into a post.
-   *
-   * X keeps them as real newlines in the text and shows them through `white-space:
-   * pre-wrap`, so putting that back to `normal` folds each one into a single space. The
-   * text itself is not touched, and a break becomes a space rather than nothing, so words
-   * on either side do not run together.
-   * `white-space` is inherited, but the spans inside the body carry styling of their own,
-   * so they are set alongside it.
+   * Dropping the line breaks in a post. X keeps them as real newlines shown via
+   * `white-space: pre-wrap`; setting that to `normal` folds each into a single space, so
+   * words either side do not run together. `white-space` inherits, but the body's spans carry
+   * their own styling, so they're set alongside it.
    */
   if (collapsesNewlines(appearance.collapseNewlines)) {
     rules.push(
@@ -596,7 +510,7 @@ const columnRules = (
   // to let the dim text win by coming later
   if (colors.meta) {
     rules.push(rule(within(scope, [TARGETS.muted]), `color: ${colors.meta} !important;`));
-    // Put the icons back to their original color
+    // Put the icons back to their original colour
     MUTED_COLORS.forEach((color) => {
       rules.push(rule(within(scope, [[`[style*="color: ${color}"] svg`]]), `color: ${color} !important;`));
     });
@@ -645,29 +559,17 @@ const columnRules = (
       rule(within(scope, [TARGETS.media]), `max-height: ${maxHeight} !important; overflow: hidden !important;`)
     );
     /*
-     * The frame is held to the limit rather than given it. The shape X drew it with is
-     * left where it is: take the `aspect-ratio` and the `padding-bottom` away and the
-     * frame falls to nothing, its contents being absolutely positioned — which is why
-     * this replaced the height outright before, and why a picture already shorter than
-     * the limit was stretched up to it.
+     * The frame is held to the limit, not given it: X's `aspect-ratio`/`padding-bottom`
+     * shape is left alone, since removing it would drop the frame to nothing (contents are
+     * absolutely positioned). `max-height` holds either shape; one drawn from a percentage
+     * `padding-bottom` ignores it and is capped where written instead (`appearance/apply.ts`).
      *
-     * `max-height` holds a frame drawn from `aspect-ratio`, and one drawn from nothing
-     * but its contents. A frame drawn from a percentage `padding-bottom` pays it no
-     * attention, and is capped where it is written instead (`appearance/apply.ts`).
-     *
-     * The width is held where it was. A box with a ratio and a height it cannot exceed
-     * takes its width from the ratio instead, which turns a wide picture held to 200px
-     * into a 200px square with the rest of the column empty beside it (measured).
-     *
-     * `width`, not `min-width`. X lays several pictures out as a row, and a frame in a row
-     * takes its width from the row rather than from this — while a picture standing on its
-     * own keeps the width it had. A `min-width` clamps a row's frames as well, and on a
-     * two-up row it threw the second picture clear of the column (measured).
-     *
-     * Held lightly: of the frames drawn from a ratio in the pages this was checked
-     * against, every one was inside a row, where this changes nothing either way. It is
-     * here for the frame standing on its own, which is where a ratio and a capped height
-     * would leave a square with the column empty beside it.
+     * Width is held, not set: a box with a ratio and a capped height takes its width from the
+     * ratio, turning a wide picture held to 200px into a 200px square with the column empty
+     * beside it (measured). `width`, not `min-width` — X lays several pictures as a row, and
+     * a frame in a row takes its width from the row, while a lone picture (what this is for)
+     * keeps its own. `min-width` clamps a row's frames too, and on a two-up row threw the
+     * second picture clear of the column (measured).
      */
     rules.push(
       rule(
@@ -682,11 +584,9 @@ const columnRules = (
   }
 
   /*
-   * How a post's time is shown.
-   *
-   * X's own text is not removed, only hidden; drop the marker and the rules and it
-   * comes back. For the absolute-only form, X's `time` is set to `display: none`
-   * and the parent's `::after` shows in its place.
+   * How a post's time is shown. X's own text is only hidden, not removed, so dropping the
+   * marker brings it back. For the
+   * absolute-only form, X's `time` gets `display: none` and the parent's `::after` shows instead.
    */
   const timeFormat = timeFormatOf(appearance.timeFormat);
   if (timeFormat !== 'relative') {
@@ -698,10 +598,9 @@ const columnRules = (
       rules.push(...absoluteOnly(`${scope} [${TIME_ATTR}]`));
     } else {
       /*
-       * Today's posts read `absolute (X's relative)`.
-       * X's own text is kept as the parenthesized part, wrapped by `::before` and
-       * `::after`. That keeps X's wording (language, units) as is, and it follows
-       * along automatically whenever X recounts.
+       * Today's posts read `absolute (X's relative)`: X's own text is wrapped by
+       * `::before`/`::after` as the parenthesised part, keeping its wording (language,
+       * units) live as X recounts.
        */
       const today = `${scope} [${TIME_ATTR}][${TODAY_ATTR}]`;
       rules.push(
@@ -717,18 +616,12 @@ const columnRules = (
   const quoteStyle = quoteStyleOf(appearance.quoteStyle);
 
   /*
-   * Taking the photos and videos off the timeline only hides them. The elements stay, so
-   * unsetting brings them back. Hiding the box alone leaves the frame taking up space,
-   * so the frame is hidden too.
+   * Taking photos and videos off the timeline only hides them, so unsetting brings them
+   * back. The frame is hidden too, or it'd take up empty space.
    *
-   * Confined to the scope with nothing opened (see `OPENED_ATTR`). A post was
-   * opened in order to be read, and what is worth taking off a timeline is worth seeing
-   * there.
-   *
-   * Under `text` and `mark` the hiding is confined to the posts that carry the line:
-   * hiding them everywhere would leave a post with no body to put a line in with its
-   * photos gone and nothing said about it, which reads as an empty post (see
-   * `MEDIA_MARKED_ATTR`).
+   * Confined to the scope with nothing opened (`OPENED_ATTR`): worth hiding on a timeline,
+   * worth seeing once opened to read. Under `text` and `mark` it is confined further, to
+   * posts carrying the line (`MEDIA_MARKED_ATTR`).
    */
   const mediaStyle = mediaStyleOf(media.style);
   if (mediaStyle === 'hidden') {
@@ -740,21 +633,19 @@ const columnRules = (
   }
 
   /*
-   * How link cards and articles are shown. Confined to the column with nothing opened,
-   * for the same reason as the media above: the post that was opened is being read.
-   * `appearance/apply.ts` leaves such a column alone too, so no line is put into a post
-   * whose card is still on screen.
+   * How link cards and articles are shown. Confined to the column with nothing opened, as
+   * with the media above. `appearance/apply.ts` likewise leaves such a column alone, so no
+   * line is put into a post whose card is still shown.
    */
   if (cardStyle === 'hidden') {
     rules.push(rule(within(skimming, [TARGETS.cardFrame]), 'display: none !important;'));
   }
 
   /*
-   * What `appearance/apply.ts` has taken off a post: a card or an article whose line is
-   * now in the body, and a quote, which is marked there whichever way it is shown — a
-   * quote frame is told apart by the avatar inside it not being the author's, and no
-   * selector can say that.
-   * Only what was actually marked is hidden, so nothing goes without leaving a word behind.
+   * What `appearance/apply.ts` has taken off a post: a card or article whose line is now in
+   * the body, and a quote (marked there whichever way it is shown — no selector can tell a
+   * quote frame apart by its avatar not being the author's). Only what was actually marked
+   * is hidden, so nothing goes without leaving a word behind.
    */
   if (cardStyle === 'text' || cardStyle === 'mark' || quoteStyle !== 'show') {
     rules.push(rule(within(skimming, [TARGETS.movedCard]), 'display: none !important;'));
@@ -772,35 +663,27 @@ export const buildCss = (
 };
 
 /**
- * The posts X appends under a conversation, headed "Discover more".
+ * The posts X appends under a conversation, headed "Discover more". They arrive as timeline
+ * cells, like the block of accounts X suggests: one heading cell, then one cell per post
+ * offered. None carry a mark, so the heading is the one conversation cell with an `h2`, and
+ * what follows to the end is the block.
  *
- * They arrive as cells of the timeline, like the block of accounts X suggests: one cell
- * carrying the heading, then a cell per post it is offering. There is no mark on any of
- * them, so the heading is found by being the one cell of a conversation with an `h2` in
- * it, and what follows is everything after it — the block runs to the end.
- *
- * Held to a conversation by X's own mark for one, the box for writing a reply. Without
- * that, the heading of the accounts X suggests would answer on a timeline and take the
- * whole timeline under it away; the block beside somebody's profile would answer too.
- *
- * The conversation is found by the `section` it stands in rather than by x.com's column,
- * both sites drawing one and only x.com having the other.
+ * Held to a conversation by X's own mark for the reply box — without it, the accounts-X-
+ * suggests heading would answer on a timeline and take the whole timeline under it away, and
+ * a profile's own block would answer too. Found by the `section` a conversation stands in,
+ * not x.com's column: both sites draw a `section`, only x.com has the other.
  */
 const DISCOVER_HEAD =
   `section:has([data-testid="inline_reply_offscreen"]) ${CELL_SELECTOR}:has(h2)`;
 const DISCOVER_MORE = `${DISCOVER_HEAD}, ${DISCOVER_HEAD} ~ ${CELL_SELECTOR}`;
 
 /**
- * What X slips into a timeline, taken away for a whole site.
+ * What X slips into a timeline, taken away for a whole site. Not confined to a scope: these
+ * are X's own doing, not a column or view's, and the setting governing them is held per site
+ * (`settings/schema.ts`) — `appearance/apply.ts` decides which site is drawn.
  *
- * Not confined to a scope. These blocks are X's own doing rather than anything belonging
- * to a column or a view, and the setting that governs them is held per site
- * (`settings/schema.ts`), so which site is being drawn on is all the scoping there is —
- * `appearance/apply.ts` decides that.
- *
- * Every selector here is written to hold on both sites. The rail is x.com's alone and
- * matches nothing on X Pro; the rest are cells of a timeline, which both sites draw the
- * same way.
+ * Every selector holds on both sites: the rail is x.com's alone and matches nothing on X
+ * Pro, and the rest are timeline cells, drawn the same way on both.
  */
 export const injectedCss = (injected: InjectedSettings): string => {
   const rules: string[] = [];
@@ -817,60 +700,46 @@ export const injectedCss = (injected: InjectedSettings): string => {
 
 // --- x.com's own furniture ---
 //
-// The page around the timeline: the rail beside it, the items down the left, the box for
-// writing a post, the bar announcing new ones. None of it belongs to a view, so none of
-// it is confined to a scope — x.com shows one view at a time, and these settings are held
-// for the whole site (`settings/schema.ts`). X Pro has none of this; `appearance/apply.ts`
-// is what keeps these rules off it.
+// The page around the timeline: the rail, the items down the left, the compose box, the
+// new-posts bar. None belongs to a view, so none is confined to a scope — these settings
+// are held for the whole site (`settings/schema.ts`). X Pro has none of this;
+// `appearance/apply.ts` keeps these rules off it.
 
 const SIDEBAR = '[data-testid="sidebarColumn"]';
 const SIDE_NAV = 'header[role="banner"] nav[role="navigation"]';
 
 /**
- * Refuses anything holding the search box.
- *
- * The rail's blocks are siblings, but not all of them sit at the same depth: the accounts
- * X suggests are wrapped one deeper on a timeline than on a post's own page. A selector
- * written for the deeper shape matches the whole rail on the shallower one, taking the
- * search box with it. Nothing that holds the search is a block, so saying that outright
- * costs one clause and removes the trap.
+ * Refuses anything holding the search box. The rail's blocks are siblings but not all at the
+ * same depth: accounts X suggests are wrapped one deeper on a timeline than on a post's own
+ * page, so a selector for the deeper shape would match the whole rail — search box
+ * included — on the shallower one. Nothing holding search is a block, so one clause rules
+ * that out.
  */
 const NOT_THE_WHOLE_RAIL = ':not(:has(form[role="search"]))';
 
 /**
- * The blocks of the rail, one selector apiece.
+ * The blocks of the rail, one selector apiece, named one by one rather than "every block but
+ * the search". A block X adds later stays on screen until this list catches up — the same
+ * bargain `NOT_A_PROFILE` (`surface/view.ts`) makes, on a container X names nothing.
  *
- * Named one by one rather than as "every block but the search". A block X adds later
- * stays on screen until this list catches up, which is the same bargain `NOT_A_PROFILE`
- * (`surface/view.ts`) makes: an item too many is a smaller harm than the sibling
- * arithmetic the other way round would need, on a container X names nothing.
- *
- * The accounts X suggests are not here at all: that block is X slipping something in
- * rather than furniture of the page, and it is answered for the whole site
- * (`WHO_TO_FOLLOW_RAIL`).
+ * The accounts X suggests are not here: that is X slipping something in, not page furniture,
+ * answered for the whole site (`WHO_TO_FOLLOW_RAIL`).
  */
 const RAIL_BLOCKS: Record<XRailKey, string> = {
   premium: `${SIDEBAR} div:has(> div > aside a[href*="/i/premium"])${NOT_THE_WHOLE_RAIL}`,
   news: `${SIDEBAR} div:has(> div[data-testid="news_sidebar"])${NOT_THE_WHOLE_RAIL}`,
   /*
-   * X draws two blocks of the rail as a `section`, and the second only shows up on
-   * somebody's profile: what's happening, and the accounts it calls relevant there. So
-   * neither is named by being a `section` — each says what it is made of. Written as
-   * `> section` alone, the trends rule takes the relevant accounts away on every profile.
-   *
-   * `:has()` cannot be nested, so the test goes inside the one `:has` as a descendant.
+   * X draws two rail blocks as a `section` — trends, and (on a profile) relevant accounts —
+   * so `> section` alone would take the accounts away on every profile too. `:has()` cannot
+   * nest, so the test goes inside the one `:has` as a descendant.
    */
   trends: `${SIDEBAR} div:has(> section [data-testid="trend"])${NOT_THE_WHOLE_RAIL}`,
   /*
-   * The one block of the rail X draws in two shapes: a `section` beside somebody's
-   * profile, an `aside` on a post's own page. Both are said here, because both are the
-   * same block to a reader and one switch is what they asked for.
-   *
-   * The `aside` shape is also what X uses for the accounts it suggests following, on a
-   * timeline. The link that closes that block is the only thing telling the two apart, so
-   * refusing it is what keeps this switch off the block that belongs to `WHO_TO_FOLLOW_RAIL`.
-   * Written without that clause, turning this on takes the suggestions away on every
-   * timeline — measured on the saved pages.
+   * One block, two shapes: a `section` beside a profile, an `aside` on a post's own page —
+   * both matched here. The `aside` shape is also what X uses for accounts it suggests
+   * following on a timeline; refusing the link that closes that block keeps this switch off
+   * `WHO_TO_FOLLOW_RAIL`'s. Without that clause, turning this on takes the suggestions away
+   * on every timeline (measured on saved pages).
    */
   relevantPeople:
     `${SIDEBAR} div:has(> section ${USER_CELL})${NOT_THE_WHOLE_RAIL}, ` +
@@ -880,13 +749,10 @@ const RAIL_BLOCKS: Record<XRailKey, string> = {
 };
 
 /**
- * The items down the left, each the anchor for one `XNavKey`.
- *
- * They are children of the navigation itself, so hiding the link hides the whole row.
- * Grok, the history and the creator studio carry no `data-testid` of their own and are
- * told apart by where they lead, the way the accounts X suggests already are
- * (`WHO_TO_FOLLOW_MORE`). `*=` rather than `=` because X writes these as paths and a
- * saved page rewrites them whole.
+ * The items down the left, each the anchor for one `XNavKey`. Children of the navigation
+ * itself, so hiding the link hides the whole row. Grok, history and creator studio carry no
+ * `data-testid` and are told apart by where they lead, as with `WHO_TO_FOLLOW_MORE`. `*=` not
+ * `=` because X writes these as paths and a saved page rewrites them whole.
  */
 const NAV_ITEMS: Record<XNavKey, string> = {
   explore: `${SIDE_NAV} a[data-testid="AppTabBar_Explore_Link"]`,
@@ -897,10 +763,9 @@ const NAV_ITEMS: Record<XNavKey, string> = {
   creatorStudio: `${SIDE_NAV} a[href*="/creators/studio"]`,
   articles: `${SIDE_NAV} a[href*="/compose/articles"]`,
   /*
-   * X draws this one twice over, and the two carry different marks of its own:
-   * `premium-signup-tab` at `/i/premium_sign_up` for somebody who has not subscribed,
-   * `premium-hub-tab` at `/i/premium` for somebody who has. Where it leads is what the two
-   * have in common, and one address is the beginning of the other.
+   * X draws this one twice with different marks: `premium-signup-tab` at
+   * `/i/premium_sign_up` unsubscribed, `premium-hub-tab` at `/i/premium` subscribed — one
+   * address begins the other, so matched on where it leads.
    */
   premium: `${SIDE_NAV} a[href*="/i/premium"]`,
   profile: `${SIDE_NAV} a[data-testid="AppTabBar_Profile_Link"]`,
@@ -909,15 +774,12 @@ const NAV_ITEMS: Record<XNavKey, string> = {
 };
 
 /**
- * The items inside the "More" menu, each the anchor for one `XMenuKey`.
+ * The items inside the "More" menu, each the anchor for one `XMenuKey`. All named by where
+ * they lead, keeping the extension's own entry (no address, `panel/x-menu.ts`) out of reach
+ * of any `[href]` selector.
  *
- * All named by where they lead, which is what keeps the extension's own entry out of
- * reach: `panel/x-menu.ts` gives it no address at all, so an `[href]` selector cannot
- * pick it up however the menu is rearranged.
- *
- * The lists and the communities live under the signed-in screen name rather than a fixed
- * path, so those two are matched on the end of the address instead of somewhere in the
- * middle — `*=` would also answer to a list linked from somewhere else in a menu.
+ * Lists and communities live under the signed-in screen name, not a fixed path, so those two
+ * match on the end of the address — `*=` would also answer to a list linked from elsewhere.
  */
 const MENU = '[role="menu"]';
 const MENU_ITEMS: Record<XMenuKey, string> = {
@@ -933,15 +795,15 @@ const MENU_ITEMS: Record<XMenuKey, string> = {
 };
 
 /**
- * The box being typed into, which every shape a post is written in holds exactly one of.
- * It is what the shapes are told apart by, and — being a plain marker of X's own — what
- * anything looking for a form starts from (`appearance/compose-mark.ts`).
+ * The box being typed into — exactly one per shape a post is written in. Tells the shapes
+ * apart, and, as a plain marker of X's own, is what anything hunting for a form starts from
+ * (`appearance/compose-mark.ts`).
  */
 export const COMPOSE_LABEL = '[data-testid="tweetTextarea_0_label"]';
 
 /**
- * The block at the head of x.com's timeline. The box for writing stands in one, and so
- * does a post being read with its reply box; which is which is `COMPOSE_BOX`'s to say.
+ * The block at the head of x.com's timeline: the box for writing stands in one, and so does
+ * a post being read with its reply box — which is which is `COMPOSE_BOX`'s to say.
  */
 export const COMPOSE_HEAD_BLOCK = '[data-testid="primaryColumn"] > div > div';
 
@@ -950,42 +812,32 @@ const COMPOSE_DRAWER = '[data-testid="drawerAnimatedDiv"]';
 const COMPOSE_MODAL = '[role="dialog"][aria-modal="true"]';
 
 /**
- * The three shapes, named without asking what they hold.
+ * The three shapes, named without asking what they hold. Kept apart from `COMPOSE_BOX`: that
+ * one is a `:has()` selector matched by the browser against the whole page, while this is
+ * walked up to from the box being typed in — a few cheap steps against a subtree search.
  *
- * Written apart from `COMPOSE_BOX` because of what each is for. That one carries `:has()`
- * and is a CSS selector, matched by the browser against the page it is styling. This one
- * is walked up to from the box being typed in, and a walk of a few steps costs nothing —
- * where asking the page for the `:has()` form costs a subtree search on every element it
- * might match: measured at ~10ms on a deck of several hundred posts, on every settling,
- * with no form open at all.
- *
- * On X Pro the drawer is also where a reply is written, so a reply there is marked as
- * well. There is nothing on the drawer saying which it is, and what the mark answers —
- * which account this is going out as — is the same question either way.
+ * On X Pro the drawer is also where a reply is written, so a reply there is marked too:
+ * nothing on the drawer says which it is, and the mark answers the same question either
+ * way — which account this is going out as.
  */
 export const COMPOSE_SHAPES = [COMPOSE_DRAWER, COMPOSE_MODAL, COMPOSE_HEAD_BLOCK].join(', ');
 
 /**
- * The box for writing a post at the head of the timeline.
+ * The box for writing a post at the head of the timeline. x.com draws it with the same
+ * elements as a reply box, told apart only by where they stand: a reply sits in the post's
+ * own cell, this one stands alone above the timeline. `OPENED_ATTR` marks a different
+ * question — where a post is read, not where a reply box is.
  *
- * x.com draws it with the same elements as the box for writing a reply, so the two cannot
- * be told apart by what they are — only by where they stand. A reply belongs to the post
- * it answers and sits in that post's cell; this one stands on its own above the timeline.
- * Going by the address instead would answer a different question: `OPENED_ATTR` marks
- * where a post is being read, which is not the same as where a reply box is.
- *
- * The two steps down from the column are load-bearing rather than decoration: they hold
- * the candidates to the blocks the timeline is built out of, and only there does "holds
- * no cell" mean "is the box for writing". Inside a reply's own cell there are plenty of
- * divs holding no cell, and a selector without the two steps hides the reply box —
- * measured on a post's page: 23 matches, the reply among them, against none with them.
+ * The two steps down from the column are load-bearing: they hold the candidates to the
+ * timeline's own blocks, and only there does "holds no cell" mean "is the box for writing".
+ * A reply's own cell has plenty of divs holding no cell, so skipping the steps would hide it.
  */
 const COMPOSE_BOX = `${COMPOSE_HEAD_BLOCK}:has(${COMPOSE_LABEL}):not(:has(${CELL_SELECTOR}))`;
 
 /**
- * The two bars X floats in the bottom-right corner, collapsed until pressed. They are
- * siblings under one parent and each carries a mark of X's own, so neither needs telling
- * apart by what is inside it. Hiding the chat one takes its contents with it.
+ * The two bars X floats in the bottom-right corner, collapsed until pressed. Siblings under
+ * one parent, each with its own mark of X's, so neither needs telling apart by contents.
+ * Hiding the chat one takes its contents with it.
  */
 const GROK_DRAWER = '[data-testid="GrokDrawer"]';
 const CHAT_DRAWER = '[data-testid="chat-drawer-root"]';
@@ -993,37 +845,27 @@ const CHAT_DRAWER = '[data-testid="chat-drawer-root"]';
 /**
  * Letting the timeline have the room the rail was taking.
  *
- * x.com sizes the two columns together: the pair stands in a box 1050px wide, of which the
- * timeline may use 600 and the rail takes 350. Hiding the rail leaves the box the size it
- * was, so the timeline stays at 600 with the emptied half beside it. Lifting the cap hands
- * it the whole box — which is exactly the room the rail was taking.
+ * x.com sizes the two columns together in a box 1050px wide: the timeline may use 600, the
+ * rail 350. Hiding the rail leaves the box at 1050 with the timeline still capped at 600 and
+ * the emptied half beside it; lifting the cap hands it the whole box.
  *
- * The same 600 is written in three places, and all three have to go. The column carries
- * it; so does the wrapper the posts themselves stand in, one step further down where a
- * timeline is drawn; and so does the row of buttons under each post. Lifting only the
- * column's widens the bar of tabs across the top and leaves every post at 600 underneath
- * it, which reads as a wide empty column with narrow posts in it. Lifting the first two
- * and not the third leaves the buttons bunched into the left 600 of a post 1002 wide,
- * with nothing to their right.
- * A post's own page has no such wrapper, and there that second one matches nothing.
+ * The same 600 is written in three places, all of which must go: the column, the post
+ * wrapper one step further down (absent on a post's own page, where it matches nothing), and
+ * the button row under each post. Lifting only the column's widens the tab bar but leaves
+ * every post at 600, reading as a wide empty column with narrow posts; lifting the first two
+ * only bunches the buttons into the left 600 of a 1002-wide post, empty to their right. Once
+ * uncapped, the row spaces itself: X gives the first four `flex: 1` inside a `space-between`
+ * row, landing them at even steps with bookmark and share at the far end.
  *
- * The row spaces its buttons out itself once the cap is gone: X gives the first four
- * `flex: 1` inside a `space-between` row, so they land at even steps across the whole
- * width with the bookmark and the share at the far end — measured at 231px apart.
+ * The box itself is left alone — stretching it too measured worse both ways: it is what
+ * x.com centres the page on, so widening it slides the navigation sideways by a couple of
+ * hundred pixels, and on a post's own page it settles narrower than it started, making the
+ * timeline *narrower* than with the setting off. Left alone, the timeline holds one width
+ * everywhere, capped at 1050 regardless of window width — worth having, since a line as wide
+ * as a large screen is not readable. Photos keep X's own sizing, to the picture, not the column.
  *
- * Nothing is done to the box itself. Stretching it as well was tried and measured worse in
- * both directions: the box's width is what x.com centres the page on, so widening it slides
- * the navigation sideways by a couple of hundred pixels, and on a post's own page the box
- * settles narrower than it started, leaving the timeline *narrower* than with the setting
- * off. Left alone, the navigation does not move at all and the timeline is 1050 wide on
- * every page and every window — measured, not guessed.
- *
- * So the timeline stops growing at 1050 however wide the window is. That is a limit worth
- * having: a line of text the width of a large screen is not one anybody wants to read.
- * Photos are left where X puts them: it sizes those to the picture, not to the column.
- *
- * Only ever written with the rail hidden. With the rail still on screen the timeline takes
- * the whole box and pushes it out of the window.
+ * Only ever written with the rail hidden — with it still on screen, the timeline would take
+ * the whole box and push it out of the window.
  */
 const WIDE_TIMELINE: [selector: string, body: string][] = [
   [
@@ -1033,10 +875,7 @@ const WIDE_TIMELINE: [selector: string, body: string][] = [
   ],
 ];
 
-/**
- * The rules for x.com's own furniture. Nothing set emits nothing at all, the same way an
- * unset appearance item does.
- */
+/** Rules for x.com's own furniture; nothing set emits nothing, as unset appearance does */
 export const chromeCss = (chrome: XChromeSettings): string => {
   const hide = (selector: string): string => rule(selector, 'display: none !important;');
   const rules: string[] = [];
@@ -1071,28 +910,24 @@ export const chromeCss = (chrome: XChromeSettings): string => {
 // --- the form a new post is written in ---
 
 /**
- * The background of the form a new post is written in.
+ * The background of the compose form. Written against the marker, not confined to a scope:
+ * the form belongs to no column and no view (`ACCOUNT_COLORS`, `settings/schema.ts`), and
+ * the marker carries the account it posts as.
  *
- * Written against the marker rather than confined to a scope: the form belongs to no
- * column and no view (`ACCOUNT_COLORS` in `settings/schema.ts` says why), and the marker
- * is what carries the account it will post as.
+ * One entry per account with a colour, plus one for `null` meaning "whatever account this
+ * is" — the top tier's value, taken by every account unless overridden. Both are one
+ * attribute selector, weighing the same, so the caller sends the general one first: later wins.
  *
- * One entry per account that has a color, plus one for `null` meaning "whatever account
- * this is" — the value the top tier sets, which every account takes unless it says
- * otherwise. Both are one attribute selector and so weigh the same, which is why the
- * caller hands them over with the general one first: what comes later wins.
- *
- * Built from the settings rather than from the forms on screen. X opens and closes these
- * as they are used, and rules for accounts whose form is not open cost nothing, while
- * rebuilding the stylesheet every time one opens would cost the browser a repaint.
+ * Built from the settings, not the forms on screen: X opens and closes these as used, so
+ * rules for a closed form cost nothing, while rebuilding on every open would cost a repaint.
  */
 export const composeCss = (
   colors: { account: string | null; color: string }[],
   except: readonly string[] = []
 ): string => {
-  // The general rule reaches any marked form, so the accounts holding the appearance
-  // back have to be named out of it. Named, not left to the ordering: they set no colour
-  // of their own, so there is no later rule to overturn this one
+  // The general rule reaches any marked form, so accounts holding the appearance back
+  // must be named out of it — named, not left to ordering, since they set no colour of
+  // their own to overturn this one
   const refuse = except
     .map((account) => `:not([${COMPOSE_ATTR}="${safeInSelector(account)}"])`)
     .join('');
@@ -1102,11 +937,11 @@ export const composeCss = (
         account === null
           ? `[${COMPOSE_ATTR}]${refuse}`
           : `[${COMPOSE_ATTR}="${safeInSelector(account)}"]`,
-        // Laid over what X paints rather than put in its place. A color chosen with an
-        // alpha is a tint, and swapping it in instead leaves the form see-through: on
-        // x.com's post window that meant reading the timeline through it. A gradient of
-        // one color is a flat fill, and `background-image` sits above `background-color`,
-        // so X's own surface stays underneath and an opaque choice still covers it whole
+        // Laid over what X paints, not put in its place — a colour with alpha is a tint,
+        // and swapping it in leaves the form see-through (on x.com's post window, the
+        // timeline showed through it). A one-colour gradient is a flat fill, and
+        // `background-image` sits above `background-color`, so an opaque choice still
+        // covers it whole
         `background-image: linear-gradient(${color}, ${color}) !important;`
       )
     )
@@ -1114,15 +949,13 @@ export const composeCss = (
 };
 
 /**
- * The page behind x.com, outside the timeline.
+ * The page behind x.com, outside the timeline. One rule on `body`: x.com paints only the
+ * timeline — the left items and rail are transparent (measured) — so this reaches margins,
+ * navigation and rail while leaving the middle as X draws it, which is what separates it
+ * from `background`.
  *
- * One rule on `body`, because x.com paints only the timeline: the items down the left and
- * the rail beside it are transparent and take whatever is behind them (measured). So this
- * reaches the margins, the navigation and the rail while leaving the middle of the page
- * as X draws it — which is what makes it a different setting from `background`.
- *
- * x.com alone. X Pro's `body` is the ground the whole deck stands on, and painting it is
- * not the same question as painting a column.
+ * Not X Pro: its `body` is the ground the whole deck stands on, a different question from
+ * painting a column.
  */
 export const pageCss = (color: string | null): string =>
   color === null ? '' : rule('body', `background-color: ${color} !important;`);

@@ -1,27 +1,19 @@
 /**
  * What a round of work cost, said out loud when it cost enough to be felt.
  *
- * Nothing here changes what the extension does. It is here because a page that stops
- * answering does so on somebody else's machine, on a deck nobody else has: measuring a
- * page built to look like X answers what X's own page would have to be asked. So the page
- * says it itself — which part of the round was the heavy one, and how much there was of
- * whatever it was working on.
+ * A page that stops answering does so on somebody else's machine, on a deck nobody else has,
+ * so the page says it itself: which part of the round was the heavy one, and how much there
+ * was of whatever it was working on. A page behaving itself says nothing, and after one slow
+ * round is reported the rest are counted rather than printed.
  *
- * A page behaving itself says nothing at all: only a round long enough to be noticed is
- * reported, and after one is said the rest are counted rather than printed, so a bad
- * patch leaves one line and a number instead of a scrolling console.
- *
- * A part named with a leading `·` ran inside the part named before it, so its time is
- * counted twice over — once on its own, and once in the whole it belongs to.
+ * A part named with a leading `·` ran inside the part before it, so its time is counted
+ * twice: once on its own, once in the whole it belongs to.
  */
 
 /**
- * Long enough to be worth saying something about.
- *
- * Three frames' worth of time (16ms each). Below that a round is lost among the page's own
- * work and nothing can be felt; at this length a reader scrolling can see the page hesitate.
- * Low enough to catch a round on its way to becoming a stutter, high enough that a page
- * behaving itself says nothing at all.
+ * Long enough to be worth saying something about: three frames (16ms each). Below that a
+ * round is lost among the page's own work; at this length a reader scrolling sees the page
+ * hesitate.
  */
 const SLOW_MS = 50;
 
@@ -34,10 +26,7 @@ const QUIET_MS = 1000;
 /** What each part of the round took, in the order the parts ran */
 let phases: { name: string; ms: number }[] = [];
 
-/**
- * The same, for work that happens a little at a time all over a round: a part of judging
- * one post, say, which happens hundreds of times and is worth seeing as one number.
- */
+/** The same for work spread over a round — judging one post, say — added into one number */
 const spent = new Map<string, number>();
 
 /** How much there was of what the round worked on, added up as it went */
@@ -53,7 +42,7 @@ let unsaid = 0;
 /** The longest of the rounds that went unsaid, so a quiet window cannot hide the worst one */
 let worstUnsaid = 0;
 
-/** Times one part of a round. The cost of asking the clock twice is nothing beside what it measures */
+/** Times one part of a round */
 export const timed = <T>(name: string, step: () => T): T => {
   const started = performance.now();
   try {
@@ -81,17 +70,13 @@ export const noted = (what: string): void => {
 /**
  * Makes the browser work out what it has been putting off, and says how much there was.
  *
- * A round that reads the page back pays, on its first reading, for everything written
- * since the page was last drawn — X's own writes as much as ours, and a live timeline
- * writes constantly. Left alone, that cost lands on whichever reading happened to come
- * first and reads as if the reading itself were expensive: "one picture measured, 240ms".
+ * A round that reads the page back pays, on its first reading, for everything written since
+ * the page was last drawn — X's writes as much as ours. Left alone that lands on whichever
+ * reading came first and reads as if the reading were expensive: "one picture measured,
+ * 240ms". Asked for here it stands on its own line, and what is left is the round's own.
  *
- * Asked for here, before the round starts, it stands on its own line. What is left over
- * afterwards is the round's own — including a pass the round made necessary by writing
- * between two of its own readings, which shows up as a second round catching up again.
- *
- * It adds no work: the reading that follows forces the same pass, and the drawing after
- * that would have forced it anyway. A page with nothing outstanding answers at once.
+ * It adds no work: the reading that follows forces the same pass, and the drawing after that
+ * would have forced it anyway.
  */
 export const pageCaughtUp = (): void => {
   const started = performance.now();
@@ -120,11 +105,8 @@ const line = (what: string, took: number): string => {
 };
 
 /**
- * The round is over. Says what it cost if that was enough to be felt, and forgets it
- * either way.
- *
- * `what` names the round in a few words — what set it going, which is the first thing
- * anyone reading the line wants to know.
+ * The round is over: says what it cost if that was enough to be felt, and forgets it either
+ * way. `what` names what set the round going, which is what a reader wants first.
  */
 export const saidIfSlow = (
   what: string,

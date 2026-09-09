@@ -10,15 +10,12 @@ import { PALETTES, type PaletteKind } from './palettes.ts';
 const STYLE_ID = 'xpro-coloris-style';
 
 /**
- * The input fields the picker attaches to. Passing a selector as a string makes it delegate
- * events on document, so it also covers fields appearing later and need not be reattached on every Preact re-render.
+ * The input fields the picker attaches to. A selector string makes it delegate events on document,
+ * so fields appearing later are covered and no reattaching is needed on a Preact re-render.
  */
 const FIELD_SELECTOR = '.colorcode';
 
-/**
- * The accessible-name strings passed to Coloris.
- * Only `marker` follows Coloris's own form, where it substitutes `{s}` and `{v}`.
- */
+/** The accessible-name strings passed to Coloris. Only `marker` follows Coloris's own form, where it substitutes `{s}` and `{v}` */
 const a11yOf = ({ color: { picker } }: Messages) => ({
   open: picker.open,
   close: picker.closeLabel,
@@ -35,21 +32,19 @@ const a11yOf = ({ color: { picker } }: Messages) => ({
 let ready = false;
 
 /**
- * Closes an open picker. The picker is placed directly under `body`, so folding the in-page
- * panel does not take it along and it is stranded on the page.
- * The chosen color is kept (`revert` is not passed), the same behavior as closing it by clicking elsewhere.
+ * Closes an open picker. It sits directly under `body`, so folding the in-page panel leaves it
+ * stranded on the page. The chosen color is kept (`revert` is not passed), as when closing it by
+ * clicking elsewhere.
  */
 export const closeColorPicker = (): void => {
   if (ready) Coloris.close();
 };
 
 /**
- * Hands each kind of field its own swatches.
- *
- * Coloris has one picker for the whole document, so what differs per field is registered
- * as a "virtual instance" against the class the field carries (`ui/fields.tsx` writes it).
- * Registered once, after `init`: the sets are fixed, and nothing about them changes with
- * the language or with what is on screen.
+ * Hands each kind of field its own swatches. Coloris has one picker for the whole document, so what
+ * differs per field is registered as a "virtual instance" against the class the field carries
+ * (`ui/fields.tsx` writes it). Registered once, after `init`: the sets change with neither the
+ * language nor what is on screen.
  */
 const setSwatches = (): void => {
   for (const [kind, swatches] of Object.entries(PALETTES) as [PaletteKind, string[]][]) {
@@ -58,22 +53,19 @@ const setSwatches = (): void => {
 };
 
 /**
- * Sets the picker up and applies the wording.
- *
- * It may be called every time the language changes: the construction happens once, and after
- * that only the wording is reapplied. The wording cannot be passed before `Coloris.init()`
- * because `configure` touches the constructed elements (passing it earlier throws a `TypeError`).
+ * Sets the picker up and applies the wording. It may be called on every language change: the
+ * construction happens once, and after that only the wording is reapplied. The wording cannot be
+ * passed before `Coloris.init()` because `configure` touches the constructed elements (passing it
+ * earlier throws a `TypeError`).
  */
 export const setupColorPicker = (messages: Messages): void => {
   const picker = messages.color.picker;
   if (ready) {
-    // From the second call on, only the wording is reapplied.
-    //
-    // `el` is required by the types, but a selector must not be passed.
-    // Coloris reattaches its delegation on document every time it receives `el`, which would
-    // double the listening, and without `wrap` alongside it, the default of true would wrap the
-    // input in a div, rewriting DOM that Preact manages from the outside.
-    // An empty array makes both the reattaching and the wrapping no-ops.
+    // From the second call on, only the wording is reapplied. `el` is required by the types, but a
+    // selector must not be passed: Coloris reattaches its delegation on document every time it
+    // receives `el`, doubling the listening, and without `wrap` alongside it the default of true
+    // would wrap the input in a div, rewriting DOM that Preact manages from the outside. An empty
+    // array makes both no-ops.
     Coloris({
       el: [],
       clearLabel: picker.clear,
@@ -84,9 +76,9 @@ export const setupColorPicker = (messages: Messages): void => {
   }
   ready = true;
 
-  // Opening the picker from an empty box makes Coloris start from black.
-  // An empty box means "use that kind's default color", so starting from that color reads better.
-  // Coloris opens on document's bubbling phase, so the value is put in first, on the capture phase.
+  // Coloris starts from black when opened on an empty box, but an empty box means "use that kind's
+  // default color", which reads better. Coloris opens on document's bubbling phase, so the value is
+  // put in first, on the capture phase.
   document.addEventListener(
     'click',
     (event) => {
@@ -109,8 +101,8 @@ export const setupColorPicker = (messages: Messages): void => {
   Coloris.init();
   Coloris({
     el: FIELD_SELECTOR,
-    // Stops the default behavior of wrapping the input in a div.
-    // DOM that Preact manages, rewritten from the outside, would disagree with its re-renders
+    // Stops the default of wrapping the input in a div: DOM that Preact manages, rewritten from
+    // the outside, would disagree with its re-renders
     wrap: false,
     alpha: true,
     format: 'hex',

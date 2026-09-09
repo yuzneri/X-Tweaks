@@ -7,11 +7,9 @@ import { useMessages } from './messages.tsx';
 
 /** Where settings are edited. The tier and the key gathered into one value */
 /**
- * Which site the settings on the right belong to.
- *
- * `both` is the global and account tiers, which the two sites share. What differs by site
- * is what a scope *is* there — a column of X Pro's deck, or a view of x.com — so anything
- * that names one takes this.
+ * Which site the settings on the right belong to. `both` is the global and account tiers, which the
+ * two sites share. What differs by site is what a scope *is* there — a column of X Pro's deck, or a
+ * view of x.com — so anything that names one takes this.
  */
 export type Site = 'both' | 'pro' | 'x';
 
@@ -20,26 +18,23 @@ export type Scope =
   | { tier: 'accounts'; key: string }
   | { tier: 'columns'; key: string }
   /**
-   * One whole site. A tier of its own, below the account and above the column
-   * (`tiersFor` in settings/resolve.ts), and also where the settings live that belong to
-   * the site rather than to any scope in it — what X draws around the timeline, and what
-   * the compose form does after a post.
+   * One whole site. A tier of its own, below the account and above the column (`tiersFor` in
+   * settings/resolve.ts), and where the settings live that belong to the site rather than to any
+   * scope in it — what X draws around the timeline, and what the compose form does after a post.
    */
   | { tier: 'surface'; key: SurfaceId }
   /**
-   * One account, on one site. The tier below the site and above the column, where an
-   * account's exception on one of the two sites is written.
-   * It carries the site as well as the account: the account alone does not say which of
-   * the two pages it is, and the same account on the two sites is two scopes.
+   * One account, on one site. The tier below the site and above the column, where an account's
+   * exception on one of the two sites is written. It carries the site as well as the account: the
+   * account alone does not say which page, and the same account on the two sites is two scopes.
    */
   | { tier: 'surfaceAccount'; surface: SurfaceId; key: string }
   /** The extension itself: what it is set to, and what it is. Nothing to do with any site */
   | { tier: 'meta'; key: 'settings' | 'about' };
 
 /**
- * The string used for identity and comparison. Global carries no key.
- * The separator is written as an escape because a raw control character would make git treat
- * this file as binary and its diffs unreadable.
+ * The string used for identity and comparison. Global carries no key. The separator is written as an
+ * escape because a raw control character would make git treat this file as binary and its diffs unreadable.
  */
 export const scopeKey = (scope: Scope): string =>
   scope.tier === 'global'

@@ -1,36 +1,30 @@
 /**
- * The text that stands in a post for what hangs off it — a link card, an article, a
- * photo, a video.
- *
- * Kept apart from the DOM: reading a post is `appearance/apply.ts`'s job, and what to
- * write is decided here so it can be pinned down without a browser.
+ * The text that stands in a post for what hangs off it — a link card, an article, a photo,
+ * a video. Kept apart from the DOM: reading a post is `appearance/apply.ts`'s job, and what
+ * to write is decided here so it can be pinned down without a browser.
  */
 import type { Messages } from '../i18n/index.ts';
 
 /**
- * The class on the text put into a post in place of what hung off it.
- *
- * The filter reads it too, to leave it out of the body text: it is the extension's own
- * addition, and a rule written against the body must not start matching a card's
- * headline because of it.
+ * The class on the text put into a post in place of what hung off it. The filter reads it
+ * too, to leave it out of the body text: it is the extension's own addition, and a rule
+ * written against the body must not start matching a card's headline because of it.
  */
 export const ATTACHMENT_CLASS = 'xpro-attachment';
 
 /**
- * The class on a line that came out as the mark alone.
- *
- * Such a line is one character wide, and everything it has to say is in the tooltip. The
- * stylesheet gives it a little more for the pointer to land on, which is worth telling
- * apart from a line carrying words: that one is as wide as its words and needs nothing.
+ * The class on a line that came out as the mark alone. Such a line is one character wide,
+ * with everything it has to say in the tooltip, so the stylesheet gives it a little more for
+ * the pointer to land on — worth telling apart from a line carrying words, which is as wide
+ * as its words and needs none.
  */
 export const MARK_CLASS = 'xpro-mark';
 
 /**
- * The class on the mark inside a line.
- *
- * The mark is held apart from the words so that the tooltip can sit on it alone. Where the
- * words are already on screen, a tooltip repeating them under the pointer says nothing and
- * covers what is being read; on the mark it is still the way to the whole of them.
+ * The class on the mark inside a line. The mark is held apart from the words so the tooltip
+ * can sit on it alone: where the words are already on screen, a tooltip repeating them under
+ * the pointer says nothing and covers what is being read, while on the mark it is still the
+ * way to the whole of them.
  */
 export const ATTACHMENT_MARK_CLASS = 'xpro-attachment-mark';
 
@@ -43,24 +37,19 @@ export const ATTACHMENT_MARK_CLASS = 'xpro-attachment-mark';
 export const ATTACHMENT_WORDS_CLASS = 'xpro-attachment-words';
 
 /**
- * The class on a line holding words back from the reader.
- *
- * It is what a "Show more" is put in for (`appearance/apply.ts`), and it is narrower than
- * "the line is not saying everything": under the mark-only style the words are not being
- * held back but declined, and a button to undo the setting is not wanted. The tooltip on
- * the mark is still there for anyone who wants a look.
+ * The class on a line holding words back from the reader. It is what a "Show more" is put in
+ * for (`appearance/apply.ts`), and narrower than "the line is not saying everything": under
+ * the mark-only style the words are not held back but declined, and a button to undo the
+ * setting is not wanted. The tooltip on the mark is still there for anyone who wants a look.
  */
 export const ATTACHMENT_CUT_CLASS = 'xpro-attachment-cut';
 
 
 /**
- * The mark each kind is given.
- *
- * They tell a line the extension put in from the post's own words, and in the
- * mark-only style they are the whole of it. Symbols rather than words, so nothing here
- * has to be translated.
- * The photo is a camera rather than a framed picture: at the size body text is read at,
- * a frame is a gray box and reads as nothing in particular.
+ * The mark each kind is given. They tell a line the extension put in from the post's own
+ * words, and in the mark-only style they are the whole of it. Symbols rather than words, so
+ * nothing here has to be translated. The photo is a camera rather than a framed picture: at
+ * the size body text is read at, a frame is a gray box and reads as nothing in particular.
  */
 export const ATTACHMENT_MARKS = {
   link: '🔗',
@@ -73,13 +62,11 @@ export const ATTACHMENT_MARKS = {
 export type AttachmentKind = keyof typeof ATTACHMENT_MARKS;
 
 /**
- * One color out of an inline `style`.
- *
- * X writes the color the user picked (one of six) straight onto each thing it paints
- * with it, so the only way to match it is to read one and copy the value: no selector
- * carries an inline value across to another element.
- * The property is named because the same color arrives as the text color on a link and
- * as the background of the button that opens the compose form.
+ * One color out of an inline `style`. X writes the color the user picked (one of six)
+ * straight onto each thing it paints with it, so the only way to match it is to read one and
+ * copy the value: no selector carries an inline value across to another element. The
+ * property is named because the same color arrives as the text color on a link and as the
+ * background of the button that opens the compose form.
  */
 export const colorInStyle = (
   style: string | null,
@@ -98,13 +85,11 @@ export const colorInStyle = (
 export type LineParts = { words: string | null; source: string | null };
 
 /**
- * How much of the words a line shows where no column says otherwise.
- *
- * A card's headline is a headline, but a quoted post runs to a couple of hundred
- * characters, and put in whole it takes more room than the frame it replaced. What is cut
- * off is not lost: the tooltip carries the words as they were written, and the "Show more"
- * puts them in.
- * Settable per column (`AppearanceNode.wordsShown`); this is what an unset column takes.
+ * How much of the words a line shows where no column says otherwise, this being what an
+ * unset column takes (settable per column as `AppearanceNode.wordsShown`). A card's headline
+ * is a headline, but a quoted post runs to a couple of hundred characters, and put in whole
+ * it takes more room than the frame it replaced. What is cut off is not lost: the tooltip
+ * carries the words as they were written, and the "Show more" puts them in.
  */
 export const WORDS_SHOWN = 80;
 
@@ -144,11 +129,10 @@ export const shortLineFrom = (
 ): string | null => built(parts, m, limit ?? WORDS_SHOWN);
 
 /**
- * One thing a line stands for: a card, an article, a quoted post, or a single picture.
- *
- * A post's photos get one of these apiece rather than one between them, so that what was
- * written for a picture follows that picture's own mark. Four marks with two descriptions
- * gathered after them left the reader counting to work out which belonged to which.
+ * One thing a line stands for: a card, an article, a quoted post, or a single picture. A
+ * post's photos get one apiece rather than one between them, so what was written for a
+ * picture follows that picture's own mark — four marks with two descriptions gathered after
+ * them left the reader counting to work out which belonged to which.
  */
 export type LinePart = {
   mark: string;
@@ -166,12 +150,10 @@ export const partFor = (
 ): LinePart => ({ mark: ATTACHMENT_MARKS[kind], words: words?.trim() || null, title });
 
 /**
- * How much of what a line stands for is shown.
- *
- * `marksOnly` is the shape a post shown cut short takes: the marks alone, because there is
- * room for nothing else and the tooltips carry the rest. `full` is the shape it takes once
- * opened by "Show more": there is no longer anything to save room for, so the words go in
- * as they were written rather than cut to the length a line has room for.
+ * How much of what a line stands for is shown. `marksOnly` is the shape a post shown cut
+ * short takes: the marks alone, there being room for nothing else and the tooltips carrying
+ * the rest. `full` is the shape it takes once opened by "Show more": nothing is left to save
+ * room for, so the words go in as they were written rather than cut to the length of a line.
  */
 export type LineShown = { marksOnly: boolean; full: boolean };
 
@@ -180,25 +162,20 @@ export const wordsShown = (part: LinePart, shown: LineShown): string | null =>
   shown.marksOnly ? null : shown.full ? part.title : part.words;
 
 /**
- * Whether a part has more to say than it is showing.
- *
- * True where the mark stands alone, and true where the words beside it were cut to the
- * length a line has room for — a description of a couple of hundred characters shows its
- * first eighty and there is no "Show more" on a post nothing else cut short, so the mark
- * is the only way to the rest.
- * False once the whole of it is out, which is also when a tooltip would only repeat what
- * is already being read.
+ * Whether a part has more to say than it is showing. True where the mark stands alone, and
+ * where the words beside it were cut to the length a line has room for — a description of a
+ * couple of hundred characters shows its first eighty, and there is no "Show more" on a post
+ * nothing else cut short, so the mark is the only way to the rest. False once the whole of
+ * it is out, which is also when a tooltip would only repeat what is already being read.
  */
 export const moreThanShown = (part: LinePart, shown: LineShown): boolean =>
   part.title !== null && wordsShown(part, shown) !== part.title;
 
 /**
- * The line as it goes into the post.
- *
- * Each mark is followed by the words belonging to it, and a mark with nothing to say
- * stands on its own — so a post of four photos where the second and fourth were described
- * reads 📷 📷 …the second… 📷 📷 …the fourth…, and which is which needs no counting.
- * With the marks alone they are run together, nothing standing between them.
+ * The line as it goes into the post. Each mark is followed by the words belonging to it, and
+ * a mark with nothing to say stands on its own — so a post of four photos where the second
+ * and fourth were described reads 📷 📷 …the second… 📷 📷 …the fourth…, and which is which
+ * needs no counting. With the marks alone they are run together, nothing between them.
  */
 export const lineFrom = (parts: readonly LinePart[], shown: LineShown): string =>
   shown.marksOnly

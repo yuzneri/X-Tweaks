@@ -1,14 +1,11 @@
-/**
- * How size input (px) is interpreted on the settings screen.
- * Like colors (`ui/color.ts`), it lives in a file without JSX so node --test can read it directly.
- */
+/** How size input (px) is read on the settings screen. Like `ui/color.ts`, it holds no JSX so node --test can read it */
 
 /** The result of the interpretation. A null `size` means not set (X Pro's own) */
 export type SizeInput = { size: number | null; invalid: boolean };
 
 /**
- * Reads it as a px value. The format is decided by a regular expression before converting to
- * a number because `Number()` also accepts whitespace, `0x1f` and `1e3`.
+ * Reads it as a px value. A regular expression decides the format before converting, because
+ * `Number()` also accepts whitespace, `0x1f` and `1e3`.
  */
 export const parseSizeInput = (text: string): SizeInput => {
   const trimmed = text.trim();

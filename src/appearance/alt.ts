@@ -1,24 +1,20 @@
 /**
  * Telling a description someone wrote for a picture from X's own word for one.
  *
- * X gives every photo an `alt`. Where nobody wrote a description it puts its own word
- * there instead — 「画像」, "Image", "Bild" — and that word is the interface language's,
- * not the extension's, so it cannot be listed here and compared against.
+ * X gives every photo an `alt`. Where nobody wrote a description it puts its own word there
+ * instead — 「画像」, "Image", "Bild" — and that word is the interface language's, not the
+ * extension's, so it cannot be listed here and compared against.
  *
- * It is recognised by three things at once, and all of them have to hold:
+ * Three things have to hold at once. It is one line: X's word is a word, and a description
+ * running to a second line is somebody's writing. It is short (see `LONGEST_GENERIC`). And
+ * it turns up on two different people's pictures: X's word is on every post whose pictures
+ * nobody described, so it crosses accounts at once, while a description belongs to whoever
+ * wrote it.
  *
- *   - **It is one line.** X's word is a word; a description that runs to a second line is
- *     somebody's writing.
- *   - **It is short** (see `LONGEST_GENERIC`).
- *   - **It turns up on two different people's pictures.** X's word is on every post whose
- *     pictures nobody described, so it crosses accounts at once. A description does not:
- *     it belongs to whoever wrote it.
- *
- * The last one is what the other two support. Counting by account, rather than by post or
- * by picture, is what keeps somebody's own writing out of it: the same post stands in
- * several columns of a deck at once, and one person may put the same description on any
- * number of their own posts — a shop listing the same goods, an artist the same commission
- * terms. Both of those look like repetition until the account is taken into account.
+ * That last one is what the other two support. Counting by account, rather than by post or
+ * by picture, is what keeps somebody's own writing out: the same post stands in several
+ * columns of a deck at once, and one person may repeat a description across their own posts,
+ * a shop listing the same goods among them.
  */
 
 /** One picture on screen: what its `alt` says, and whose post it is on */
@@ -27,19 +23,17 @@ export type PhotoAlt = { alt: string; account: string | null };
 /**
  * How long X's own word may be.
  *
- * Set from the gap between the two, as far as the pages read so far show it. X's words
- * came to 2 and 6 characters (「画像」 and 「埋め込み動画」, the only interface language
- * seen). Of 26 descriptions people had written, 24 ran to more than one line and are
- * turned away for that alone; the two that did not were 22 and 907 characters.
- *
- * So the room between them is 6 and 22, and this sits inside it with something to spare
- * on either side: enough for a language that needs more words than Japanese does for
- * "embedded video", and short of the shortest thing anybody was seen to write.
+ * Set from the gap between the two, as far as the pages read so far show it. X's words came
+ * to 2 and 6 characters (「画像」 and 「埋め込み動画」, the only interface language seen). Of
+ * 26 descriptions people had written, 24 ran to more than one line and are turned away for
+ * that alone; the two that did not were 22 and 907 characters. So the room between them is
+ * 6 and 22, and this sits inside it with something to spare on either side: enough for a
+ * language needing more words than Japanese for "embedded video", and short of the shortest
+ * thing anybody was seen to write.
  *
  * A word longer than this in some other language would never be learned. That costs the
- * tooltip on pictures nobody described — X's word shown as if it were a description —
- * and is answered by writing the word into the settings by hand, which is the reason
- * that box exists.
+ * tooltip on pictures nobody described — X's word shown as if it were a description — and
+ * is answered by writing the word into the settings by hand, which is why that box exists.
  */
 const LONGEST_GENERIC = 20;
 
@@ -48,13 +42,13 @@ const couldBeGeneric = (alt: string): boolean =>
   !alt.includes('\n') && alt.length <= LONGEST_GENERIC;
 
 /**
- * X's own words, as far as the page has shown them. Both what was known already and what
- * this pass can add: a word is not unlearned, X having only one per kind of media and per
+ * X's own words, as far as the page has shown them: what was known already plus what this
+ * pass can add. A word is not unlearned, X having only one per kind of media and per
  * language, and the language not changing under a running page.
  *
- * A picture whose account cannot be read is left out of the counting rather than guessed
- * at. It is still shown its tooltip — until two people prove the text is X's, the honest
- * reading is that somebody wrote it.
+ * A picture whose account cannot be read is left out of the counting rather than guessed at,
+ * and still shown its tooltip: until two people prove the text is X's, the honest reading is
+ * that somebody wrote it.
  */
 export const learnGenericAlts = (
   photos: readonly PhotoAlt[],

@@ -1,13 +1,11 @@
 /**
  * The language codes X's search accepts, as X publishes them.
  *
- * Taken from X's own documented list rather than from a general list of languages: what
- * matters here is what X reads, and `lang:` for a code X does not know returns nothing at
- * all rather than an error a reader could act on.
- *
- * Two of them are not the codes most lists would give. **Hebrew is `iw` and Indonesian is
- * `in`** — the superseded ISO 639-1 codes — because that is what X's table says. Written
- * as X writes them, not as they "should" be.
+ * Taken from X's own documented list rather than from a general list of languages, what X
+ * reads being what matters: `lang:` for a code X does not know returns nothing at all
+ * rather than an error a reader could act on. **Hebrew is `iw` and Indonesian is `in`** —
+ * the superseded ISO 639-1 codes — because that is what X's table says, written as X writes
+ * them rather than as they "should" be.
  *
  * The names are the languages' own, so a reader picking one recognizes it without knowing
  * the language of the surrounding screen. That is why this list is not in `i18n`: it says

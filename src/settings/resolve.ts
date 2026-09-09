@@ -1,9 +1,7 @@
 /**
- * Merges the settings of the four tiers (global, account, site, column) into the settings
- * effective for one column.
- *   - Rules accumulate. Across tiers, the lower tier comes first in the order
- *   - Whether filtering applies, and the appearance, are inherited by overriding: the
- *     lower tier wins, and what it leaves unset is inherited from above
+ * Merges the four tiers (global, account, site, column) into settings for one column. Rules
+ * accumulate, lower tier first; "applies" and the appearance inherit by overriding, the
+ * lower tier winning and unset values coming from above.
  */
 import {
   appearanceApplies,
@@ -17,17 +15,14 @@ import {
 import type { SurfaceId } from '../surface/index.ts';
 
 /**
- * Takes the first setting found, looking upward from the lowest tier. null when no tier
- * sets it.
+ * Takes the first setting found, looking upward from the lowest tier; null when none sets it.
  *
- * `item` names the appearance item being looked up, for the ones a tier can put back to
- * "as X shows it" (`CLEARABLE_ITEMS`). A tier that does so ends the walk: what stands
- * above is exactly what it is cancelling. Items that cannot be cancelled — the switches,
- * the choices, whether filtering applies — are looked up without it.
- *
- * A tier that both sets the item and lists it as cleared gets read as setting it. The two
- * say opposite things and the value is the one written on purpose; the settings screen
- * offers one or the other, never both, so this can only arrive from an imported file.
+ * `item` names the appearance item for ones a tier can put back to "as X shows it"
+ * (`CLEARABLE_ITEMS`). A tier that does so ends the walk — what stands above is exactly what
+ * it is cancelling. Items that cannot be cancelled (switches, choices, "applies") are looked up
+ * without it. A tier that both sets the item and lists it cleared is read as setting it — the
+ * value written on purpose wins — which can only arise from an imported file, since the
+ * settings screen offers one or the other, never both.
  */
 const inherit = <T>(
   tiers: SettingsNode[],
@@ -44,9 +39,8 @@ const inherit = <T>(
 };
 
 /**
- * The order across the tiers, strung together starting from the lowest. Judging takes
- * the first rule that matches, so the order they are strung in is the tiers' priority,
- * matching the direction of the appearance's overriding inheritance.
+ * The order across tiers, strung from the lowest. Judging takes the first matching rule, so
+ * this order is the tiers' priority, matching the appearance's overriding inheritance direction.
  */
 const mergeOrder = (tiers: SettingsNode[]): string[] => {
   const seen = new Set<string>();
@@ -60,11 +54,7 @@ const mergeOrder = (tiers: SettingsNode[]): string[] => {
     });
 };
 
-/**
- * Rules accumulate. Each carries its own action, so stringing the tiers together
- * causes no conflict.
- * To cancel an upper tier's settings, put a "do nothing" rule in a lower tier.
- */
+/** Rules accumulate. Each carries its own action, so stringing tiers together causes no conflict; to cancel an upper tier's settings, put a "do nothing" rule in a lower tier */
 const mergeFilter = (tiers: SettingsNode[]): FilterNode => ({
   enabled: inherit(tiers, (node) => node.filter.enabled),
   rules: tiers.flatMap((node) => node.filter.rules),
@@ -118,9 +108,9 @@ const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   autoContrast: inherit(tiers, (node) => node.appearance.autoContrast),
   highlightBase: inherit(tiers, (node) => node.appearance.highlightBase),
   /*
-   * Empty by construction. "Put this back to how X shows it" is a thing a tier says to
-   * the tiers above it, and merging is where it gets said: what comes out the other side
-   * is the values themselves, with nothing below to cancel anything for.
+   * Empty by construction: "put this back to how X shows it" is said to the tiers above,
+   * and merging is where that is said — what comes out is the values themselves, with
+   * nothing left below to cancel.
    */
   cleared: [],
 });
@@ -130,12 +120,10 @@ export type ColumnScope = {
   /** The screen name of the account it belongs to. null when it cannot be read from the column header */
   account: string | null;
   /**
-   * Which site it is being read on.
-   *
-   * The applying side always knows: both the things that build a scope from the page are
-   * a single site's (`surface/x.ts`, `columns/registry.ts`). null is for the settings
-   * screen, which asks about scopes pinned to no site — what a whole account holds
-   * reaches both, and answering as one of them would be answering a question nobody asked.
+   * Which site it is being read on. The applying side always knows: both things that build a
+   * scope from the page are a single site's (`surface/x.ts`, `columns/registry.ts`). null is
+   * for the settings screen, which asks about scopes pinned to no site — what a whole account
+   * holds reaches both, and answering as one would answer a question nobody asked.
    */
   surface: SurfaceId | null;
   /** The column's identifier. null for posts outside any column */
@@ -143,11 +131,10 @@ export type ColumnScope = {
 };
 
 /**
- * Lists the tiers that apply, from the top down. A tier with no settings is not added,
- * so a post with neither an account nor a column determined runs on the global settings alone.
- *
- * The site comes below the account: what a site says wins over what an account says, so
- * that a colour following an account everywhere can be taken back on one of the two sites.
+ * Lists the tiers that apply, top down. A tier with no settings is not added, so a post with
+ * neither account nor column determined runs on the global settings alone. The site sits
+ * below the account: what a site says wins, so a colour following an account everywhere can
+ * be taken back on one of the two sites.
  */
 export const tiersFor = (settings: Settings, scope: ColumnScope): SettingsNode[] => {
   const tiers = [settings.global];
@@ -163,8 +150,7 @@ export const tiersFor = (settings: Settings, scope: ColumnScope): SettingsNode[]
 
 /**
  * That account's settings for that one site, if both are known and anything was written.
- * Written once because three places ask for it (`tiersFor`, `tiersInward` and the tiers
- * shown above a column on the settings screen), and they must not disagree.
+ * Written once so `tiersFor`, `tiersInward`, and the settings screen's tier display cannot disagree.
  */
 const surfaceAccountOf = (
   settings: Settings,
@@ -174,9 +160,8 @@ const surfaceAccountOf = (
   account !== null && surface !== null ? settings.surfaceAccounts[surface][account] : undefined;
 
 /**
- * The effective value, looking up to the top tier, of whether filtering applies in that
- * scope. Used by the settings screen's markers. It does not go as far as merging the
- * rules, making it lighter than `resolve`.
+ * The effective value of whether filtering applies in that scope, looking up to the top
+ * tier. Used by the settings screen's markers; lighter than `resolve` since it skips merging rules.
  */
 export const enabledAt = (settings: Settings, scope: ColumnScope): boolean | null =>
   inherit(tiersFor(settings, scope), (node) => node.filter.enabled);
@@ -187,28 +172,22 @@ export const resolve = (settings: Settings, scope: ColumnScope): SettingsNode =>
 };
 
 /**
- * The appearance actually applied to that column. Where it is switched off, it is
- * replaced by "nothing set at all".
- * Emitting no CSS is not enough: the applying side also handles the markers and the
- * inserted button, and those work from the appearance's contents.
+ * The appearance actually applied to that column; switched off, it is replaced by "nothing
+ * set at all" — emitting no CSS is not enough, since the applying side's markers and
+ * inserted button also work from the appearance's contents.
  */
 export const appearanceFor = (settings: Settings, scope: ColumnScope): AppearanceNode => {
   const appearance = mergeAppearance(tiersFor(settings, scope));
   return appearanceApplies(appearance.enabled) ? appearance : emptyNode().appearance;
 };
 
-/**
- * A settings tier, used to say where a merged value came from.
- * Distinct from `EditScope`, which is about what is being edited.
- */
+/** A settings tier, used to say where a merged value came from. Distinct from `EditScope`, which is about what is being edited */
 export type Tier = 'global' | 'account' | 'surface' | 'surfaceAccount' | 'column';
 
 /**
- * The tiers a scope covers, innermost first — the order to look in for whichever of them
- * answers. The reverse of `tiersFor`, which lists them for merging (outermost first).
- *
- * One list rather than two walks written out, so that `sourceOf` and `ruleSourceOf`
- * cannot come to disagree about which tier wins.
+ * The tiers a scope covers, innermost first — the order to look in for whichever answers.
+ * The reverse of `tiersFor`, which lists them outermost-first for merging. One list rather
+ * than two walks, so `sourceOf` and `ruleSourceOf` cannot disagree on which tier wins.
  */
 const tiersInward = (settings: Settings, scope: ColumnScope): [Tier, SettingsNode | undefined][] => [
   ['column', scope.columnId !== null ? settings.columns[scope.columnId] : undefined],
@@ -219,14 +198,10 @@ const tiersInward = (settings: Settings, scope: ColumnScope): [Tier, SettingsNod
 ];
 
 /**
- * Which tier that item's value came from. It takes a function that picks the item
- * because weaving the origin into the types would mean wrapping each of the
- * appearance's thirteen items.
- *
- * `item` names the appearance item, the same way `inherit` takes it, and for the same
- * reason: a tier that puts the item back to "as X shows it" is where the answer comes
- * from, even though the answer is that nothing applies. Without it the screen would trace
- * a cancelled item to the tier whose value was cancelled, and read "not set / Global".
+ * Which tier that item's value came from. `item` names the appearance item as `inherit`
+ * does, for the same reason: a tier clearing the item is where the answer comes from, even
+ * though the answer is "nothing applies". Without it the screen would trace a cancelled
+ * item to the tier it was cancelled from, reading "not set / Global".
  */
 export const sourceOf = <T>(
   settings: Settings,
@@ -239,26 +214,20 @@ export const sourceOf = <T>(
       node && (pick(node) !== null || (item !== undefined && node.appearance.cleared.includes(item)))
   )?.[0] ?? null;
 
-/**
- * Which tier that rule belongs to.
- * An id appearing in the merged order always exists in one of the tiers.
- */
+/** Which tier that rule belongs to. An id appearing in the merged order always exists in one of the tiers */
 export const ruleSourceOf = (settings: Settings, scope: ColumnScope, id: string): Tier | null =>
   tiersInward(settings, scope).find(([, node]) =>
     node?.filter.rules.some((rule) => rule.id === id)
   )?.[0] ?? null;
 
-/**
- * The scope being edited on the settings screen.
- * A different thing from `ColumnScope`, used only to decide what sits above that scope.
- */
+/** The scope being edited on the settings screen. A different thing from `ColumnScope`, used only to decide what sits above that scope */
 export type EditScope =
   | { tier: 'global' }
   | { tier: 'accounts' }
   /**
-   * One whole site. Above it sits the account, which a site belongs to none of, so what
-   * can be shown as "what applies if this stays empty" is the global tier alone. The same
-   * situation as a column whose account cannot be read, and it is said the same way.
+   * One whole site. Above it sits the account, which a site belongs to none of, so "what
+   * applies if this stays empty" is the global tier alone — same as a column whose account
+   * cannot be read.
    */
   | { tier: 'surface' }
   /**
@@ -267,10 +236,9 @@ export type EditScope =
    */
   | { tier: 'surfaceAccount'; account: string; surface: SurfaceId }
   /**
-   * The account a column belongs to is known only from what was detected.
-   * With pro.x.com not open it is null, and the effective values are then the global
-   * ones alone.
-   * Which site it belongs to is always known: it is written into the column's own key.
+   * The account a column belongs to is known only from detection — null with pro.x.com not
+   * open, leaving the global values alone. Which site it belongs to is always known,
+   * written into the column's own key.
    */
   | { tier: 'columns'; account: string | null; surface: SurfaceId };
 
@@ -280,25 +248,20 @@ export type Inherited = {
   /**
    * The same merge, with every account folded in where the scope belongs to none of them.
    *
-   * **Only ever asked whether an item is null.** The value itself belongs to no one
-   * account and must never be shown: on a site's page it would be whichever account came
-   * last. What it can answer is the weaker question the "as X shows it" switch asks —
-   * is there anything above worth cancelling — and for that the accounts do count.
-   *
-   * Everywhere else it is the same node as `appearance`.
+   * **Only ever asked whether an item is null.** The value itself belongs to no one account
+   * and must never be shown: on a site's page it would be whichever account came last. What
+   * it can answer is the weaker "as X shows it" question — is there anything above worth
+   * cancelling — for which the accounts do count. Elsewhere it is the same node as `appearance`.
    */
   settable: AppearanceNode;
 };
 
 /**
- * Merges only the tiers above that scope, to show unset fields "what applies if this
- * stays empty".
- * Rules accumulate rather than being inherited by overriding, so they are not handled here.
- *
+ * Merges only the tiers above that scope, to show unset fields "what applies if this stays
+ * empty". Rules accumulate rather than inherit by overriding, so they're not handled here.
  * A site's page is the one scope whose tiers above cannot all be shown: the account sits
- * there, and a site belongs to none of them. The dimmed value stops at global for that
- * reason, and `settable` carries the accounts for the one question that can be answered
- * without naming which account.
+ * there and a site belongs to none of them, so the dimmed value stops at global, and
+ * `settable` carries the accounts for the one question answerable without naming an account.
  */
 export const inheritedFor = (settings: Settings, scope: EditScope): Inherited => {
   // Nothing sits above global. Left empty, X Pro's own display simply stays
@@ -319,8 +282,8 @@ export const inheritedFor = (settings: Settings, scope: EditScope): Inherited =>
       if (account) tiers.push(account);
     }
     tiers.push(settings.surfaces[scope.surface]);
-    // The tiers are listed again here rather than taken from `tiersFor`, which works from
-    // a column's own scope: a tier added there has to be added here too
+    // Listed again rather than taken from `tiersFor`, which works from a column's own
+    // scope — a tier added there must be added here too
     const onSite = surfaceAccountOf(settings, scope.account, scope.surface);
     if (onSite) tiers.push(onSite);
   }

@@ -1,6 +1,6 @@
 /**
- * What is in effect. Shows the result of merging the tiers as it is, with the
- * origin tier attached. Nothing can be changed on this surface; to change something, go to its origin tier.
+ * What is in effect: the result of merging the tiers, with the origin tier attached. Nothing can be
+ * changed on this surface; to change something, go to its origin tier.
  */
 import {
   appearanceApplies,
@@ -82,16 +82,14 @@ const appearanceRows = (
   m: Messages
 ): { label: string; value: string | null; tier: Tier | null }[] => {
   /*
-   * The item's name goes along with the picker for the items a tier can put back to "as X
-   * shows it": that tier is the origin of the answer even when the answer is "nothing"
-   * (`sourceOf` in settings/resolve.ts).
+   * The item's name goes along with the picker for the items a tier can put back to "as X shows it":
+   * that tier is the origin even when the answer is "nothing" (`sourceOf` in settings/resolve.ts)
    */
   const of = <T,>(pick: (node: SettingsNode) => T | null, item?: ClearableItem) =>
     sourceOf(settings, scope, pick, item);
   /*
-   * The column-only items are left out where a scope is not a column: the applying side
-   * drops them there (`withoutColumnItems`), so listing them would name a value that is
-   * not in effect on the very surface for reading what is
+   * The column-only items are left out where a scope is not a column: the applying side drops them there
+   * (`withoutColumnItems`), so listing them would name a value not in effect on the surface for reading what is
    */
   const columns = site !== 'x';
   return [
@@ -161,11 +159,10 @@ const appearanceRows = (
       tier: of((n) => n.appearance.quoteStyle),
     },
     /*
-     * Colors are listed in the same order as on the editing surface, so the two can be
-     * compared. Left out are the ones this scope does not decide: a column's on a site
-     * with no columns, the page's on the site that has no page to paint, and the compose
-     * form's, which is answered as far up as the account and would read here as though
-     * the scope on screen had a say in it.
+     * Colors are listed in the same order as on the editing surface, so the two can be compared.
+     * Left out are the ones this scope does not decide: a column's on a site with no columns, the
+     * page's on the site with no page to paint, and the compose form's, which is answered as far up
+     * as the account and would read here as though the scope on screen had a say in it.
      */
     ...COLOR_ORDER.filter(
       (key) =>
@@ -184,9 +181,9 @@ export const Effective = ({ settings, scope, site }: Props) => {
   const filtering = filterApplies(merged.filter.enabled);
   const styling = appearanceApplies(merged.appearance.enabled);
   /*
-   * The merged value is shown even where it is switched off (`appearanceFor` returns empty).
-   * This matches not clearing the list when the rules are switched off. That it has no effect
-   * is conveyed by the notice above, and "what applies once it is back on" can be read here too.
+   * The merged value is shown even where it is switched off (`appearanceFor` returns empty), matching the
+   * list not being cleared when the rules are. The notice above says it has no effect, and "what applies
+   * once it is back on" can be read here too
    */
   const appearance = merged.appearance;
 

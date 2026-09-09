@@ -1,14 +1,10 @@
 /**
- * Bringing in the posts that have arrived, without waiting to be asked.
- *
- * x.com holds new posts back and floats a button over the timeline offering them. This
- * presses that button, so the timeline fills itself the way X Pro's columns do.
- *
- * x.com only. X Pro brings its columns up to date on its own, and the mark this goes by
- * (`pillLabel`) appears there too, so which site is being read has to be asked rather
- * than left to the selector.
- *
- * When to go at the button is `timing.ts`'s to answer; what is here is the page.
+ * Bringing in the posts that have arrived, without waiting to be asked. x.com holds new
+ * posts back and floats a button over the timeline offering them; this presses that button,
+ * so the timeline fills itself the way X Pro's columns do. x.com only: X Pro brings its
+ * columns up to date on its own, and the mark this goes by (`pillLabel`) appears there too,
+ * so which site is being read has to be asked rather than left to the selector. When to go
+ * at the button is `timing.ts`'s to answer; what is here is the page.
  */
 import { nextGo } from './timing.ts';
 
@@ -34,14 +30,12 @@ let told = false;
  * removing it, so "is it in the DOM" is not the question. Two ways of shutting are looked
  * for: `display: none` anywhere at or above it, and the words being drawn at no size.
  *
- * The size is taken from the words rather than from anything holding them. Measured, the
- * words go from 135x20 to nothing when X shuts the offer; a wrapper around them can sit
- * at no size either way, its contents being positioned out of the flow, and asking one of
- * those would answer "shut" while the button was plainly on screen.
- *
- * A fast path, not the whole answer. X may shut it in some way neither of these sees,
- * which is why a standing offer is gone at again after `RETRY_MS` rather than only when
- * this says it went.
+ * The size is taken from the words rather than from anything holding them: a wrapper around
+ * them can sit at no size either way, its contents being positioned out of the flow, and
+ * asking one of those would answer "shut" while the button was plainly on screen. This is a
+ * fast path, not the whole answer — X may shut it in some way neither of these sees, which
+ * is why a standing offer is gone at again after `RETRY_MS` rather than only when this says
+ * it went.
  */
 const closed = (label: Element): boolean => {
   const at = label.getBoundingClientRect();
@@ -61,17 +55,14 @@ const offer = (): HTMLElement | null => {
 };
 
 /**
- * Where to send the press.
- *
- * A real press lands on whatever is drawn topmost at that spot, which for a control built
- * the way X builds one is usually an element *inside* the `role="button"`. An event sent
- * at the button travels outwards from there and never reaches a listener sitting further
- * in, which looks exactly like the press being ignored.
- *
- * The point is the middle of the words rather than the middle of the button. A button can
- * be laid out wider than what it draws — a row that stretches with its container, holding
- * its words at one end — and its middle then falls on empty space belonging to the button
- * itself, which puts the aim back outside the very element it was meant to find.
+ * Where to send the press. A real press lands on whatever is drawn topmost at that spot,
+ * which for a control built the way X builds one is usually an element *inside* the
+ * `role="button"`; an event sent at the button travels outwards from there and never reaches
+ * a listener sitting further in, which looks exactly like the press being ignored. The point
+ * is the middle of the words rather than of the button: a button can be laid out wider than
+ * what it draws — a row that stretches with its container, holding its words at one end —
+ * and its middle then falls on empty space belonging to the button itself, putting the aim
+ * back outside the very element it was meant to find.
  */
 const aim = (button: HTMLElement): { target: Element; x: number; y: number } => {
   const drawn = button.querySelector(PILL) ?? button;
@@ -108,11 +99,10 @@ const press = (button: HTMLElement): void => {
 
 /**
  * The other way in, which X writes on the button itself: "press the period key to move to
- * the new posts". Tried on the second go, on the chance that what X listens for is the
- * key rather than the button.
- *
- * Sent at the body so it is not taken for typing. A page with the caret in a text box is
- * left alone: the key would go into the box instead, and X does not act on it there.
+ * the new posts". Tried on the second go, on the chance that what X listens for is the key
+ * rather than the button. Sent at the body so it is not taken for typing, and a page with
+ * the caret in a text box is left alone: the key would go into the box instead, and X does
+ * not act on it there.
  */
 const pressPeriod = (): void => {
   const active = document.activeElement;
@@ -138,8 +128,6 @@ const pressPeriod = (): void => {
 /**
  * Called on every settling of the page. Cheap while nothing is on offer: one lookup that
  * finds nothing.
- *
- * What to do is `timing.ts`'s to say; what is left here is reading the page and acting.
  */
 export const takeNewPosts = (): void => {
   if (!on) return;

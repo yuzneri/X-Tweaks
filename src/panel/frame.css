@@ -1,10 +1,7 @@
 /*
- * The frame of the in-page panel.
- *
- * How the contents look lives in ui/panel.css. This file decides only where and how
- * things are placed.
- * Every rule is confined inside elements the extension added, so X Pro's own display is
- * never touched.
+ * The frame of the in-page panel. How the contents look lives in ui/panel.css; this file decides only
+ * where and how things are placed. Every rule is confined inside elements the extension added, so X
+ * Pro's own display is never touched.
  */
 
 .xpro-panel-host {
@@ -18,10 +15,9 @@
 }
 
 /*
- * The color picker (Coloris) is placed outside the panel (directly under body) and
- * carries a stacking order of 1000 of its own. The panel sits above X Pro and therefore
- * uses a vastly larger value, so as it stands the picker would end up behind the panel
- * and pressing it would look like nothing happens.
+ * The color picker (Coloris) is placed outside the panel (directly under body) and carries a stacking
+ * order of 1000 of its own. The panel sits above X Pro and therefore uses a vastly larger value, so as
+ * it stands the picker would end up behind the panel and pressing it would look like nothing happens.
  * It goes one above the panel (specified by id, so it beats Coloris's own `.clr-picker`).
  */
 #clr-picker {
@@ -29,9 +25,8 @@
 }
 
 /*
- * What scrolls is the panes inside, not this frame.
- * Specifying `overflow` here would later override the shell's own settings in
- * `panel.css` (including the switch for narrow widths), so it is left out.
+ * What scrolls is the panes inside, not this frame. Specifying `overflow` here would later override the
+ * shell's own settings in `panel.css` (including the switch for narrow widths), so it is left out.
  */
 .xpro-panel {
   position: relative;
@@ -44,9 +39,8 @@
 }
 
 /*
- * Where Preact renders. It sits beside the close button and cannot go directly under
- * the frame, so this one level is interposed.
- * It passes the panel's height straight to the shell (`.settings` in `ui/panel.css`).
+ * Where Preact renders. It sits beside the close button and cannot go directly under the frame, so this
+ * one level is interposed; it passes the panel's height straight to the shell (`.settings` in `ui/panel.css`).
  */
 .xpro-panel > div {
   flex: 1;
@@ -56,13 +50,10 @@
 }
 
 /*
- * The close button is layered over the contents. Lined up with the settings fields, it
- * would invite mispresses.
- *
- * The selector starts from `.xpro-panel` so it beats the components' own
- * `.xpro-ui button` (padding and left alignment) on specificity. At equal specificity
- * this one wins by being read later, but that breaks the moment the component CSS is
- * reordered.
+ * The close button is layered over the contents; lined up with the settings fields, it would invite
+ * mispresses. The selector starts from `.xpro-panel` so it beats the components' own `.xpro-ui button`
+ * (padding and left alignment) on specificity: at equal specificity this one wins by being read later,
+ * but that breaks the moment the component CSS is reordered.
  */
 .xpro-panel .xpro-panel-close {
   position: absolute;
@@ -80,12 +71,9 @@
 }
 
 /*
- * The ✕ is drawn with lines rather than as a character.
- *
- * The character "×" is drawn on the mathematical axis rather than the center of the
- * line, so centering it in its container still leaves it sitting low, and how far it
- * sits off varies with the typeface.
- * Two lines can be positioned relative to the container's center.
+ * The ✕ is drawn with lines rather than as a character. The character "×" is drawn on the mathematical
+ * axis rather than the center of the line, so centering it in its container still leaves it sitting low,
+ * and how far it sits off varies with the typeface. Two lines can be positioned relative to the center.
  */
 .xpro-panel .xpro-panel-close::before,
 .xpro-panel .xpro-panel-close::after {

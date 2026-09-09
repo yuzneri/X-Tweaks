@@ -1,9 +1,7 @@
 /**
- * Injects the styles the switches inside the compose form use.
- *
- * Kept apart from `switches.ts` the way `filter/styles.ts` is kept apart from the filter:
- * the stylesheet is brought in through the bundler, which the test runner cannot follow,
- * so the module that owns the rules stays free of it.
+ * Injects the styles the switches inside the compose form use. Kept apart from
+ * `switches.ts` as `filter/styles.ts` is from the filter: the stylesheet comes in through
+ * the bundler, which the test runner cannot follow, so the rules' own module stays clear.
  */
 import css from './styles.css';
 

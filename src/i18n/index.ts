@@ -1,7 +1,6 @@
 /**
- * Resolving the display language. The extension platform's own facility
- * (`_locales` and `browser.i18n`) is tied to the browser's UI language and gives the
- * user no choice, so it is not used.
+ * Resolving the display language. The platform's own facility (`_locales` and `browser.i18n`) is
+ * tied to the browser's UI language and gives the user no choice, so it is not used.
  */
 import { en, type Messages } from './en.ts';
 import { ja } from './ja.ts';
@@ -24,9 +23,8 @@ const MESSAGES: Record<Locale, Messages> = { ja, en };
 export const messagesFor = (locale: Locale): Messages => MESSAGES[locale];
 
 /**
- * Decides the language to use. On automatic, Japanese when the browser's language is
- * Japanese and English otherwise.
- * `navigator.language` has shapes like `ja` and `ja-JP`, so it is matched by prefix.
+ * Decides the language. On automatic, Japanese when the browser's is Japanese and English
+ * otherwise; `navigator.language` has shapes like `ja` and `ja-JP`, so it is matched by prefix.
  */
 export const resolveLocale = (language: Language, browserLanguage: string): Locale => {
   if (language !== 'auto') return language;

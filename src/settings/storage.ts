@@ -13,33 +13,29 @@ import type { SurfaceId } from '../surface/index.ts';
 
 export type { Detected, DetectedScope, DetectedGroup } from './detected.ts';
 
-// Namespace resolution only; no polyfill.
-// Chrome MV3's chrome.* returns Promises too, so either resolution is handled the same way
+// Namespace resolution only, no polyfill — Chrome MV3's chrome.* also returns Promises, so either resolves the same way
 declare const chrome: typeof browser | undefined;
 const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
 
 const STORAGE_KEY = 'settings';
 /**
  * The record of which scopes are currently on screen, grouped the way the surface groups
- * them. It is not a setting, so it lives under a separate key.
- * The settings screen consults it to decide what to list in the account and scope tiers.
+ * them. Not a setting, so it is under a separate key; the settings screen uses it to decide
+ * what to list in the account and scope tiers.
  */
 const DETECTED_KEY = 'detected';
 
 /**
- * Whether the whole extension is paused.
- *
- * Kept under a key separate from the settings. Inside `settings` it would be included in
- * an export and carry "paused" over to another device, and a temporary state is not
- * something to take along.
+ * Whether the whole extension is paused. Kept separate from `settings`: inside it,
+ * "paused" would be included in an export and carried to another device — not something a
+ * temporary state should do.
  */
 const PAUSED_KEY = 'paused';
 
 /**
- * The result of a load. It carries no messages.
- * When the settings could not be read, it returns only the stored version and whether
- * that is newer or older. The explanation is assembled by the settings screen from the
- * dictionaries.
+ * The result of a load. Carries no messages: when settings cannot be read it returns only
+ * the stored version and whether it is newer or older, and the settings screen builds the
+ * explanation from the dictionaries.
  */
 export type LoadResult = {
   settings: Settings;
@@ -47,10 +43,9 @@ export type LoadResult = {
 };
 
 /**
- * Loads the settings. Settings of a different version are not interpreted, and the
- * defaults are used instead.
+ * Loads the settings. A different version is not interpreted; defaults are used instead.
  * Only reading happens, never writing, so the original data stays intact and an earlier
- * version of the extension can be gone back to.
+ * extension version can be gone back to.
  */
 export const load = async (): Promise<LoadResult> => {
   const stored: unknown = (await api.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
@@ -75,9 +70,8 @@ export const save = async (settings: Settings): Promise<void> => {
 };
 
 /**
- * Subscribes to changes under one key, returning a function that unsubscribes.
- * Changes propagate through this mechanism alone; no messages are passed around inside
- * the extension.
+ * Subscribes to changes under one key, returning an unsubscribe function. Changes
+ * propagate through this alone — no messages pass around inside the extension.
  */
 const watch = <T>(
   key: string,
@@ -100,9 +94,8 @@ export const subscribe = (callback: (settings: Settings) => void): (() => void) 
   watch(STORAGE_KEY, fillAll, callback);
 
 /**
- * Whether ad detection was switched off.
- * The content script writes it and the settings screen reads it to show a warning. It is
- * not a setting, so it lives under a separate key.
+ * Whether ad detection was switched off. The content script writes it; the settings
+ * screen reads it to show a warning. Not a setting, so it is under a separate key.
  */
 const AD_GUARD_KEY = 'adGuard';
 
@@ -119,9 +112,8 @@ export const subscribeAdGuard = (callback: (tripped: boolean) => void): (() => v
   watch(AD_GUARD_KEY, fillFlag, callback);
 
 /**
- * The broken markers of X.
- * They take the same route as the ad guard. Rather than a key per marker, one key holds
- * them as a list.
+ * The broken markers of X — same route as the ad guard, but one key holds them as a list
+ * rather than one key per marker.
  */
 const HEALTH_KEY = 'health';
 
@@ -138,7 +130,7 @@ export const saveHealth = async (broken: Marker[]): Promise<void> => {
 export const subscribeHealth = (callback: (broken: Marker[]) => void): (() => void) =>
   watch(HEALTH_KEY, fillHealth, callback);
 
-/** An unreadable value (written by another version, say) falls back to "running". Staying paused unnoticed is the worse outcome */
+/** An unreadable value (e.g. written by another version) falls back to "running" — staying paused unnoticed is the worse outcome */
 const fillPaused = (v: unknown): boolean => v === true;
 
 export const loadPaused = async (): Promise<boolean> =>
@@ -152,12 +144,10 @@ export const subscribePaused = (callback: (paused: boolean) => void): (() => voi
   watch(PAUSED_KEY, fillPaused, callback);
 
 /**
- * Records the scopes detected. Only the content script writes; the settings screen only reads.
- *
- * What is remembered is each group's scopes; the list of groups itself can be read from
- * the rail every time.
- * The merging rules live in `detected.ts`. Identical contents are not written, to avoid
- * triggering a re-render of the settings screen on every write.
+ * Records the scopes detected. Only the content script writes; the settings screen only
+ * reads. What is remembered is each group's scopes — the list of groups itself is readable
+ * from the rail each time. Merging rules live in `detected.ts`. Identical contents are not
+ * written, to avoid re-rendering the settings screen on every write.
  */
 export const saveDetected = async (
   surface: SurfaceId,
@@ -181,8 +171,8 @@ export const subscribeDetected = (callback: (detected: Detected) => void): (() =
   watch(DETECTED_KEY, fillDetected, callback);
 
 /**
- * Removes one scope from the record. Called from the settings screen.
- * A scope that is still there gets listed again on the next detection, so it can be undone.
+ * Removes one scope from the record, called from the settings screen. A scope still there
+ * is listed again next detection, so it can be undone.
  */
 export const forgetScope = async (key: string): Promise<void> => {
   const stored = (await api.storage.local.get(DETECTED_KEY))[DETECTED_KEY];
@@ -190,11 +180,9 @@ export const forgetScope = async (key: string): Promise<void> => {
 };
 
 /**
- * Throws away the whole record of detected scopes.
- *
- * Scopes that are out of sight are never deleted, so a column that was removed does not
- * drop out on its own. This is the only way to clear out what has piled up. The settings
- * themselves are untouched.
+ * Throws away the whole record of detected scopes. Scopes out of sight are never deleted,
+ * so a removed column does not drop out on its own — this is the only way to clear what is
+ * piled up. The settings themselves are untouched.
  */
 export const clearDetected = async (): Promise<void> => {
   await api.storage.local.remove(DETECTED_KEY);

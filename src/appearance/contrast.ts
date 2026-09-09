@@ -1,8 +1,7 @@
 /**
- * Judges whether text stays readable on top of a painted color, and picks a
- * color to shift it toward when it does not. Translucent colors are always
- * composited onto their backdrop before judging (`contrast-color()` is not used
- * for the same reason: it does not take care of translucent compositing).
+ * Judges whether text stays readable on top of a painted color, and picks a color to shift
+ * it toward when it does not. Translucent colors are always composited onto their backdrop
+ * before judging, which is also why `contrast-color()` is not used: it does not do that.
  */
 import { HEX_COLOR_PATTERN } from '../settings/schema.ts';
 
@@ -14,12 +13,11 @@ export const WHITE = '#ffffff';
 export const BLACK = '#000000';
 
 /**
- * Fall below this ratio and the text counts as unreadable. This is 3:1 rather
- * than the WCAG AA body-text threshold (4.5:1): X's own dim text only reaches
- * 4.58:1 on black, so drawing the line at 4.5 would break it the moment the
- * default highlight (15%) is laid down, changing the color of @IDs and
- * timestamps. Recoloring is a visible change too, so limit it to text that is
- * plainly unreadable.
+ * Fall below this ratio and the text counts as unreadable. 3:1 rather than the WCAG AA
+ * body-text threshold (4.5:1): X's own dim text only reaches 4.58:1 on black, so drawing
+ * the line at 4.5 would break it the moment the default highlight (15%) is laid down,
+ * changing the color of @IDs and timestamps. Recoloring is a visible change too, so limit
+ * it to text that is plainly unreadable.
  */
 export const MIN_CONTRAST = 3;
 
@@ -54,9 +52,8 @@ export const parseCssColor = (color: string): Rgba | null => {
 };
 
 /**
- * Lays a color over a backdrop (alpha compositing). The backdrop is taken as opaque.
- * Called in painting order, this also expresses the three layers
- * background → highlight → emphasis.
+ * Lays a color over a backdrop (alpha compositing). The backdrop is taken as opaque; called
+ * in painting order, this also expresses the three layers background → highlight → emphasis.
  */
 export const layer = (base: Rgb, over: Rgba): Rgb => {
   const mix = (b: number, o: number): number => Math.round(b * (1 - over.a) + o * over.a);
@@ -80,15 +77,14 @@ export const contrastRatio = (a: Rgb, b: Rgb): number => {
 /**
  * A text color readable on that background, or null when the current one suffices.
  *
- * What gets judged is the text color currently in effect, treating a color set by
- * a tier and a color X applies the same way. A translucent text color is composited
- * onto the background before measuring. When the text color is unknown (null) there
- * is nothing to compare against, so a target color is always returned; falling back
- * to leaving it alone is the caller's decision.
+ * What gets judged is the text color currently in effect, a color set by a tier and one X
+ * applies alike, composited onto the background first where it is translucent. An unknown
+ * text color (null) has nothing to compare against, so a target is always returned; falling
+ * back to leaving it alone is the caller's decision.
  *
- * The target is whichever of white or black has the greater contrast. Neither
- * falling short cannot happen (the minimum is the point where both ratios are
- * equal, and even there it is 4.58:1).
+ * The target is whichever of white or black has the greater contrast. Neither falling short
+ * cannot happen: the minimum is the point where both ratios are equal, and even there it is
+ * 4.58:1.
  */
 export const readableTextColor = (background: Rgb, current: Rgba | null): string | null => {
   const shown = current === null ? null : layer(background, current);

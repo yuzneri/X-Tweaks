@@ -1,13 +1,9 @@
 /**
- * x.com as a surface.
- *
- * A scope here is the view being looked at — home, notifications, a list — read from the
- * URL, plus the account signed in. There are no columns, so nothing has to be asked of
- * the page's own state: `viewKeyOf` decides it from the path.
- *
- * The appearance applies to the timeline down the middle of the page, which X marks. One
- * view is on screen at a time, so there is one scope where X Pro has as many as the deck
- * holds.
+ * x.com as a surface. A scope here is the view being looked at — home, notifications, a
+ * list — read from the URL, plus the account signed in. There are no columns, so nothing has
+ * to be asked of the page's own state: `viewKeyOf` decides it from the path. The appearance
+ * applies to the timeline down the middle of the page, which X marks; one view is on screen
+ * at a time, so there is one scope where X Pro has as many as the deck holds.
  */
 import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
 import { watch as watchEntry } from '../panel/menu-item.ts';
@@ -30,11 +26,10 @@ const ACCOUNT_SWITCHER = '[data-testid="SideNav_AccountSwitcher_Button"]';
 const PRIMARY_COLUMN = '[data-testid="primaryColumn"]';
 
 /**
- * The screen name signed in, or null while it cannot be read.
- *
- * X also writes `UserAvatar-Container-unknown` on avatars it has no user for (the chat
- * and Grok drawers carry them), so that value is refused: taken as a name it would make
- * an account tier called "unknown" that every reader would have to explain to themselves.
+ * The screen name signed in, or null while it cannot be read. X also writes
+ * `UserAvatar-Container-unknown` on avatars it has no user for (the chat and Grok drawers
+ * carry them), so that value is refused: taken as a name it would make an account tier
+ * called "unknown" that every reader would have to explain to themselves.
  */
 const accountOf = (): string | null => {
   const name = avatarNameOf(document.querySelector(ACCOUNT_SWITCHER)?.querySelector(AVATAR_NAME));
@@ -59,9 +54,8 @@ export const xSurface: Surface = {
   // The scope comes from the URL, not from anything that renders, so it never has to settle
   scopeSettled: () => true,
 
-  // Only the views that have a key are worth listing. A page with none (a post's own
-  // page, say) runs on the tiers above, and reporting it as an unresolved scope would
-  // set off the watch on X's markers
+  // Only views with a key are worth listing: a page with none (a post's own page) runs on
+  // the tiers above, and reporting it unresolved would set off the watch on X's markers
   detect: () => {
     const key = viewKeyOf(location.pathname, location.search);
     // What X calls this view. Reading it is `viewNameFrom`'s; all this knows is where to look
@@ -75,9 +69,8 @@ export const xSurface: Surface = {
    */
   signature: () => `${location.pathname}${location.search}\n${accountOf() ?? ''}`,
   /*
-   * One group for the whole site. x.com has nothing like a deck, so there is nothing to
-   * group views by — but the record needs somewhere to put them, and the settings screen
-   * needs something to head the list with.
+   * One group for the whole site: x.com has nothing like a deck to group views by, but the
+   * record needs somewhere to put them and the settings screen something to head the list.
    */
   state: () => ({ groups: [{ id: GROUP, name: null }], groupId: GROUP }),
   /*
@@ -94,7 +87,6 @@ export const xSurface: Surface = {
    */
   scopes: () => [currentScope()],
 
-  // One timeline filling the middle of the page, not one column among several
   hasColumns: false,
   scopeElements: () => Array.from(document.querySelectorAll(PRIMARY_COLUMN)),
   scopeOfElement: currentScope,
@@ -114,12 +106,10 @@ export const xSurface: Surface = {
 
   /*
    * One way in: the "More" menu. x.com has nothing like a column's options, so `openAt` is
-   * never called — there is no per-scope handle on the page to press.
-   *
-   * It lands on the view being looked at all the same. X Pro needs a handle per column
-   * because several are on screen at once; here there is only ever one, and the address
-   * already says which. Landing on the global settings would make every visit start with
-   * the same two presses.
+   * never called — there is no per-scope handle on the page to press. It lands on the view
+   * being looked at all the same: X Pro needs a handle per column because several are on
+   * screen at once, here there is only ever one and the address already says which, and
+   * landing on the global settings would make every visit start with the same two presses.
    */
   insertEntryPoints: insertMenuItem,
   watchEntryPoints: ({ toggle }) =>

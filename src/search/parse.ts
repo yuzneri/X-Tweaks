@@ -1,16 +1,14 @@
 /**
- * Reads a query string back into the form's fields — the other direction from
- * `buildQuery`.
- *
- * What it is for: a search reached without this form (a trend pressed, a link somebody
- * shared, a page reloaded) can still be taken up and refined. Without it the form is empty
+ * Reads a query string back into the form's fields — the other direction from `buildQuery`.
+ * It is for a search reached without this form (a trend pressed, a link somebody shared, a
+ * page reloaded), which can then be taken up and refined rather than leaving the form empty
  * beside a page full of results it knows nothing about.
  *
- * **It cannot always be exact, and does not pretend to be.** One string comes out of
- * several fields, so taking it apart is a guess about where each piece came from: `rust`
- * could have been typed into "all of these words" or be the only word in "any of these".
- * What is aimed at is that reading a query and building it again gives the same query —
- * not that the fields come back exactly as somebody left them.
+ * **It cannot always be exact, and does not pretend to be.** One string comes out of several
+ * fields, so taking it apart is a guess about where each piece came from: `rust` could have
+ * been typed into "all of these words" or be the only word in "any of these". What is aimed
+ * at is that reading a query and building it again gives the same query, not that the fields
+ * come back exactly as somebody left them.
  */
 import {
   emptyForm,
@@ -31,11 +29,9 @@ type Term = {
 };
 
 /**
- * Splits a query into terms, keeping a group `(a OR b)` together.
- *
- * `tokenize` alone would break a group apart at its spaces, and the group is one answer to
- * one field. Quotes are still `tokenize`'s to respect, so this walks the same way and
- * counts brackets as well.
+ * Splits a query into terms, keeping a group `(a OR b)` together. `tokenize` alone would
+ * break a group apart at its spaces, and the group is one answer to one field. Quotes are
+ * still `tokenize`'s to respect, so this walks the same way and counts brackets as well.
  */
 const terms = (query: string): Term[] => {
   const out: Term[] = [];
@@ -81,11 +77,10 @@ const momentOf = (seconds: number): Moment => {
   const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
   const time = `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
   /*
-   * A time at the edge of a day is left off, so that a span of whole days comes back as
-   * the two dates it was built from rather than as dates with times bolted on. Which edge
-   * belongs to which end is `buildQuery`'s rule (`start` / `end`), and both are dropped
-   * here — putting the wrong one back would change what the query means, while dropping
-   * it cannot: the same edge is what an empty time means on the way out.
+   * A time at the edge of a day is left off, so a span of whole days comes back as the two
+   * dates it was built from. Which edge belongs to which end is `buildQuery`'s rule (`start`
+   * / `end`), and both are dropped: putting the wrong one back would change what the query
+   * means, dropping it cannot — an empty time means that same edge on the way out.
    */
   return { date, time: time === '00:00:00' || time === '23:59:59' ? '' : time };
 };
@@ -98,11 +93,10 @@ const FILTERS: { name: string; key: 'verified' | 'links' | 'images' | 'videos' }
 ];
 
 /**
- * Reads a query into a form.
- *
- * A term nothing here recognises is put into "all of these words", where it goes back out
- * untouched. That is what keeps the reading from losing anything: an operator this
- * extension does not offer still survives the round trip, and reaches X as it arrived.
+ * Reads a query into a form. A term nothing here recognises goes into "all of these words",
+ * where it goes back out untouched: that is what keeps the reading from losing anything, an
+ * operator this extension does not offer still surviving the round trip and reaching X as
+ * it arrived.
  */
 export const parseQuery = (query: string): SearchForm => {
   const form = emptyForm();
@@ -179,8 +173,7 @@ export const parseQuery = (query: string): SearchForm => {
 
   /*
    * The exact phrase is taken out of "all of these words" where there is one and only one:
-   * with two, which of them the field held cannot be told, and both go back out unchanged
-   * from where they are.
+   * with two, which of them the field held cannot be told, and both go back out unchanged.
    */
   const quotedWords = all.filter((word) => word.startsWith('"') && word.endsWith('"'));
   if (quotedWords.length === 1) {
@@ -196,12 +189,11 @@ export const parseQuery = (query: string): SearchForm => {
 };
 
 /**
- * The address's own parameters, read back out of a search's address.
- *
- * A tab this form does not offer — X shows `image` and `video` in place of `media` where a
- * feature flag is on (`ResultTab`) — comes back as `top`. Carrying it through instead
- * would mean widening the type to hold a value no control can show, for the sake of a tab
- * the reader would have to leave the form to get back to.
+ * The address's own parameters, read back out of a search's address. A tab this form does
+ * not offer — X shows `image` and `video` in place of `media` where a feature flag is on
+ * (`ResultTab`) — comes back as `top`: carrying it through would mean widening the type to
+ * hold a value no control can show, for the sake of a tab the reader would have to leave the
+ * form to get back to.
  */
 export const parseScopes = (search: string): SearchScopes => {
   const params = new URLSearchParams(search);
@@ -215,15 +207,12 @@ export const parseScopes = (search: string): SearchScopes => {
 };
 
 /**
- * The query a search's address asks for, whichever of the two shapes X writes it in.
- *
- * A search is `?q=…`, but a tag pressed inside a post is `/hashtag/<tag>` and carries no
- * `q` at all. Reading only the parameters left the form empty on every hashtag page, with
- * the page plainly showing a search (measured 2026-09-04).
- *
- * Both shapes are read off `viewKeyOf`, which already knows them — it is what decides
- * whether this page is a search's results in the first place, so the query and the
- * judgement that there is one cannot come to disagree.
+ * The query a search's address asks for, whichever of the two shapes X writes it in. A
+ * search is `?q=…`, but a tag pressed inside a post is `/hashtag/<tag>` and carries no `q`
+ * at all: reading only the parameters left the form empty on every hashtag page, with the
+ * page plainly showing a search (measured 2026-09-04). Both shapes are read off `viewKeyOf`,
+ * which already knows them — it is what decides whether this page is a search's results in
+ * the first place, so the query and the judgement that there is one cannot disagree.
  */
 export const queryAt = (pathname: string, search: string): string => {
   const key = viewKeyOf(pathname, search);

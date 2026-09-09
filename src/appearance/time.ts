@@ -1,7 +1,6 @@
 /**
- * Renders a post's timestamp in absolute form.
- * How a date is written differs by language, so the sentence building lives in
- * the dictionaries.
+ * Renders a post's timestamp in absolute form. How a date is written differs by language,
+ * so the sentence building lives in the dictionaries.
  */
 import type { Messages } from '../i18n/index.ts';
 
@@ -16,13 +15,12 @@ const isToday = (postedAt: Date, now: Date): boolean =>
 /**
  * The time to show on screen, and whether it is from today.
  *
- * Today: the clock time alone (`11:18`). The date is obvious, and in the "both"
- * format the relative time in parentheses fills it in.
- * Otherwise: start from the date (`8月21日 19:03`).
- * A different year gets the year too; omitting it invites reading "August last
- * year" as "August this year".
- * `datetime` is UTC, but readers want the time on their own clock, so it is
- * rendered in the device's time zone.
+ * Today: the clock time alone (`11:18`) — the date is obvious, and the "both" format fills
+ * it in with the relative time in parentheses. Otherwise: start from the date
+ * (`8月21日 19:03`), and add the year where it differs, since omitting it invites reading
+ * "August last year" as "August this year".
+ * `datetime` is UTC, but readers want their own clock, so it is rendered in the device's
+ * time zone.
  */
 export const describeTime = (
   postedAt: Date,
@@ -42,9 +40,9 @@ export const describeTime = (
 };
 
 /**
- * Turns a `time` element's `datetime` into the form to show. null when unreadable.
- * It is not padded with an empty string: marking a cell with an empty value makes
- * `::after` produce an empty box, which reads as the timestamp having vanished.
+ * Turns a `time` element's `datetime` into the form to show. null when unreadable, not an
+ * empty string: marking a cell with an empty value makes `::after` produce an empty box,
+ * which reads as the timestamp having vanished.
  */
 export const timeTextFrom = (
   datetime: string | null,

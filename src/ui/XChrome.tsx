@@ -1,23 +1,17 @@
 /**
- * What of the page x.com draws around the timeline is taken away. Like the compose form's
- * settings, and unlike the filter and the appearance, these are not per tier: there is one
- * answer for the whole site, so no value is inherited and nothing is shown dimmed.
+ * What of the page x.com draws around the timeline is taken away. Unlike the filter and the
+ * appearance (and like the compose form's settings), these are not per tier: one answer for
+ * the whole site, so nothing is inherited or shown dimmed.
  *
- * Laid out the way the page is: the items down the left, the menu they open, the rail on
- * the right, and the bars floating in the corner. A reader looking for a switch can point
- * at the thing on screen and know where to look.
+ * Laid out as the page is — items down the left, the menu they open, the rail on the right,
+ * the bars floating in the corner — so a reader looking for a switch can point at the thing
+ * on screen. What x.com puts at the head of the timeline is in `XTimeline` below instead: the
+ * same stored settings, but standing in the timeline rather than around it.
  *
- * What x.com puts at the head of the timeline is not here but in `XTimeline` below: it is
- * the same stored settings, but it stands in the timeline rather than around it.
- *
- * One box here is not x.com's: the search form. It is a thing the extension adds rather
- * than one x.com draws, and it is stored apart for exactly that reason
- * (`SearchSettings`). It is shown here all the same, because where it goes is the rail —
- * the reader looking for it will look beside the rail's own switches, and taking the rail
- * away governs it the same way it governs them. Its own box is what keeps the two kinds
- * of switch from reading as one kind.
- *
- * Every switch sits in a named box. One standing outside them reads as belonging to
+ * One box here is not x.com's: the search form, added by the extension rather than drawn by
+ * x.com, stored apart for that reason (`SearchSettings`). Shown here anyway, since it belongs
+ * in the rail — beside the rail's own switches, governed by taking the rail away the same
+ * way — but kept in its own box, since a switch outside a named box reads as belonging to
  * whichever box it happens to follow.
  */
 import {
@@ -31,14 +25,14 @@ import { ShownSwitch } from './fields.tsx';
 import { useMessages } from './messages.tsx';
 
 /*
- * The notes are tied to the switch they describe. Without the tie, a screen reader reaches
- * a switch and says only its name, leaving the reason on the screen for eyes alone.
+ * The notes are tied to the switch they describe; without the tie, a screen reader reaches
+ * a switch and says only its name, leaving the reason on screen for eyes alone.
  */
 const WIDE_NOTE = 'xpro-chrome-wide-note';
 const COMPOSE_NOTE = 'xpro-chrome-compose-note';
 const SEARCH_NOTE = 'xpro-search-form-note';
 
-/** What both screens here need. `XTimeline` needs nothing beyond it */
+/** What both screens here need; `XTimeline` needs nothing beyond it */
 type ChromeProps = {
   chrome: XChromeSettings;
   onChange: (chrome: XChromeSettings) => void;
@@ -46,9 +40,8 @@ type ChromeProps = {
 
 type Props = ChromeProps & {
   /**
-   * The search form's switch. Passed beside the chrome rather than merged into it: it is
-   * stored apart for the reason `SearchSettings` gives, and the screen is what puts the
-   * two next to each other.
+   * The search form's switch, passed beside the chrome rather than merged into it: it is
+   * stored apart for the reason `SearchSettings` gives, and the screen puts the two together.
    */
   search: SearchSettings;
   onSearchChange: (search: SearchSettings) => void;
@@ -59,15 +52,15 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
   const patch = (part: Partial<XChromeSettings>) => onChange({ ...chrome, ...part });
 
   /*
-   * With the rail taken away every block in it has gone, whatever each switch says. They
-   * are shown cleared and held shut to say so — the stored values are left alone, so
-   * turning the widening off brings each block back to what it was set to.
+   * With the rail taken away every block in it has gone, whatever each switch says, so they
+   * show cleared and held shut. Stored values are left alone: turning the widening off
+   * brings each block back to what it was set to
    */
   const railGone = chrome.wideTimeline;
 
   return (
     <>
-      {/* Each list is in the order X shows it, so it reads down the screen the way X's own does */}
+      {/* Each list is in the order X shows it, reading down the screen as X's own does */}
       <fieldset>
         <legend>{m.xChrome.nav.label}</legend>
         {X_NAV_KEYS.map((key) => (
@@ -81,9 +74,8 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
       </fieldset>
 
       {/*
-        Straight after the navigation, that being where the menu is opened from. A group of
-        its own rather than more rows in the one above: these are behind a press, and what
-        is always on screen is a different question from what is one level in.
+        Straight after the navigation, where the menu opens from. A group of its own, not more
+        rows above: these are behind a press, a different question from what is always on screen
       */}
       <fieldset>
         <legend>{m.xChrome.menu.label}</legend>
@@ -100,8 +92,8 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
       <fieldset>
         <legend>{m.xChrome.rail.label}</legend>
         {/*
-          Taking the rail away governs the list under it, so it is not held shut with
-          them: shut along with the list, there would be no way to turn it back off.
+          Taking the rail away governs the list under it, so it is not held shut with them:
+          shut along with the list, there would be no way to turn it back off
         */}
         <label class="row switch">
           <input
@@ -127,13 +119,11 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
       </fieldset>
 
       {/*
-        Straight after the rail, that being where the form goes, and in a box of its own:
-        the box above lists what x.com draws and each switch there says whether it stays,
-        while this one says to add something. Among them it would read as one of them.
-
-        Held shut with the rail taken away, the same as the blocks above and for the same
-        reason — there is nowhere to put it. The stored value is left alone, so turning the
-        widening off brings the form back if it was asked for.
+        Straight after the rail, where the form goes, in a box of its own: the box above lists
+        what x.com draws (each switch saying whether it stays), while this one adds something,
+        so among them it would read as one of them. Held shut with the rail taken away, for
+        the same reason as the blocks above — nowhere to put it. The stored value is left
+        alone, so turning the widening off brings the form back if it was asked for
       */}
       <fieldset>
         <legend>{m.search.label}</legend>
@@ -171,14 +161,12 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
 };
 
 /**
- * The two x.com puts at the head of the timeline: the box a post is written in, and the
- * bar saying that new posts have arrived.
- *
- * Held apart from the rest of `XChrome` although it is the same stored settings. Those are
- * the page drawn *around* the timeline; these two stand *in* it, and the settings screen
- * groups them with the other things that appear in a timeline without being posts
- * (`Injected`). Reading a tab called "around the timeline" and finding the timeline's own
- * head in it was the confusion this splits apart.
+ * The two x.com puts at the head of the timeline: the box a post is written in, and the bar
+ * saying new posts have arrived. Held apart from the rest of `XChrome`, though the same
+ * stored settings: those are the page drawn *around* the timeline, these two stand *in* it,
+ * grouped on the settings screen with other things appearing in a timeline without being
+ * posts (`Injected`) — splitting apart the confusion of finding the timeline's own head
+ * inside a tab called "around the timeline".
  */
 export const XTimeline = ({ chrome, onChange }: ChromeProps) => {
   const m = useMessages();

@@ -1,13 +1,11 @@
 /*
- * The search form standing in x.com's rail.
+ * The search form standing in x.com's rail. The type and the text color are inherited rather than
+ * named, so the form follows whichever of X's themes the reader is in rather than carrying a second
+ * palette that would be right in one theme and wrong in the other.
  *
- * The type and the text color are inherited rather than named, so the form follows
- * whichever of X's themes the reader is in rather than carrying a second palette that
- * would be right in one theme and wrong in the other.
- *
- * The browser's own date and number controls (the calendar button, the spinners) follow
- * `color-scheme`, which X sets on the root and which inherits all the way down here — so
- * they come out dark on X's dark page without this file saying anything about them.
+ * The browser's own date and number controls (the calendar button, the spinners) follow `color-scheme`,
+ * which X sets on the root and which inherits all the way down here — so they come out dark on X's dark
+ * page without this file saying anything about them.
  */
 
 .xpro-search {
@@ -17,10 +15,9 @@
   /* The padding X puts inside the rail's own blocks */
   padding: 12px 16px;
   /*
-   * X publishes its line color as a variable on some pages and not on others (it was not
-   * there on any of the three pages measured). The fallback is X's own dark-theme line,
-   * which is nearer than anything of ours would be, and a border slightly off is better
-   * than one lost in the background.
+   * X publishes its line color as a variable on some pages and not on others (it was not there on any
+   * of the three pages measured). The fallback is X's own dark-theme line, which is nearer than anything
+   * of ours would be, and a border slightly off is better than one lost in the background.
    */
   border: 1px solid var(--color-border, rgb(47, 51, 54));
   border-radius: 16px;
@@ -49,9 +46,8 @@
 }
 
 /*
- * Smaller than the box it names, so the pair reads as one thing. The rail is 350px wide
- * and there are twenty of these; a label at the same size as its box doubles the height
- * of every row.
+ * Smaller than the box it names, so the pair reads as one thing. The rail is 350px wide and there are
+ * twenty of these; a label at the same size as its box doubles the height of every row.
  */
 .xpro-search-label {
   font-size: 13px;
@@ -77,12 +73,9 @@
 }
 
 /*
- * A number box and the two buttons that step it.
- *
- * The box keeps the full width of a field, the buttons sit beside it. They step the value
- * rather than the box being a `type="number"`: an empty box here means "leave this one
- * alone", and a number box empties itself on anything it cannot read, which would say the
- * same thing (`ui/step.ts`).
+ * A number box and the two buttons that step it. Buttons rather than `type="number"`: an
+ * empty box here means "leave this one alone", and a number box empties itself on
+ * anything it cannot read, which would say the same thing (`ui/step.ts`).
  */
 .xpro-search-number {
   display: flex;
@@ -92,8 +85,7 @@
 
 .xpro-search-step {
   flex: 0 0 auto;
-  /* The box centres what is on it rather than leaving the character where the browser's
-     own styling for a button puts it (see the same rule in `ui/panel.css`) */
+  /* Centred here rather than left to what a button inherits */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,24 +192,20 @@
 }
 
 /*
- * A post left out by the search form.
- *
- * A mark of this feature's own, not the filter's. A post gone from the screen should be
- * traceable to whichever took it: a rule the reader saved, or a box ticked here.
+ * A post left out by the search form. A mark of this feature's own, not the filter's: a post gone from
+ * the screen should be traceable to whichever took it, a rule the reader saved or a box ticked here.
  */
 [data-xpro-search-hidden] {
   display: none !important;
 }
 
 /*
- * The four stand together inside the filter group, so the block lays itself out the way
- * that group does. It is one item of the group's column, and without this its own children
- * would fall together with nothing between them.
- *
- * The rule above it is what says where the note stops reaching. The note speaks for the
- * four below it and for nothing above them, and with no line there it read as a remark on
- * the whole group. Drawn the way the groups themselves are divided, that being what a line
- * in this form already means.
+ * The four stand together inside the filter group, so the block lays itself out the way that group
+ * does. It is one item of the group's column, and without this its own children would fall together
+ * with nothing between them. The rule above it is what says where the note stops reaching: the note
+ * speaks for the four below it and for nothing above them, and with no line there it read as a remark
+ * on the whole group. Drawn the way the groups themselves are divided, that being what a line in this
+ * form already means.
  */
 .xpro-search-leave-out {
   display: flex;
@@ -228,11 +216,9 @@
 }
 
 /*
- * One end of the span: the day and the time of day, side by side.
- *
- * A row rather than the column the other fields are in. The two belong to one answer, and
- * stacking them makes a span take four rows in a rail that is 350px wide — the day carries
- * the more text, so it takes the larger share.
+ * One end of the span: the day and the time of day, side by side. A row rather than the column the
+ * other fields are in — the two belong to one answer, and stacking them makes a span take four rows in
+ * a rail that is 350px wide. The day carries the more text, so it takes the larger share.
  */
 .xpro-search-span {
   flex-direction: row;

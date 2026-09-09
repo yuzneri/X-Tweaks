@@ -1,31 +1,26 @@
 /**
  * The colours offered in the picker, grouped by what the field is for.
  *
- * One set for every kind of field, because a colour that suits one suits none of the
- * others: a 15% tint is what keeps text readable behind a highlight, and the same value
- * chosen for the body text would be invisible. Before this, every field was offered the
- * highlight's eight tints, which left the text and the border fields with nothing usable.
+ * One set per kind of field: a colour that suits one suits none of the others — a 15% tint
+ * keeps text readable behind a highlight, but the same value as body text would be
+ * invisible. Before this, every field was offered the highlight's eight tints, leaving text
+ * and border fields with nothing usable. Each set holds the colours X itself uses, so a
+ * choice never looks out of place, plus a shared row of hues X has none of, the same
+ * wherever they appear so a colour found once can be found again — telling things apart,
+ * above all which account a post is going out as, being the point of them.
  *
- * Each set holds the colours X itself uses, so a choice never looks out of place, plus a
- * shared row of hues X has none of. Those are the same wherever they appear, so a colour
- * found once can be found again in the next field — the point of them is telling things
- * apart, above all which account a post is going out as.
- *
- * **Every set runs in the order of the colour wheel**, red round to pink, with the greys
- * at the end from dark to light. Written out rather than sorted at run time: the order is
- * something to read and to edit here, and a colour dropped into the wrong place shows up
- * in the diff. `palettes.test.ts` checks the order holds.
- *
- * The trailing two digits are the opacity: `26` is 15%, `66` is 40%.
+ * Every set runs in colour-wheel order, red round to pink, with greys at the end from dark
+ * to light. Written out rather than sorted at run time, so a colour dropped into the wrong
+ * place shows up in the diff (`palettes.test.ts` checks it holds). The trailing two digits
+ * are the opacity: `26` is 15%, `66` is 40%.
  */
 
 export type PaletteKind = 'tint' | 'strong' | 'text' | 'line';
 
 export const PALETTES: Record<PaletteKind, string[]> = {
   /**
-   * Every ground: behind a post, behind a column, behind the page, and over the form a
-   * post is written in. All of them let what is under them through, so all of them take
-   * the same tints — a ground picked here reads the same wherever it is used.
+   * Every ground: behind a post, a column, the page, and over the compose form. All let what
+   * is under them through, so all take the same tints.
    */
   tint: [
     '#7f1d1d26', // maroon
@@ -49,9 +44,9 @@ export const PALETTES: Record<PaletteKind, string[]> = {
   ],
 
   /**
-   * Laid over a few characters rather than a whole post. At the tint's 15% the match
-   * cannot be spotted, which is why the emphasis default is 40% where the highlight's is
-   * 15% (`DEFAULT_EMPHASIS_COLOR` in `settings/schema.ts`).
+   * Laid over a few characters, not a whole post. At the tint's 15% the match cannot be
+   * spotted, hence the 40% emphasis default against the highlight's 15%
+   * (`DEFAULT_EMPHASIS_COLOR`, `settings/schema.ts`).
    */
   strong: [
     '#7f1d1d66', // maroon
@@ -75,11 +70,9 @@ export const PALETTES: Record<PaletteKind, string[]> = {
   ],
 
   /**
-   * Text and links. Opaque, and readable against a ground.
-   *
-   * X's own six are the ones a reader can pick for links, so they are the colours text
-   * already comes in there. The red X warns in is left out: it belongs to a state rather
-   * than to a palette. Plain body text and its greys close the list.
+   * Text and links: opaque, readable against a ground. X's own six are the ones a reader can
+   * pick for links, so text already comes in them there. The red X warns in is left out,
+   * belonging to a state, not a palette; plain body text and its greys close the list.
    */
   text: [
     '#7f1d1d', // maroon
@@ -104,8 +97,8 @@ export const PALETTES: Record<PaletteKind, string[]> = {
   ],
 
   /**
-   * The line between posts. X's own three sit with the greys at the end, one per theme it
-   * offers, because that is what they are: greys.
+   * The line between posts. X's own three are greys, so they sit at the end, one per theme
+   * it offers
    */
   line: [
     '#7f1d1d', // maroon

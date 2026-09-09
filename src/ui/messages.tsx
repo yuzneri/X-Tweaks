@@ -1,7 +1,6 @@
 /**
- * Hands the messages down to each part of the settings screen. A part only receives
- * them through `useMessages()` and knows neither which language is in use nor who
- * decided it.
+ * Hands the messages down to each part of the settings screen. A part receives them only through
+ * `useMessages()` and knows neither which language is in use nor who decided it.
  */
 import { createContext } from 'preact';
 import { useContext } from 'preact/hooks';

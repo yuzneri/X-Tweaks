@@ -1,13 +1,11 @@
 /**
  * Keeping the compose form open after a post, and putting the hashtags back into it.
  *
- * X Pro closes the form and empties the box the moment a post goes out. For a run of
- * posts carrying the same tags that means opening it and typing them again every time.
- *
- * Nothing here reaches into X's own state. The form is opened again the way a person
- * would — by pressing the button that opened it in the first place — and the tags go in
- * through the browser's own text input. What that costs is that every step can fail, and
- * each one that does simply leaves X Pro to behave as it always has.
+ * X Pro closes the form and empties the box the moment a post goes out, so a run of posts
+ * with the same tags means reopening it and retyping them each time. Nothing here reaches
+ * into X's own state — the form is reopened by pressing the button that opened it, and the
+ * tags go in through the browser's own text input. Every step can fail, and each failure
+ * leaves X Pro behaving as it always has.
  */
 import { hashtagsIn, restoredText } from './hashtags.ts';
 import { createsPost } from './signal.ts';
@@ -17,12 +15,10 @@ import { COLUMN_SELECTOR } from '../columns/registry.ts';
 /** The drawer, as marked by X Pro. Shared with the column options (see `composeDrawer`) */
 const DRAWER = '[data-testid="drawerAnimatedDiv"]';
 /**
- * The boxes written in. A thread has one per part (`tweetTextarea_0`, `_1`, …).
- *
- * Being editable is part of what is asked for, and not by way of belt and braces: X Pro
- * wraps each box in `tweetTextarea_0_label` and `tweetTextarea_0RichTextInputContainer`,
- * which the marker alone would match first. Landing on one of those means text typed
- * into thin air and the same words counted three times over.
+ * The boxes written in. A thread has one per part (`tweetTextarea_0`, `_1`, …). "Editable"
+ * is not belt and braces: X Pro wraps each box in `tweetTextarea_0_label` and
+ * `tweetTextarea_0RichTextInputContainer`, which the marker alone would match first —
+ * landing on one means text typed into thin air, the same words counted three times over.
  */
 const EDITOR = '[data-testid^="tweetTextarea_"][contenteditable="true"]';
 /**
@@ -34,17 +30,17 @@ const SHOWN_POST = '[data-testid="tweet"]';
 /** How often the states below are looked at while waiting for one of them */
 const POLL_MS = 50;
 /**
- * How long the form is given to close after a post was sent. Measured at about 230ms
- * from the request finishing; a post that fails leaves the form open and runs this out,
- * which is exactly how a failure is told apart from a success.
+ * How long the form is given to close after a post was sent, measured at about 230ms from
+ * the request finishing. A post that fails leaves the form open and runs this out, which is
+ * how a failure is told apart from a success.
  */
 const CLOSE_WITHIN_MS = 3000;
 /** How long one press is given to bring the form back */
 const OPEN_WITHIN_MS = 300;
 /**
- * How many times the button is pressed before giving up. While the form is open X Pro
- * disables that button, and right after the form goes the button may not have been
- * drawn as enabled again, so the first press can land on nothing.
+ * How many times the button is pressed before giving up. X Pro disables that button while
+ * the form is open, and right after the form goes it may not have been drawn as enabled
+ * again, so the first press can land on nothing.
  */
 const PRESS_ATTEMPTS = 3;
 /** How long the box inside a reopened form is waited for */
@@ -54,17 +50,15 @@ const ENABLED_WITHIN_MS = 1500;
 /** How long the box is given to accept focus. The form slides in, and cannot be typed into until it has */
 const FOCUS_WITHIN_MS = 1500;
 /**
- * How long the caret is kept in front of the tags. Short on purpose: the moment it holds,
- * this stops, and anything longer would be pulling the caret back from under someone who
- * had already started typing.
+ * How long the caret is kept in front of the tags. Short on purpose: it stops the moment the
+ * caret holds, and longer would pull it back from under someone already typing.
  */
 const CARET_WITHIN_MS = 400;
 /**
- * How recently the form must have been seen for a post to be taken as coming from it.
- *
- * It only has to outlast the request (measured at about 430ms), with room to spare for a
- * slow line. Longer than this and a reply sent shortly after a compose form was abandoned
- * would be mistaken for a post from that form.
+ * How recently the form must have been seen for a post to be taken as coming from it. It
+ * only has to outlast the request (measured at about 430ms), with room to spare for a slow
+ * line; longer and a reply sent shortly after a compose form was abandoned would be
+ * mistaken for a post from that form.
  */
 const SEEN_WITHIN_MS = 10_000;
 
@@ -76,42 +70,34 @@ let settings: ComposeSettings = { reopen: false, keepHashtags: false };
 let hooks: Hooks = { log: () => {} };
 
 /**
- * The thing pressed to open the compose form, remembered so it can be pressed again.
- *
- * The button carries no marker of its own and its label changes with the interface
- * language, so it is not looked up — it is recognised by having been pressed. This is
- * how the settings entry points already tell one menu from another (`panel/menu.ts`).
+ * The button that opens the compose form, remembered so it can be pressed again. It carries
+ * no marker of its own and its label changes with the interface language, so it is recognised
+ * by having been pressed, not looked up — the same approach the settings entry points use
+ * (`panel/menu.ts`).
  */
 let opener: Element | null = null;
 
 /**
- * What was written, kept up to date while typing. By the time a post is sent the box may
- * already be empty, so it cannot be read then.
- *
- * It is held against the form it was written in. A form abandoned unposted leaves its
- * text behind here, and a post made without typing anything — a photo on its own needs
- * no words — would otherwise be handed the tags from that abandoned draft. Every opening
- * of the form is a new element, so the old one stops matching by itself.
+ * What was written, kept live while typing, since the box may be empty by the time a post is
+ * sent. Held against the form it was written in: a form abandoned unposted leaves its text
+ * behind here, and a post made without typing anything (a photo alone needs no words) would
+ * otherwise be handed that draft's tags. Each opening of the form is a new element, so the
+ * old one stops matching on its own.
  */
 let written: { drawer: Element; text: string } | null = null;
 /**
  * The compose form as it was last seen, with what was in it.
  *
  * Measured on the real thing: **by the time a post shows up in the page's resource timing,
- * the form is no longer there to be found**. The request finishes after X has already
- * taken the form away, so looking for it at that moment finds nothing and the whole
- * feature falls silent.
- *
- * So it is written down on every settling of the DOM instead, while the form is still
- * open, and the post is followed using that.
+ * the form is gone**. The request finishes after X has already taken it away, so looking
+ * then finds nothing and the feature falls silent. It is written down on every settling of
+ * the DOM instead, while the form is still open, and the post is followed using that.
  */
 let lastSeen: { drawer: Element; text: string; at: number } | null = null;
 /**
- * The tags from the last post, waiting for a form to go into.
- *
- * Only filled while the form is left to close: where it is opened again they go straight
- * back in and nothing has to wait. It is held in memory alone — a reload drops it, which
- * is right for something this short-lived.
+ * The tags from the last post, waiting for a form to go into. Only filled while the form is
+ * left to close: where it is opened again they go straight back in and nothing has to wait.
+ * Held in memory alone — a reload drops it, which is right for something this short-lived.
  */
 let pending: string | null = null;
 
@@ -119,9 +105,8 @@ let pending: string | null = null;
 let acting = false;
 
 /**
- * The compose form, or null when it is not open.
- * The marker on the drawer is shared with the column options, so the box inside it is
- * what identifies the form. A reply or a quote is left alone.
+ * The compose form, or null when it is not open. The marker on the drawer is shared with the
+ * column options, so the box inside it identifies the form. A reply or a quote is left alone.
  */
 export const composeDrawer = (): Element | null => {
   for (const drawer of document.querySelectorAll(DRAWER)) {
@@ -173,18 +158,17 @@ const isDisabled = (button: HTMLElement): boolean =>
   button.getAttribute('aria-disabled') === 'true';
 
 /**
- * Presses the remembered button until the form comes back.
- * A button that is no longer in the document cannot be pressed, and there is no second
- * way to open the form, so that is where this gives up.
+ * Presses the remembered button until the form comes back. A button no longer in the
+ * document cannot be pressed and there is no second way to open the form, so it gives up.
  */
 const pressOpener = async (): Promise<Element | null> => {
   const button = opener;
   if (!(button instanceof HTMLElement) || !button.isConnected) return null;
   for (let attempt = 0; attempt < PRESS_ATTEMPTS; attempt++) {
     /*
-     * X Pro keeps this button disabled while the form is up, and it is not put back the
-     * moment the form goes. A press then does nothing whatsoever, so the attempts would
-     * be spent on nothing — waiting for it to come back is what makes the retries count.
+     * X Pro keeps this button disabled while the form is up, and does not re-enable it the
+     * instant the form goes — a press then does nothing, so waiting is what makes the
+     * retries count.
      */
     await waitFor(() => (isDisabled(button) ? null : true), ENABLED_WITHIN_MS);
     button.click();
@@ -201,23 +185,20 @@ const pressOpener = async (): Promise<Element | null> => {
 const firstTextNode = (root: Node): Node =>
   document.createTreeWalker(root, NodeFilter.SHOW_TEXT).nextNode() ?? root;
 
-/** Whether the caret is sitting at the very start of the box */
 const caretIsAtStart = (selection: Selection, editor: Element): boolean =>
   selection.isCollapsed &&
   selection.anchorOffset === 0 &&
   selection.anchorNode === firstTextNode(editor);
 
 /**
- * Moves the caret in front of the tags, and makes it stay there.
+ * Moves the caret in front of the tags, and keeps it there.
  *
- * The box keeps its own idea of where the caret is and puts it back as it settles after
- * the text goes in, so setting it once lands it at the end again a moment later. It is
- * moved, then watched, and moved again until it holds or the wait runs out.
- *
- * `Selection.modify` is asked first: it is the browser's own caret movement, the same one
- * a Home key press goes through, and an editor watching for the caret to move is more
- * likely to follow it than a range set behind its back. Where it is missing, the range is
- * set directly.
+ * The box keeps its own idea of where the caret is and puts it back as the text settles, so
+ * setting it once only lands it at the end a moment later — it is moved, watched, and moved
+ * again until it holds or the wait runs out. `Selection.modify` is tried first, the same
+ * caret movement a Home key press goes through, which an editor watching the caret is
+ * likelier to follow than a range set behind its back. Where it is missing, the range is set
+ * directly.
  */
 const putCaretAtStart = async (editor: Element): Promise<boolean> => {
   const held = await waitFor(() => {
@@ -242,18 +223,17 @@ const putCaretAtStart = async (editor: Element): Promise<boolean> => {
 };
 
 /**
- * Puts the tags into the reopened box and leaves it ready to type in.
- *
- * The box is a rich text editor holding its own copy of what it shows, so writing to the
- * DOM does not reach it. `execCommand` is deprecated but it is the one way left to enter
- * text the way a keypress does; a synthesised `beforeinput` is untrusted and ignored.
- * The caret ends up in front of the tags, which is where the body gets typed.
+ * Puts the tags into the reopened box and leaves it ready to type in. The box is a rich text
+ * editor holding its own copy of what it shows, so writing to the DOM does not reach it;
+ * `execCommand` is deprecated but the one way left to enter text as a keypress does, a
+ * synthesised `beforeinput` being untrusted and ignored. The caret ends up in front of the
+ * tags, which is where the body gets typed.
  */
 const restore = async (drawer: Element, text: string): Promise<boolean> => {
   /*
-   * With nothing to put back there is nothing to wait for. The box is nudged towards the
-   * focus and that is the end of it — waiting on focus here would report a failure over
-   * hashtags that were never going in.
+   * With nothing to put back there is nothing to wait for — the box is nudged to focus and
+   * that is the end of it; waiting on focus would report a failure over hashtags that were
+   * never going in.
    */
   if (text === '') {
     const editor = drawer.querySelector(EDITOR);
@@ -262,20 +242,16 @@ const restore = async (drawer: Element, text: string): Promise<boolean> => {
   }
 
   /*
-   * Text goes wherever the focus actually is, not where it was meant to go, so the box
-   * has to be shown to hold it before a single character is written. Without the check,
-   * a `focus()` that did not take would spill the tags into whatever else was focused —
-   * a reply being written, the search box. Not writing them costs nothing.
+   * Text goes wherever the focus actually is, so the box must be shown to hold it before a
+   * character is written: a `focus()` that did not take would spill the tags into whatever
+   * else was focused — a reply, the search box — and not writing them costs nothing.
    *
-   * Two things stop a single `focus()` from taking, and both pass on their own shortly:
-   *   - the form slides in (`drawerAnimatedDiv`), and a box inside something still
-   *     animating does not take focus
-   *   - X replaces the box while the form settles, and the one held here is then a
-   *     leftover that can be focused all day without anything happening
-   *
-   * So the box is looked up again on each attempt, and asked again, until the focus is
-   * seen to be inside it. Anywhere inside counts: what matters is where the text will
-   * land, not which node within the box holds the caret.
+   * Two things stop a single `focus()` from taking, both passing shortly on their own: a box
+   * inside the form as it slides in (`drawerAnimatedDiv`) will not take focus, and X replaces
+   * the box while the form settles, leaving this one a leftover that can be focused all day
+   * to no effect. So it is looked up and asked again each attempt until focus is seen inside
+   * it — anywhere inside counts, since what matters is where the text lands, not which node
+   * holds the caret.
    */
   const focused = await waitFor(() => {
     const editor = drawer.querySelector(EDITOR);
@@ -307,10 +283,10 @@ const restore = async (drawer: Element, text: string): Promise<boolean> => {
 /**
  * Follows a post through: waits for the form to close, brings it back, and puts the tags in.
  *
- * The post has to have come from the compose form. Replies and quotes send the same
- * request, and without that condition every reply would open the compose form and drop
- * the reply's tags into it. That form is usually gone by now, so it is the one written
- * down while it was open (`noticeComposeForm`) that decides.
+ * The post has to have come from the compose form. Replies and quotes send the same request,
+ * and without that condition every reply would open the compose form and drop its own tags
+ * into it. That form is usually gone by now, so the one written down while it was open
+ * (`noticeComposeForm`) decides.
  */
 const followPost = async (): Promise<void> => {
   if (!watching() || acting) return;
@@ -343,9 +319,9 @@ const followPost = async (): Promise<void> => {
     }
 
     /*
-     * The form was left to close, as asked. The tags are kept instead, and go into the
-     * next compose form the user opens (`restorePending`). Opening it here to hold them
-     * would be doing the very thing the other switch was turned off to avoid.
+     * The form was left to close, as asked; the tags are kept instead and go into the next
+     * compose form the user opens (`restorePending`). Opening one here to hold them would
+     * be the very thing the other switch was turned off to avoid.
      */
     if (!settings.reopen) {
       pending = tags === '' ? null : tags;
@@ -381,13 +357,11 @@ const followPost = async (): Promise<void> => {
 };
 
 /**
- * The button that opens the compose form, found rather than remembered.
- *
- * Used when nothing was seen being pressed — the form was already open when the extension
- * started, or it was opened from the keyboard. While the form is open X Pro disables that
- * button, and it is the only disabled button outside the columns and outside the form
- * itself (the form's own "Post" button is inside it). Nothing here reads a label, so it
- * holds in any interface language.
+ * The button that opens the compose form, found rather than remembered. Used when nothing
+ * was seen being pressed — the form was already open when the extension started, or opened
+ * from the keyboard. While the form is open X Pro disables that button, the only disabled
+ * one outside the columns and outside the form itself (the form's own "Post" button is
+ * inside it). No label is read, so it holds in any interface language.
  */
 const findOpener = (): Element | null => {
   const disabled = [...document.querySelectorAll('button[disabled], button[aria-disabled="true"]')];
@@ -395,18 +369,17 @@ const findOpener = (): Element | null => {
     (button) => !button.closest(DRAWER) && !button.closest(COLUMN_SELECTOR)
   );
   /*
-   * Only when there is exactly one. This button gets pressed later, and pressing the
-   * wrong one does whatever that button does. With two candidates there is no way to
-   * choose between them, and doing nothing costs only that the form is not brought back.
+   * Only when exactly one match exists — this button gets pressed later, and pressing the
+   * wrong one does whatever that button does. With two candidates there is no way to choose,
+   * and doing nothing costs only that the form is not brought back.
    */
   return outside.length === 1 ? outside[0]! : null;
 };
 
 /**
- * Writes down the compose form while it is still there.
- *
- * Called on every settling of the DOM. Everything this module does afterwards runs from
- * what is written down here, because none of it can be read once a post has gone out.
+ * Writes down the compose form while it is still there. Called on every settling of the DOM:
+ * everything this module does afterwards runs from what is written down here, because none
+ * of it can be read once a post has gone out.
  */
 export const noticeComposeForm = (): void => {
   const drawer = composeDrawer();
@@ -427,15 +400,11 @@ const formForPost = (): Element | null => {
 /**
  * Puts the tags from the last post into a compose form that has just been opened by hand.
  *
- * Called on every settling of the DOM, so it has to be cheap and it has to be sure:
- *   - nothing is waiting → nothing to do
- *   - a form is in the middle of being reopened after a post (`acting`) → that path puts
- *     the tags in itself
- *   - the box already has something in it → whatever it is, it is not ours to overwrite.
- *     This also covers the form reopening with the tags already in
- *
- * The tags are let go of whether or not they went in. Trying again on the next settling
- * would mean fighting whatever stopped it, several times a second.
+ * Called on every settling of the DOM, so it must be cheap and sure: nothing waiting means
+ * nothing to do; a form mid-reopen after a post (`acting`) has that path putting the tags in
+ * itself; and a box with something already in it is not ours to overwrite. The tags are let
+ * go whether or not they went in — retrying on the next settling would mean fighting
+ * whatever stopped it, several times a second.
  */
 export const restorePending = (): void => {
   if (pending === null || acting) return;
@@ -447,8 +416,8 @@ export const restorePending = (): void => {
   pending = null;
   /*
    * Waiting for the box to take focus makes this a promise, but the caller is the DOM
-   * settling and has nothing to wait for. `pending` is already let go of, so nothing can
-   * start a second attempt while this one is still running.
+   * settling and has nothing to wait for. `pending` is already let go of, so no second
+   * attempt can start while this one is still running.
    */
   void restore(drawer, tags).then((put) => {
     if (put) hooks.log('Put the kept hashtags into the form', { hashtags: tags });
@@ -457,27 +426,23 @@ export const restorePending = (): void => {
 };
 
 /**
- * Remembers what was pressed, in case it opened the compose form.
- *
- * Whether it did cannot be told at the moment of the press, so the form is looked for
- * shortly afterwards. A press inside the form itself, or one made while it is already
- * open, cannot be the thing that opened it.
+ * Remembers what was pressed, in case it opened the compose form. Whether it did cannot be
+ * told at the moment of the press, so the form is looked for shortly afterwards. A press
+ * inside the form itself, or one made while it is already open, cannot have opened it.
  */
 export const rememberTrigger = (target: Element | null): void => {
   /*
-   * Remembered whether or not anything is switched on at the time.
-   *
-   * The switches can be flipped from inside the form itself, so by the time "open the form
-   * open" is on, the press that opened that form is long past. Gating this on the setting
-   * meant the very first post after switching it on had nothing to press, and the form
-   * closed as if the feature did not exist.
+   * Remembered whether or not anything is switched on at the time. The switches can be
+   * flipped from inside the form itself, so by the time "open the compose form again" is
+   * on, the press that opened that form is long past; gating this on the setting would
+   * leave the very first post after switching it on with nothing to press.
    */
   if (!target || target.closest(DRAWER)) return;
   /*
-   * The button that opens the form sits in the rail, never inside a column. Ruling
-   * columns out is not tidiness: a press there could be remembered by coincidence — the
-   * form opened from the keyboard a moment later — and pressing it again would remove a
-   * column or clear its posts.
+   * The button that opens the form sits in the rail, never inside a column. Ruling columns
+   * out is not tidiness: a press there could be remembered by coincidence (the form opened
+   * from the keyboard a moment later) and pressing it again would remove a column or clear
+   * its posts.
    */
   if (target.closest(COLUMN_SELECTOR)) return;
   const button = target.closest('button, a, [role="button"]');
@@ -505,22 +470,20 @@ const watchTyping = (): void => {
 };
 
 /**
- * Watches for a post being sent.
- *
- * The page's own requests show up in its resource timing, which a content script shares,
- * so this needs nothing of X's internals and no code running in the page.
- * `buffered` is off so that requests made before this started do not arrive as news.
+ * Watches for a post being sent. The page's own requests show up in its resource timing,
+ * which a content script shares, so this needs none of X's internals and no code running in
+ * the page. `buffered` is off, so requests made before this started do not arrive as news.
  */
 const watchPosts = (): void => {
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (!createsPost(entry.name)) continue;
       /*
-       * One line saying everything the decision rests on. Without it, "nothing happened"
-       * gives no way to tell a post that went unnoticed from one that was noticed and
-       * then dropped for want of a form or a button to press.
-       * Only while something is switched on: with both off there is nothing to explain,
-       * and a line on every post would be noise in everyone else's console.
+       * One line saying everything the decision rests on — without it, "nothing happened"
+       * cannot tell a post that went unnoticed from one noticed then dropped for want of a
+       * form or button. Logged only while something's switched on: with both off there is
+       * nothing to explain, and a line on every post would be noise in everyone else's
+       * console.
        */
       if (!watching()) continue;
       hooks.log('A post was sent', {

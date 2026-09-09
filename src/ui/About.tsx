@@ -1,9 +1,7 @@
 /**
- * What this extension is: its version, where it comes from, and what it does with what
- * it can see.
- *
- * The version is read from the manifest rather than written here, so it cannot drift out
- * of step with what is actually installed.
+ * What this extension is: its version, where it comes from, and what it does with what it can see.
+ * The version is read from the manifest rather than written here, so it cannot drift out of step
+ * with what is actually installed.
  */
 import { useMessages } from './messages.tsx';
 

@@ -1,14 +1,12 @@
 /**
  * What X slips into a timeline that is not a post.
  *
- * One answer for a whole site, like the compose form's settings and unlike the filter and
- * the appearance: nothing is inherited and nothing is shown dimmed. Both sites offer the
- * same two, so the same component stands under either site's whole-site page.
- *
- * A named box. It shares its tab with what x.com puts at the head of the timeline
- * (`XTimeline`), and a box is what says where one set ends and the next begins. On X Pro's
- * page it is alone in the tab, but the box stays: the same panel reading two ways
- * depending on the site would be worse than one box too many.
+ * One answer for a whole site, like the compose form's settings and unlike the filter and the
+ * appearance: nothing is inherited and nothing is shown dimmed. Both sites offer the same two, so one
+ * component stands under either site's whole-site page. It is a named box, because it shares its tab
+ * with what x.com puts at the head of the timeline (`XTimeline`), and a box says where one set ends
+ * and the next begins. On X Pro's page it is alone in the tab, but the box stays: a panel reading two
+ * ways depending on the site would be worse than one box too many.
  */
 import type { InjectedSettings } from '../settings/schema.ts';
 import { ShownSwitch } from './fields.tsx';

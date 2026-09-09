@@ -1,7 +1,7 @@
 /**
- * Edits one tier's settings. It does not know which tier it belongs to; which site it is
- * for it passes along without reading, the appearance being the one part that cares.
- * It is split into tabs because stacked vertically it would not fit on one screen.
+ * Edits one tier's settings. Does not know which tier it belongs to, and passes the site
+ * along without reading it — the appearance is the one part that cares. Split into tabs:
+ * stacked vertically it would not fit on one screen.
  */
 import type { ComponentChildren } from 'preact';
 import { filterApplies, syncOrder, type FilterNode, type SettingsNode } from '../settings/schema.ts';
@@ -13,14 +13,11 @@ import { useMessages } from './messages.tsx';
 import { Rules } from './Rules.tsx';
 
 /**
- * The last three are not the tier's settings at all. `effective` reads the tiers back,
- * and `site` and `injected` hold what belongs to the whole site the tier is for. They come
- * last so that the two tabs that edit the tier itself stay where they always are, whatever
- * page you are on.
- *
- * The site's own settings are two tabs rather than one because they are two subjects, and
- * one word covering both could only be vague. What `site` holds differs between the two
- * sites, so its name is passed in rather than looked up here (see `screens`).
+ * The last three are not the tier's settings at all: `effective` reads the tiers back, and
+ * `site` and `injected` hold what belongs to the whole site the tier is for. They come last
+ * so the two tabs editing the tier itself stay put on every page. The site's own settings
+ * get two tabs, not one, being two subjects that one word could only cover vaguely; what
+ * `site` holds differs between the two sites, so its name is passed in (see `screens`).
  */
 const TABS = ['filter', 'appearance', 'effective', 'site', 'timeline'] as const;
 
@@ -30,29 +27,30 @@ type Props = {
   node: SettingsNode;
   onChange: (node: SettingsNode) => void;
   /**
-   * The tab that is open. The state is held above (`SettingsApp`).
-   * Held here, every scope switch would rebuild the component and fall back to the first tab.
+   * The tab that is open, held above (`SettingsApp`): held here, every scope switch would
+   * rebuild the component and fall back to the first tab.
    */
   tab: Tab;
   onTabChange: (tab: Tab) => void;
-  /** The values coming down from the tiers above. Shown dimmed in the fields left unset */
+  /** The values coming down from the tiers above, shown dimmed in the fields left unset */
   inherited: Inherited;
-  /** Which site these settings are for. It names the innermost tier and picks the appearance's items (see `Site`) */
+  /**
+   * Which site these settings are for; names the innermost tier and picks the appearance's
+   * items (see `Site`)
+   */
   site: Site;
-  /** Whether the range being edited is one column or view. Passed along for the appearance */
+  /** Whether the range being edited is one column or view; passed along for the appearance */
   oneColumn: boolean;
   /**
-   * The "what is in effect" surface. That tab appears only when this is passed.
-   * Its contents cannot be built without knowing every tier, so building it is left to the caller.
+   * The "what is in effect" surface; that tab appears only when this is passed. Its contents
+   * cannot be built without knowing every tier, so building it is left to the caller.
    */
   effective?: ComponentChildren;
   /**
-   * The settings belonging to the whole site rather than to this tier: what X puts on the
-   * page, what the compose form does after a post, and what X slips into a timeline.
-   * Passed only on a site's own page, and nowhere else.
-   *
-   * Each carries its own name. What a site keeps here is not the same on the two of them —
-   * X Pro has the compose form where x.com has the furniture around the timeline — so one
+   * The settings belonging to the whole site, not this tier: what X puts on the page, what
+   * the compose form does after a post, and what X slips into a timeline. Passed only on a
+   * site's own page. Each carries its own name: what a site keeps here differs between the
+   * two — X Pro has the compose form, x.com the furniture around the timeline — so one
    * shared word would fit neither.
    */
   screens?: { key: 'site' | 'timeline'; label: string; content: ComponentChildren }[];
@@ -74,21 +72,21 @@ export const TierEditor = ({
     onChange({ ...node, filter: { ...node.filter, ...patch } });
 
   const named = new Map((screens ?? []).map((one) => [one.key, one]));
-  // The last tabs each belong to one kind of scope, and appear only where they apply
+  // The last tabs each belong to one kind of scope, appearing only where they apply
   const tabs = TABS.filter((key) => {
     if (key === 'effective') return !!effective;
     if (key === 'site' || key === 'timeline') return named.has(key);
     return true;
   });
-  // Moving between scopes takes tabs away. If the open tab is gone, fall back to the first
+  // Moving between scopes takes tabs away; if the open tab is gone, fall back to the first
   const current = tabs.includes(tab) ? tab : 'filter';
 
   return (
     <>
       {/*
-        No `role="tablist"` is claimed. Claiming it would set an expectation of arrow-key movement
-        and roving tabindex, which is not worth carrying for two pressable buttons side by side.
-        Which one is open is conveyed by `aria-current` (the same practice as the list on the left)
+        No `role="tablist"`: it would set an expectation of arrow-key movement and roving
+        tabindex, not worth carrying for two pressable buttons side by side. Which one is
+        open is conveyed by `aria-current` (the same practice as the list on the left)
       */}
       <nav class="tabs" aria-label={m.tabs.label}>
         {tabs.map((key) => (
@@ -99,7 +97,7 @@ export const TierEditor = ({
             class={key === current ? 'tab current' : 'tab'}
             onClick={() => onTabChange(key)}
           >
-            {/* The site's own tabs are named by the caller; the tier's own by the dictionary */}
+            {/* The site's own tabs are named by the caller, the tier's by the dictionary */}
             {key === 'site' || key === 'timeline' ? named.get(key)?.label : m.tabs[key]}
           </button>
         ))}
@@ -108,34 +106,34 @@ export const TierEditor = ({
       {current === 'filter' && (
         <>
           {/*
-            The only description always shown on this tab is this one.
-            The judging order needs to be known before there is even one rule.
-            The order across tiers is gathered here as well (there was nowhere left outside the tabs)
+            The only description always shown on this tab: the judging order needs to be
+            known before there is even one rule. The order across tiers is gathered here too
           */}
           <p class="hint">{m.rules.orderHint(m.rules.orderScopes[site])}</p>
 
           {/*
-            With only one field, no group box is drawn around it.
-            A box would make the group's heading and the field's name say the same thing twice
+            With only one field, no group box is drawn around it: a box would make the
+            group's heading and the field's name say the same thing twice
           */}
           <label class="row filter-toggle">
             <span>{m.filterToggle.label}</span>
             <BoolSelect
               value={node.filter.enabled}
-              // With nothing set yet, show the value that actually applies, looking up to the top (the same function judging uses, in schema.ts)
+              // Unset shows the value that actually applies, looking to the top
+              // (`filterApplies`, schema.ts)
               effective={filterApplies(inherited.enabled)}
               onChange={(enabled) => updateFilter({ enabled })}
               label={m.filterToggle.label}
               on={m.filterToggle.on}
               off={m.filterToggle.off}
-              // The switch itself, not a change to how X Pro shows things: "apply" belongs on top
+              // The switch itself, not a display change: "apply" belongs on top
               onFirst
             />
           </label>
 
           {/*
-            The list and the order are the same thing. Adding or removing a rule aligns the order too.
-            A rule not in the order takes no part in judging
+            The list and the order are the same thing: adding or removing a rule aligns the
+            order too. A rule not in the order takes no part in judging
           */}
           <Rules
             rules={node.filter.rules}

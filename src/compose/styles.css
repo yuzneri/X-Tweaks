@@ -1,9 +1,7 @@
 /*
- * The two posting switches, as they look inside the compose form.
- *
- * They sit in X Pro's own drawer, so nothing is painted: the color comes from what X Pro
- * has already set around them, and the only line drawn is the one separating them from
- * the toolbar above.
+ * The two posting switches, as they look inside the compose form. They sit in X Pro's own drawer, so
+ * nothing is painted: the color comes from what X Pro has already set around them, and the only line
+ * drawn is the one separating them from the toolbar above.
  */
 
 .xpro-compose-switches {

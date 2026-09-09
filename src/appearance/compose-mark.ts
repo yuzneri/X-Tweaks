@@ -1,16 +1,16 @@
 /**
  * Marking the form a new post is written in with the account it will post as.
  *
- * The colour of that form is answered by the account rather than by the column or the
- * view on screen (`ACCOUNT_COLORS` in `settings/schema.ts` says why), and no scope the
- * extension already marks reaches it: on X Pro the form is a drawer standing beside the
- * deck, on x.com it is a dialog opening over the page. So the form is marked here and
- * `appearance/css.ts` writes one rule per account against that mark.
+ * The colour of that form is answered by the account rather than by the column or the view
+ * on screen (`ACCOUNT_COLORS` in `settings/schema.ts` says why), and no scope the extension
+ * already marks reaches it: on X Pro the form is a drawer beside the deck, on x.com a dialog
+ * over the page. So the form is marked here and `appearance/css.ts` writes one rule per
+ * account against that mark.
  *
- * The account is read from the form's own avatar. Every one of the three shapes carries
- * it — measured on the saved pages, the drawer, the modal and the box at the head of
- * x.com's timeline each hold the signed-in account's avatar — so which site is being
- * looked at never has to be asked.
+ * The account is read from the form's own avatar, which all three shapes carry — measured on
+ * the saved pages, the drawer, the modal and the box at the head of x.com's timeline each
+ * hold the signed-in account's avatar — so which site is being looked at never has to be
+ * asked.
  */
 import { AVATAR_NAME, avatarNameOf, CELL_SELECTOR } from '../filter/post.ts';
 import {
@@ -29,10 +29,9 @@ import {
 const UNKNOWN = 'unknown';
 
 /**
- * The name to mark a form with, or null where there is nothing to mark it with.
- *
- * `"` and `\` are dropped for the reason `columnKey` drops them: the value is written
- * into an attribute selector as a string.
+ * The name to mark a form with, or null where there is nothing to mark it with. `"` and `\`
+ * are dropped for the reason `columnKey` drops them: the value is written into an attribute
+ * selector as a string.
  */
 export const markFor = (name: string | null): string | null => {
   if (name === null || name === UNKNOWN) return null;
@@ -41,31 +40,28 @@ export const markFor = (name: string | null): string | null => {
 };
 
 /**
- * The account a form will post as, or null while it cannot be read.
- *
- * The first avatar in the form, in document order, which is the one X draws beside the
- * box being typed in. A form can hold other people's avatars — a quoted post brings its
- * author's along — and those come later, inside the quote.
+ * The account a form will post as, or null while it cannot be read. The first avatar in the
+ * form, in document order, is the one X draws beside the box being typed in; a form can hold
+ * other people's — a quoted post brings its author's along — and those come later, inside
+ * the quote.
  */
 const accountOf = (form: Element): string | null =>
   markFor(avatarNameOf(form.querySelector(AVATAR_NAME)));
 
 /**
- * How much of the form an element has to cover to count as one of its surfaces.
- *
- * Wide enough to be a panel or a row of one, rather than a chip standing in it: the
- * button that sends the post and the avatar beside the box both paint themselves, and
- * painting those would colour in X's own controls instead of the sheet behind them.
+ * How much of the form an element has to cover to count as one of its surfaces. Wide enough
+ * to be a panel or a row of one, rather than a chip standing in it: the button that sends
+ * the post and the avatar beside the box both paint themselves, and painting those would
+ * colour in X's own controls instead of the sheet behind them.
  */
 const SURFACE_WIDTH = 0.5;
 const SURFACE_HEIGHT_PX = 24;
 
 /**
  * Whether X paints anything at all here, rather than letting what is behind show through.
- *
- * Judged on the alpha rather than on the colour reading `rgba(0, 0, 0, 0)`. X writes
- * fully clear whites too — `rgba(255, 255, 255, 0)` sits over the box being typed in —
- * and taking those for paint marks a surface that shows nothing.
+ * Judged on the alpha rather than on the colour reading `rgba(0, 0, 0, 0)`: X writes fully
+ * clear whites too — `rgba(255, 255, 255, 0)` sits over the box being typed in — and taking
+ * those for paint marks a surface that shows nothing.
  */
 export const paintsColor = (color: string): boolean => {
   if (color === 'transparent' || color === '') return false;
@@ -76,26 +72,24 @@ export const paintsColor = (color: string): boolean => {
 const paints = (el: Element): boolean => paintsColor(getComputedStyle(el).backgroundColor);
 
 /**
- * What to colour in one form: the surfaces X paints inside it, or the form itself where
- * X paints none.
+ * What to colour in one form: the surfaces X paints inside it, or the form itself where X
+ * paints none.
  *
- * The form is not always what is painted. x.com's post window is a `dialog` that paints
- * nothing, holding a panel of its own size that paints `rgb(20, 20, 20)` — colouring the
- * dialog puts the colour behind that panel, where none of it shows (measured on the live
- * site). The box at the head of the timeline is the same story in more pieces: the rows
- * it is built from carry their own.
+ * x.com's post window is a `dialog` that paints nothing, holding a panel of its own size
+ * that paints `rgb(20, 20, 20)`: colouring the dialog puts the colour behind that panel,
+ * where none of it shows (measured on the live site). The box at the head of the timeline is
+ * the same story in more pieces, the rows it is built from carrying their own.
  *
  * Which element X paints is a question about the page as it stands, so it is asked here
- * rather than written into a selector — the same reason the account is read here rather
- * than reached for in CSS. A saved page cannot answer it either: what paints comes from
- * a stylesheet that saving did not keep, so the modal reads as transparent there and
- * would have this walk stop at the form.
+ * rather than written into a selector — the same reason the account is read here rather than
+ * reached for in CSS. A saved page cannot answer it either: what paints comes from a
+ * stylesheet that saving did not keep, so the modal reads as transparent there and would
+ * have this walk stop at the form.
  */
 const surfacesOf = (form: Element): Element[] => {
   const at = form.getBoundingClientRect();
-  // The form counts among its own surfaces. X Pro's drawer paints itself and holds a
-  // painted panel as well; leaving the form out marked only the panel, and the drawer
-  // around it went back to black
+  // The form counts among its own surfaces. X Pro's drawer paints itself and holds a painted
+  // panel too; left out, only the panel was marked and the drawer went back to black
   const surfaces = [form, ...form.querySelectorAll('*')].filter((el) => {
     const box = el.getBoundingClientRect();
     return box.width >= at.width * SURFACE_WIDTH && box.height >= SURFACE_HEIGHT_PX && paints(el);
@@ -105,14 +99,11 @@ const surfacesOf = (form: Element): Element[] => {
 };
 
 /**
- * The forms on screen, found from the box being typed into.
- *
- * Each shape is walked up to from that box rather than asked for by what it holds. The
- * two are the same set — every shape holds exactly one box, and the box is in exactly one
- * shape — but the cost is not: naming a shape by what it holds needs `:has()`, and asking
- * the page for that means a subtree search on every element that might match. Measured at
- * ~10ms on a deck of several hundred posts, on every settling, with no form open at all;
- * the walk up from the box is a handful of steps and only happens while one is.
+ * The forms on screen, found from the box being typed into. Each shape is walked up to from
+ * that box rather than asked for by what it holds: the two are the same set — every shape
+ * holds exactly one box, and the box is in exactly one shape — but naming a shape by what it
+ * holds needs `:has()`, a subtree search on every element that might match, where the walk
+ * up from the box is a handful of steps and only happens while a form is open.
  */
 const formsOnScreen = (): Element[] => {
   const forms: Element[] = [];
@@ -131,12 +122,10 @@ const formsOnScreen = (): Element[] => {
 };
 
 /**
- * Puts the mark on every form on screen, and takes it off one whose account cannot be
- * read any more.
- *
- * Called on every settling. X leaves a form in the page after it closes, so a mark set
- * once would go stale; setting it again each time costs one lookup that finds nothing
- * while nothing is being written.
+ * Puts the mark on every form on screen, and takes it off one whose account cannot be read
+ * any more. Called on every settling: X leaves a form in the page after it closes, so a mark
+ * set once would go stale, while setting it again each time costs one lookup that finds
+ * nothing while nothing is being written.
  */
 export const markComposeForms = (): void => {
   const wanted = new Map<Element, string>();

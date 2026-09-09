@@ -4,8 +4,8 @@
  * Reading a colour or a size out of the page makes the browser work out its styles and
  * its layout first, and after anything has been written that means doing it for the whole
  * page. Asked in the middle of a round of work, that pass lands in the extension's own
- * task and the page stops answering for as long as it takes (measured on a real timeline:
- * about 85ms). Asked once the browser has laid the page out and painted it, there is
+ * task and the page stops answering for as long as it takes. Asked once the browser has
+ * laid the page out and painted it, there is
  * nothing to work out and the reading costs nothing.
  *
  * Two frames out rather than one: a callback on the next frame runs *before* that frame

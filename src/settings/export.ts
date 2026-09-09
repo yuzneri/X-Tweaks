@@ -13,24 +13,19 @@ export type ExportedSettings = {
   /** When it was exported (UTC). A machine-read value, so it is not shifted to local time */
   exportedAt: string;
   /**
-   * The stored shape, less what says nothing (`whatIsSet`). The import needs to look at
-   * this alone, and fills back in whatever was left out.
+   * The stored shape, minus what says nothing (`whatIsSet`). The import looks at this
+   * alone and fills back in whatever was left out.
    */
   settings: Settings;
   /**
    * The names of the columns that have settings, under the decks they belong to.
    *
-   * The keys of `settings.columns` are `columnId`s, which alone tell a human nothing
-   * about which column is which. Empty when pro.x.com is not open. Not used by the
-   * import (it is attached for reference only).
-   *
-   * Only what a key in `settings.columns` needs to be read: a column nothing is set for
-   * has no key to explain, and a deck whose columns are all like that has nothing left to
-   * name. Attaching them anyway would bury the few lines that do explain something under
-   * every column that was ever on screen.
-   *
-   * The type is what the export is built from rather than what the file holds: with no
-   * column to explain, `whatIsSet` leaves the item out of the file altogether.
+   * The keys of `settings.columns` are `columnId`s, which alone tell a human nothing about
+   * which column is which. Empty when pro.x.com is not open; not used by the import
+   * (attached for reference only). Only includes keys that need explaining: a column with
+   * nothing set has no key to explain, and attaching the rest would bury the few that do
+   * under every column ever on screen. The type is what the export is built from, not what
+   * the file holds — with no column to explain, `whatIsSet` drops the item from the file.
    */
   detectedDecks: DetectedGroup[];
 };
@@ -38,13 +33,11 @@ export type ExportedSettings = {
 /**
  * Drops the scopes with no settings, and the groups left with nothing.
  *
- * A scope is kept by the key actually holding something, rather than by the key merely
- * being there: a tier emptied out on the settings screen loses its key (`put` in
- * SettingsApp.tsx), but one arriving from an imported file or an older version can sit
- * there empty, and naming it would explain a setting that is not in the file.
- *
- * `whatIsSet` leaves out exactly the same tiers — one that sets nothing is left with
- * nothing — so the names attached here and the keys the file carries cannot disagree.
+ * A scope is kept by the key actually holding something, not merely being present: a tier
+ * emptied on the settings screen loses its key (`put` in SettingsApp.tsx), but one from an
+ * imported file or older version can sit there empty, and naming it would explain a
+ * setting absent from the file. `whatIsSet` drops exactly the same tiers — one that sets
+ * nothing is left with nothing — so the names here and the file's keys cannot disagree.
  */
 const explaining = (decks: DetectedGroup[], settings: Settings): DetectedGroup[] =>
   decks.flatMap((deck) => {
@@ -54,31 +47,28 @@ const explaining = (decks: DetectedGroup[], settings: Settings): DetectedGroup[]
 
 /**
  * Leaves out what says nothing: a `null`, an empty list, and an object left with nothing
- * once its own were left out. `undefined` is the answer for "there is nothing here".
+ * once its contents are left out. `undefined` answers "there is nothing here".
  *
- * The file is meant to be read by a person, and an unset item is most of the shape: every
- * colour, every size, every tier nobody has touched. Written out, the few lines that say
- * something are lost among a hundred that say "not set".
+ * The file is meant for a person to read, and an unset item is most of the shape — every
+ * colour, size, and untouched tier — so the few lines that say something get lost among a
+ * hundred saying "not set". It is lossless because the reading side treats the two the
+ * same: every `fill…` in schema.ts puts a missing key back as exactly the `null`, empty
+ * list or empty object left out here — the one thing this depends on, since reading it any
+ * other way would return something different from what went out.
  *
- * It is lossless because the reading side makes no distinction between the two: every
- * `fill…` in schema.ts puts a missing key back as exactly the `null`, empty list or empty
- * object left out here. That is the one thing this depends on — an item read some other
- * way would come back as something else than it went out as.
- *
- * Only those three go. A value is never dropped for being what an item defaults to:
- * `false` and `true` are both answers somewhere, and which of them a missing key means
- * differs from item to item (the rail's blocks are there unless told otherwise, the wide
- * timeline is not). Deciding that per item would be `fillAll` written backwards, and it
- * would fail quietly — as a setting that comes back on.
+ * Only those three go. A value is never dropped for matching an item's default: `false`
+ * and `true` are both defaults somewhere, and which one a missing key means differs per
+ * item (the rail's blocks default on, `wideTimeline` defaults off). Deciding that per item
+ * would be `fillAll` written backwards, and would fail quietly — as a setting silently
+ * switching back on.
  */
 const whatIsSet = (value: unknown): unknown => {
   if (value === null) return undefined;
   if (Array.isArray(value)) {
     if (value.length === 0) return undefined;
     /*
-     * An element stays, whatever is left of it. These lists are read in the order they are
-     * written (the rules, and the order they are judged in), so taking one out would move
-     * every one behind it.
+     * An element stays whatever remains of it: these lists are read in written order (the
+     * rules, judged in that order), so removing one would shift every one behind it.
      */
     return value.map((item) => {
       const kept = whatIsSet(item);
@@ -94,10 +84,8 @@ const whatIsSet = (value: unknown): unknown => {
 };
 
 /**
- * The body of the exported JSON.
- *
- * The timestamp is passed in by the caller. Creating a `new Date()` inside the function
- * would make it impossible to check the exported content against a fixed value.
+ * The body of the exported JSON. The timestamp comes from the caller — a `new Date()`
+ * inside would make the exported content impossible to check against a fixed value.
  */
 export const buildExport = (
   settings: Settings,
@@ -110,18 +98,16 @@ export const buildExport = (
     settings,
     detectedDecks: explaining(detectedDecks, settings),
   };
-  // It is meant to be read and checked by a person, so it is indented rather than packed
+  // Meant to be read and checked by a person, so indented rather than packed
   return JSON.stringify(whatIsSet(exported), null, 2);
 };
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
 /**
- * The file name used when saving.
- *
- * The date is the device's own. It is there for the person who exported it to find it
- * again later, and being a day off from the clock in front of them makes that harder
- * (the `exportedAt` inside is held in UTC).
+ * The file name used when saving. The date is the device's own, there so the person who
+ * exported it can find it again later; a day's offset from their clock would make that
+ * harder (`exportedAt` inside is held in UTC).
  */
 export const exportFileName = (at: Date): string =>
   `x-pro-tweaks-${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}.json`;

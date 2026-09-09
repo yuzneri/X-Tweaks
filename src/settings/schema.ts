@@ -18,8 +18,8 @@ export const ACTIONS = {
 export type Action = (typeof ACTIONS)[keyof typeof ACTIONS];
 
 /**
- * The post traits usable as conditions. This order is the order on the settings screen.
- * "Has no photo or video" is expressed by negation (`negate`), so no paired entry is kept.
+ * The post traits usable as conditions, in the order shown on the settings screen.
+ * "Has no photo or video" is expressed by negation (`negate`), with no paired entry.
  */
 export const TRAIT_KEYS = [
   'repost',
@@ -40,14 +40,10 @@ export const TRAIT_KEYS = [
 ] as const;
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
-/** The default highlight color. The trailing `26` is 15% opacity, letting the background show through so the text stays readable */
+/** Default highlight colour; trailing `26` is 15% opacity, so the background shows through and text stays readable */
 export const DEFAULT_HIGHLIGHT_COLOR = '#f9188026';
 
-/**
- * The default emphasis color: the same color at 40% opacity.
- * It paints the narrow area of a few characters, and at the highlight's 15% the match
- * would be impossible to spot.
- */
+/** Default emphasis colour: same colour at 40% opacity — at the highlight's 15% a few characters would be invisible */
 export const DEFAULT_EMPHASIS_COLOR = '#f9188066';
 
 export const usesColor = (action: Action): boolean =>
@@ -57,33 +53,27 @@ export const defaultColorFor = (action: Action): string =>
   action === ACTIONS.EMPHASIZE ? DEFAULT_EMPHASIS_COLOR : DEFAULT_HIGHLIGHT_COLOR;
 
 /*
- * What happens when no tier sets anything. Both the judging side and the settings
- * screen consult these.
- * Scattered around, a change to a default would leave the screen alone giving the old
- * answer (with nothing broken, so nobody would notice).
+ * What happens when no tier sets anything, consulted by both judging and the settings
+ * screen — a changed default not updated in both would leave the screen silently stale.
  */
 
 export const filterApplies = (enabled: boolean | null): boolean => enabled !== false;
 
 /**
- * How the photos and videos in a post are shown.
+ * How photos and videos in a post are shown, in the order offered on screen (most to least
+ * shown).
  *
- * `show` is X Pro's own, held as a value so a lower tier can undo what an upper one set.
- * `caption` leaves the picture where it is and writes the description its author gave it
- * underneath; `text` puts that description into the post as a line and takes the picture
- * away; `mark` takes them off the timeline but says so, by putting a mark into the post
- * where they were (`appearance/apply.ts`); `hidden` takes them off and says nothing.
- * Between them: a mark tells a post with a photo from a post without one, at the cost of
- * a character; hiding outright is quieter and leaves the two looking alike. The text says
- * what the picture was of, for the posts whose author wrote it down — where nobody did,
- * there is nothing to say and the mark alone is what goes in. The caption says as much
- * without giving the picture up, and it is the one way of reading a description that asks
- * for no pointer: a tooltip is out of reach on a screen there is only a finger for.
+ * `show` is X Pro's own display, held as a value so a lower tier can undo an upper one's
+ * set. `caption` leaves the picture and writes the author's description underneath;
+ * `text` puts that description into the post as a line and drops the picture; `mark`
+ * removes it from the timeline but leaves a character-cost mark where it was
+ * (`appearance/apply.ts`); `hidden` removes it with no trace. Where no description exists,
+ * `text` falls back to the mark alone; `caption` still shows as much without giving the
+ * picture up — the only way to read a description with no pointer, since a tooltip is
+ * unreachable on a touchscreen.
  *
- * In the order of how much they show, which is the order they are offered in.
- * The cards have four ways of their own (`ATTACHMENT_STYLES`), listed apart from these:
- * the two are separate settings, described in their own words, and either may come to
- * hold a way the other has no use for — as this one now does.
+ * The cards have four ways of their own (`ATTACHMENT_STYLES`), listed apart since the two
+ * settings may need different sets.
  */
 export const MEDIA_STYLES = ['show', 'caption', 'text', 'mark', 'hidden'] as const;
 export type MediaStyle = (typeof MEDIA_STYLES)[number];
@@ -93,54 +83,40 @@ const isMediaStyle = (v: unknown): v is MediaStyle => MEDIA_STYLES.includes(v as
 export const mediaStyleOf = (value: MediaStyle | null): MediaStyle => value ?? 'show';
 
 /**
- * Whether the photos and videos are off the timeline, marked or not.
- *
- * `caption` is not one of them, however much it looks like `text` in the list: it leaves
- * the picture where it was and only writes under it. Reading it as hidden would take the
- * height limit off the pictures it still shows (`appearance/frame.ts`).
+ * Whether photos/videos are off the timeline, marked or not — `caption` is excluded, since
+ * it leaves the picture in place and only writes underneath; reading it as hidden would drop
+ * the height limit still applied to the pictures it shows (`appearance/frame.ts`).
  */
 export const mediaHidden = (value: MediaStyle | null): boolean => {
   const style = mediaStyleOf(value);
   return style !== 'show' && style !== 'caption';
 };
 
-/**
- * Whether the posts are packed tight (the padding around them, the avatar, the row of
- * reply and repost buttons). Opt-in: left alone, X Pro's own spacing stays.
- */
+/** Whether posts are packed tight (padding, avatar, the reply/repost button row). Opt-in — left alone, X Pro's own spacing stays */
 export const isCompact = (compact: boolean | null): boolean => compact === true;
 
 /**
- * Whether the line breaks written into a post are dropped, running the body into one
- * paragraph.
- *
- * Held apart from `compact` because the two differ in kind: packing changes how much
- * room a post takes, while this changes what the body reads like. A post that uses its
- * line breaks to mean something (a list, a couplet) loses that, so which of the two is
- * wanted is not the same question.
+ * Whether line breaks in a post are dropped, running the body into one paragraph. Kept
+ * apart from `compact`, which changes how much room a post takes rather than how it reads —
+ * a post using line breaks to mean something (a list, a couplet) loses that meaning here.
  */
 export const collapsesNewlines = (collapse: boolean | null): boolean => collapse === true;
 
 /**
- * Whether a reaction count X has rounded off is shown as the number it is.
- *
- * X writes the full number into the button's label whatever it shows beside the icon
- * ("22万", "221.3K"), so nothing has to be counted — only put where it can be read
- * (`appearance/counts.ts`).
+ * Whether a rounded reaction count ("22万", "221.3K") is shown as the exact number instead.
+ * X always writes the full number into the button's label regardless of what it shows
+ * beside the icon, so it only needs reading from there, not counting (`appearance/counts.ts`).
  */
 export const showsRawCounts = (raw: boolean | null): boolean => raw === true;
 
-/**
- * The default is the opposite of the other switches. Unreadable colors are an accident
- * nobody asked for, so the default is the side that fixes itself when left alone.
- */
+/** Default is the opposite of the other switches: unreadable colours are an accident nobody asked for, so left alone it fixes itself */
 export const adjustsContrast = (autoContrast: boolean | null): boolean => autoContrast !== false;
 
 /**
- * What a highlight color is laid over. A translucent color is not determined without a backdrop.
- * `column` lets CSS lay it down as it is, so it blends with the column background.
- * `theme` skips the column background alone, but CSS cannot ignore exactly one
- * ancestor's background, so the extension composites an opaque color and hands that over.
+ * What a highlight colour is laid over — a translucent colour needs a backdrop. `column`
+ * lets CSS blend it with the column background as-is. `theme` skips just the column
+ * background, but CSS cannot skip exactly one ancestor's background, so the extension
+ * composites an opaque colour itself and hands that over.
  */
 export const HIGHLIGHT_BASES = ['column', 'theme'] as const;
 export type HighlightBase = (typeof HIGHLIGHT_BASES)[number];
@@ -151,9 +127,8 @@ const isHighlightBase = (v: unknown): v is HighlightBase =>
 export const highlightBaseOf = (value: HighlightBase | null): HighlightBase => value ?? 'column';
 
 /**
- * How a post's time is shown. `relative` is X's own display, with the extension doing
- * nothing. That is the same result as leaving it unset, but it is held as a value so a
- * lower tier can undo an `absolute` set by an upper one.
+ * How a post's time is shown. `relative` is X's own display (extension does nothing) — same
+ * result as unset, but held as a value so a lower tier can undo an upper tier's `absolute`.
  */
 export const TIME_FORMATS = ['relative', 'absolute', 'both'] as const;
 export type TimeFormat = (typeof TIME_FORMATS)[number];
@@ -163,23 +138,18 @@ const isTimeFormat = (v: unknown): v is TimeFormat => TIME_FORMATS.includes(v as
 export const timeFormatOf = (value: TimeFormat | null): TimeFormat => value ?? 'relative';
 
 /**
- * How the link cards and the articles hanging off a post are shown. `show` is X Pro's
- * own display, held as a value for the same reason `relative` is: a lower tier needs a
- * way to undo what an upper one set.
+ * How link cards and articles hanging off a post are shown. `show` is X Pro's own display,
+ * held as a value for the same undo reason as `relative`.
  *
- * The two are one setting because they are one thing on screen: a framed box with a
- * picture and a headline, standing between the body and the buttons. The quoted posts
- * have a setting of their own (`quoteStyleOf`), and the photos another (`MEDIA_STYLES`).
- * `text` puts the card into the post as a line of text at the end of the body — the
- * headline and the domain, still a link — and takes the card away. It reads like the
- * URL X strips out of the body when it makes a card, and it goes with the packed posts,
- * where a card takes more room than the post it hangs off.
- * The domain is as much of the address as there is to show: a card's link is a `t.co`
- * short URL, and the written URL is gone from the body.
- * `mark` goes further and leaves the mark alone, without the words. The photos and
- * videos have a mark of their own, under the setting that is about them (`MEDIA_STYLES`).
- * A post with no body — an article, a photo posted on its own — takes the line where the
- * card was instead, so nothing ever goes without leaving a word behind.
+ * Cards and articles share one setting: a framed box with a picture and headline, between
+ * body and buttons. Quotes have their own setting (`quoteStyleOf`) and photos another
+ * (`MEDIA_STYLES`, which also holds their own mark). `text` puts the card into the post as a
+ * line — headline and domain, still a link — and removes the card; it reads like the URL X
+ * strips from the body when building a card, and suits packed posts, where a card takes
+ * more room than the post it hangs off. Only the domain shows because a card's link is a
+ * `t.co` short URL and the written URL is already gone from the body. `mark` drops the words
+ * too, leaving just the mark. A post with no body — an article, a standalone photo — takes
+ * the line where the card was instead, so nothing disappears without a trace.
  */
 export const ATTACHMENT_STYLES = ['show', 'text', 'mark', 'hidden'] as const;
 export type AttachmentStyle = (typeof ATTACHMENT_STYLES)[number];
@@ -190,21 +160,16 @@ const isAttachmentStyle = (v: unknown): v is AttachmentStyle =>
 export const cardStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
 
 /**
- * How a quoted post is shown. The same four ways as a card, under a setting of its own:
- * a quote is somebody's words rather than a preview of a link, and whoever wants the
- * cards folded away does not necessarily want the quotes folded away too.
- * Its line says what the quote says and who wrote it. It carries no link, X Pro writing
- * no address on the frame — the quoted post is reached by opening the post.
+ * How a quoted post is shown — the same four ways as a card, but a setting of its own: a
+ * quote is somebody's words, not a link preview, so folding cards away need not fold quotes
+ * too. Its `text` line gives the quote's words and author, with no link — X Pro writes no
+ * address on the frame, and the quoted post is reached by opening the post.
  */
 export const quoteStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
 
 export const appearanceApplies = (enabled: boolean | null): boolean => enabled !== false;
 
-/**
- * The reposter and the reply target are user IDs only because their display names are
- * either not on screen or run together with boilerplate, and pulling them out would
- * assume a UI language.
- */
+/** Reposter and reply-target are user IDs only, since their display names are either off-screen or run together with boilerplate, and pulling them out would assume a UI language */
 export const MATCH_TARGETS = [
   'text',
   'quotedText',
@@ -232,10 +197,8 @@ export const isScreenNameTarget = (target: MatchTarget): boolean =>
   target === 'replyTo';
 
 /**
- * The targets emphasis can paint: only the ones written on screen as text.
- * Judging, painting and the validation on save all consult this one list. If any one of
- * them handled a target the others do not know, it would paint somewhere other than
- * where the match was.
+ * Targets emphasis can paint: only ones written on screen as text. Judging, painting and
+ * save-validation all consult this one list, so none can paint where no match was made.
  */
 export const EMPHASIZABLE_TARGETS = [
   'text',
@@ -259,10 +222,9 @@ export const COMMON_TARGETS = [
 ] as const satisfies readonly MatchTarget[];
 
 /**
- * The targets that only exist by virtue of that trait. The settings screen consults
- * this to show the input boxes that go with the trait picked.
- * Traits with an empty list (Community Note, ad, media) are properties of the post
- * itself and have no targets of their own.
+ * Targets that exist only by virtue of that trait, used by the settings screen to show the
+ * matching input boxes. Traits with an empty list (Community Note, ad, media) are
+ * properties of the post itself, with no targets of their own.
  */
 export const TARGETS_BY_TRAIT = {
   repost: ['repostedBy'],
@@ -304,10 +266,7 @@ const MINUTES_IN: Record<AgeUnit, number> = { minutes: 1, hours: 60, days: 60 * 
 /** Converts to minutes. Storage holds this form alone (no two ways of writing the same span) */
 export const minutesOf = (value: number, unit: AgeUnit): number => value * MINUTES_IN[unit];
 
-/**
- * Converts back to a unit for display, choosing the largest unit it divides evenly into.
- * 2880 minutes becomes "2 days" and 90 minutes stays "90 minutes".
- */
+/** Converts back to a unit for display, using the largest unit it divides evenly into — 2880 minutes becomes "2 days", 90 stays "90 minutes" */
 export const splitDuration = (minutes: number): { value: number; unit: AgeUnit } => {
   for (const unit of ['days', 'hours'] as const) {
     const size = MINUTES_IN[unit];
@@ -317,12 +276,9 @@ export const splitDuration = (minutes: number): { value: number; unit: AgeUnit }
 };
 
 /**
- * What there is to count about a post. They are the option names on the settings screen and
- * also appear in a condition's description.
- *
- * The first four are the reactions X shows under a post; the rest are counted in the body
- * itself. Both kinds answer the same question ("how many"), so they share the one condition
- * rather than each having a shape of its own.
+ * What there is to count about a post: option names on the settings screen, also used in a
+ * condition's description. The first four are reactions X shows under a post; the rest are
+ * counted in the body. Both answer "how many", so they share one condition.
  */
 export const COUNT_METRICS = [
   'reply',
@@ -336,9 +292,8 @@ export const COUNT_METRICS = [
 export type CountMetric = (typeof COUNT_METRICS)[number];
 
 /**
- * Which side of the number matches. Both take the number itself in, unlike the age, which
- * compares strictly: "100 likes or more" is how a count is read, and at a whole number that
- * difference is one the reader can see.
+ * Which side of the number matches: unlike age, count comparison is inclusive — "100 likes
+ * or more" is how a count is read, and at a whole number that difference is visible.
  */
 export const COUNT_DIRECTIONS = ['atLeast', 'atMost'] as const;
 export type CountDirection = (typeof COUNT_DIRECTIONS)[number];
@@ -360,22 +315,17 @@ export type Condition =
     }
   | { kind: 'trait'; trait: TraitKey; negate: boolean }
   /**
-   * How old a post is: older than this many minutes at the moment it was read. An ad,
-   * having no time, never matches.
-   *
-   * There is only the one side, and no `negate`. The other side ("newer than an hour")
-   * cannot say what it looks like it says: a post is judged once, as it arrives, and
-   * every post arriving is newer than any span worth naming — so the condition holds for
-   * the whole timeline and goes on holding as the post ages (see `ageMatcher`)
+   * How old a post is: older than this many minutes when read. An ad has no time and never
+   * matches. Only one side exists, with no `negate` — "newer than an hour" cannot mean what it
+   * says, since a post is judged once on arrival and stays newer than any span worth naming
+   * for its whole time on the timeline (see `ageMatcher`).
    */
   | { kind: 'age'; minutes: number }
   /**
-   * How many reactions of one kind a post carries. A post whose count cannot be read
-   * matches no count condition, the same as a post with no time and an age condition.
-   *
-   * It carries no `negate`, unlike every other kind: "at least" and "at most" already say
-   * both sides of a number. Negating would add one thing only — also matching a post whose
-   * count could not be read — which is not worth a fourth combination on the screen
+   * How many reactions of one kind a post carries. A post whose count cannot be read matches
+   * no count condition, like a post with no time and an age condition. No `negate` here
+   * either: "at least" and "at most" already cover both sides, and negating would only add
+   * "also matches an unreadable count" — not worth a fourth combination on screen.
    */
   | { kind: 'count'; metric: CountMetric; direction: CountDirection; count: number };
 
@@ -386,9 +336,9 @@ export type AgeCondition = Extract<Condition, { kind: 'age' }>;
 export type CountCondition = Extract<Condition, { kind: 'count' }>;
 
 /**
- * Whether this condition determines somewhere to paint.
- * The validation on save and the judging both consult this. Written separately, adding a
- * condition would let one of them slip and produce "it saves but nothing gets painted".
+ * Whether this condition determines somewhere to paint. Save-validation and judging both
+ * consult it, so a new condition kind cannot slip through only one and produce "it saves
+ * but nothing gets painted".
  */
 export const canEmphasizeWith = (condition: Condition): condition is TextCondition =>
   condition.kind === 'text' &&
@@ -433,28 +383,21 @@ export type FilterNode = {
   /** Whether filtering applies in this column. With an effective value of false, the upper tiers' rules do not apply either */
   enabled: boolean | null;
   rules: Rule[];
-  /**
-   * The order this tier's rules are read in. After normalization it contains the id of
-   * every rule that exists in this tier, exactly once each.
-   */
+  /** The order this tier's rules are read in; after normalization it holds every rule's id in this tier exactly once */
   order: string[];
 };
 
 /**
- * The items a lower tier can put back to "as X shows it", named by where they sit in the
- * appearance.
+ * Items a lower tier can put back to "as X shows it", named by where they sit in the
+ * appearance. Only sizes and colours are listed: a choice-valued item already has X's own
+ * display as one of its choices (`show`, `relative`), and a switch has an explicit "no", so
+ * both can already cancel an upper tier's set. A size or colour has no such value — `null`
+ * there means "not set", the thing that inherits — so cancelling needs saying separately.
  *
- * Only the sizes and the colours are here, and the reason is what the other items are
- * made of. A choice-valued item already holds X's own display as one of its choices
- * (`show`, `relative`), and a switch has three states with "no" as the explicit opposite
- * — either can be set to a value that cancels what an upper tier said. A size and a
- * colour have no such value: `null` there means "not set", which is the very thing that
- * inherits, so cancelling from below needs saying separately.
- *
- * Held as a list on the tier rather than as a third state on each item's type. Fifteen
- * items would each become `T | null | Cleared`, and every reader of the appearance — the
- * merging, the stylesheet, each field on the settings screen — would have to answer for
- * the third state. As a list, the whole idea stays inside `inherit` (`resolve.ts`).
+ * Held as a list on the tier rather than a third state on each item's type: fifteen items
+ * would each become `T | null | Cleared`, and every reader of the appearance (merging,
+ * stylesheet, each settings-screen field) would have to handle it. As a list, the idea
+ * stays inside `inherit` (`resolve.ts`).
  */
 export const CLEARABLE_ITEMS = [
   'columnWidth',
@@ -477,16 +420,14 @@ export const CLEARABLE_ITEMS = [
 export type ClearableItem = (typeof CLEARABLE_ITEMS)[number];
 
 /**
- * The name of one colour's item. The colours are handled as a list in several places
- * (the settings screen, "what is in effect"), and this is what turns a key from that list
- * into the name used here, so the two cannot drift apart by hand.
+ * The name of one colour's item. Colours are listed in several places (settings screen,
+ * "what is in effect"); this turns a key from that list into the name used here, keeping
+ * the two from drifting apart by hand.
  *
- * The name is returned as the literal type it is rather than as `ClearableItem`, so that
- * a colour added to the appearance without an entry in `CLEARABLE_ITEMS` is refused where
- * it is passed on. Named as `ClearableItem` — which would need a cast, the compiler being
- * unable to see that every colour has an entry — that colour would go through quietly and
- * simply never be cancellable, with the field on the settings screen offering to put it
- * back and nothing happening.
+ * Returned as the literal type rather than `ClearableItem`, so a colour added to the
+ * appearance without a `CLEARABLE_ITEMS` entry is refused at the call site. Typed as
+ * `ClearableItem` it would need an unverifiable cast, pass through quietly, and never be
+ * cancellable — the settings-screen field would offer to clear it and nothing would happen.
  */
 export const colorItem = <K extends keyof AppearanceNode['colors']>(key: K): `colors.${K}` =>
   `colors.${key}`;
@@ -502,12 +443,9 @@ export type AppearanceNode = {
   /** Cuts the body at this many lines, with the rest opened by "Show more". Lines as wrapped on screen */
   maxLines: number | null;
   /**
-   * How many characters of what the extension writes into a post go on screen: the
-   * description given to a picture, a quoted post's text, a card's headline. The rest is
-   * opened by "Show more".
-   *
-   * One setting for the caption under a picture and for the line put into the body, so the
-   * two show the same amount. Unset takes the default (`WORDS_SHOWN`).
+   * How many characters of extension-written text (a picture's description, a quoted post's
+   * text, a card's headline) go on screen before "Show more"; one setting for both the
+   * caption and the inserted body line, so they match. Unset takes the default (`WORDS_SHOWN`).
    */
   wordsShown: number | null;
   /** Drops the line breaks written into the body, turning each into a single space */
@@ -525,19 +463,12 @@ export type AppearanceNode = {
     columnTitle: string | null;
     /** The background of the bar carrying the column name itself */
     columnHeader: string | null;
-    /**
-     * The background of the form a new post is written in.
-     *
-     * Answered by the account the form will post as rather than by the scope on screen:
-     * the form belongs to nobody's column or view (`ACCOUNT_COLORS`).
-     */
+    /** Background of the compose form. Answered by the posting account rather than the on-screen scope — the form belongs to no column or view (`ACCOUNT_COLORS`) */
     composeBackground: string | null;
     /**
-     * The background of x.com's page outside the timeline: the items down the left, the
-     * rail beside it, and the margins either side.
-     *
-     * The timeline itself paints over this — x.com draws it opaque (measured) — so what
-     * is in the middle of the page stays as X has it unless `background` is set too.
+     * Background of x.com's page outside the timeline (left nav, rail, margins). The timeline
+     * paints over this — x.com draws it opaque (measured) — so the middle of the page stays
+     * as X has it unless `background` is also set.
      */
     pageBackground: string | null;
   };
@@ -553,11 +484,9 @@ export type AppearanceNode = {
   /** How a quoted post is shown. Unset keeps X Pro's own */
   quoteStyle: AttachmentStyle | null;
   /**
-   * The items this tier puts back to "as X shows it", whatever an upper tier set
-   * (`CLEARABLE_ITEMS`). Empty on a tier that cancels nothing.
-   *
-   * Different in kind from leaving an item unset: unset means "whatever comes down from
-   * above", this means "nothing, and stop looking".
+   * Items this tier puts back to "as X shows it", overriding whatever an upper tier set
+   * (`CLEARABLE_ITEMS`). Empty when nothing is cancelled. Different from leaving an item
+   * unset: unset means "whatever comes from above", this means "nothing, stop looking".
    */
   cleared: ClearableItem[];
 };
@@ -565,47 +494,34 @@ export type AppearanceNode = {
 export type SettingsNode = { filter: FilterNode; appearance: AppearanceNode };
 
 /**
- * What the compose form does after a post goes out.
- *
- * Not held per tier. The compose form belongs to neither a column nor an account, and
- * putting it under a tier would drag it through the merging (resolve.ts) and the
- * "is this tier empty" judgements, where it has nothing to say.
- *
- * Both are plain booleans rather than the `boolean | null` the tiers use. With no tier
- * above to inherit from, "not set" would mean the same thing as false.
+ * What the compose form does after a post goes out. Not held per tier: it belongs to
+ * neither a column nor an account, and putting it under a tier would drag it through the
+ * merging (resolve.ts) and "is this tier empty" judgements with nothing to say. Plain
+ * booleans, not the tiers' `boolean | null` — with no tier above, "not set" would mean the same as false.
  */
 export type ComposeSettings = {
   /** Open the compose form again after a post, instead of letting X Pro close it */
   reopen: boolean;
-  /**
-   * Put the hashtags that were written back into the emptied box.
-   * Only read while `reopen` is on: with the form closed there is nowhere to put them.
-   */
+  /** Puts the hashtags that were written back into the emptied box. Only read while `reopen` is on — with the form closed there is nowhere to put them */
   keepHashtags: boolean;
 };
 
 /**
- * Whether the hashtags are put back.
- *
- * It does not depend on the form being opened again. With the form left to close, the tags
- * are kept until the next compose form is opened by hand and go in there instead, so the
- * two switches answer two separate questions.
- * It lives here, beside the other "what happens when nothing was set" answers, so that
- * the settings screen and the compose form cannot drift into disagreeing about it.
+ * Whether the hashtags are put back. Does not depend on the form reopening: with the form
+ * left closed, tags are kept until the next compose form is opened by hand and go in there
+ * instead — two separate questions. Lives here with the other "nothing was set" answers, so
+ * the settings screen and compose form cannot disagree about it.
  */
 export const restoresHashtags = (compose: ComposeSettings): boolean => compose.keepHashtags;
 
 /**
  * The blocks X stacks in the rail beside the timeline, in the order it stacks them.
  *
- * The search box is not among them. Taking every block away and leaving the rail standing
- * would give a column 350px wide with a search box alone in it, and taking that away too
- * would leave the column empty rather than gone — which is what `wideTimeline` is for.
- *
- * The accounts X suggests are not on the list either, though X does stack them here. That
- * block is X slipping something in rather than furniture of the page, it appears on both
- * sites, and it is answered once for the whole site (`InjectedSettings`) — wherever X
- * draws it, in the rail or down the timeline.
+ * The search box is excluded: removing every block would leave a 350px column with only
+ * the search box, and removing that too would empty rather than remove it — that is what
+ * `wideTimeline` is for. The suggested-accounts block is excluded too, though X stacks it
+ * here: it is X injecting content, not page furniture; it appears on both sites and is
+ * answered once for the whole site (`InjectedSettings`) wherever X draws it.
  */
 export const X_RAIL_KEYS = ['premium', 'news', 'trends', 'relevantPeople', 'footer'] as const;
 export type XRailKey = (typeof X_RAIL_KEYS)[number];
@@ -614,16 +530,13 @@ export type XRailKey = (typeof X_RAIL_KEYS)[number];
 export type XRailSettings = Record<XRailKey, boolean>;
 
 /**
- * The items down the left of x.com that can be taken away, in the order X shows them.
+ * Items down the left of x.com that can be taken away, in the order X shows them.
  *
- * A fixed list rather than whatever the page happens to be holding: which items X puts
- * there differs from one account to the next, and a settings screen changing shape with
- * whatever was last seen would be worse than one offering an item that never turns up.
- * An item X is not showing simply matches nothing.
- *
- * "More" is not on it and cannot be: on x.com that menu is the way into these very
- * settings (`surface/x.ts`), so hiding it would shut the door from the inside. Home and
- * notifications are not on it either — those are what the navigation is for.
+ * A fixed list rather than whatever the page holds: which items X shows varies by account,
+ * and a reshaping settings screen would be worse than one offering an item that never
+ * appears — it simply matches nothing. "More" is excluded and cannot be included: on x.com
+ * that menu is the way into these settings (`surface/x.ts`), so hiding it would shut the
+ * door from inside. Home and notifications are excluded too, being what navigation is for.
  */
 export const X_NAV_KEYS = [
   'explore',
@@ -643,15 +556,13 @@ export type XNavKey = (typeof X_NAV_KEYS)[number];
 export type XNavSettings = Record<XNavKey, boolean>;
 
 /**
- * The items inside the "More" menu that can be taken away, in the order X lists them.
+ * Items inside the "More" menu that can be taken away, in the order X lists them.
  *
- * The menu itself stays — on x.com it is the way into these very settings — but what X
- * fills it with is another matter, and someone who never opens a Space or writes a
- * Community Note is reading past those every time the menu opens.
- *
- * The extension's own entry is not on the list and cannot be: it is put there by
+ * The menu itself stays — it is the way into these settings — but what fills it is another
+ * matter; someone who never opens a Space or writes a Community Note reads past those every
+ * time it opens. The extension's own entry is excluded and cannot be included: it is added by
  * `panel/x-menu.ts` and carries no address, while every item here is named by where it
- * leads. Nothing that hides an item can reach it.
+ * leads, so nothing that hides an item can reach it.
  */
 export const X_MENU_KEYS = [
   'lists',
@@ -669,35 +580,26 @@ export type XMenuKey = (typeof X_MENU_KEYS)[number];
 export type XMenuSettings = Record<XMenuKey, boolean>;
 
 /**
- * What of x.com's own furniture is taken away: the rail beside the timeline, the items
- * down the left, the box for writing a post, the bar announcing new ones.
+ * What of x.com's own furniture is taken away: the rail beside the timeline, the items down
+ * the left, the post-writing box, the bar announcing new posts.
  *
- * Not held per tier, for the same reason as `ComposeSettings`: the furniture belongs to
- * the page rather than to the view being looked at, and "hide the rail on home but show
- * it on a profile" is not something anyone means. x.com alone — X Pro's deck has none of
- * this, and `appearance/apply.ts` is where that is decided.
- *
- * Plain booleans rather than the tiers' `boolean | null`: with nothing above to inherit
- * from, "not set" would be saying the same as false twice.
+ * Not held per tier, for the same reason as `ComposeSettings`: furniture belongs to the page
+ * rather than the view, and "hide the rail on home but show it on a profile" means nothing.
+ * x.com only — X Pro's deck has none of this (`appearance/apply.ts` decides that). Plain
+ * booleans rather than the tiers' `boolean | null`, for the reason `ComposeSettings` gives.
  */
 export type XChromeSettings = {
   /**
-   * Takes the whole rail away and lets the timeline have the room it was using.
-   *
-   * The two go together rather than being asked separately: widening with the rail still
-   * on screen pushes the rail out of the window (measured), so the only widening worth
-   * offering is the one that clears the rail first. It stands above `rail` for that
-   * reason — with it on, every block below has gone whatever each one says.
+   * Takes the whole rail away and gives the timeline the room it used. The two are not asked
+   * separately: widening with the rail still on screen pushes it out of the window (measured),
+   * so it stands above `rail` — with it on, every block below is gone regardless of its own
+   * setting.
    */
   wideTimeline: boolean;
   /*
-   * What of the page is on screen. **true means it is there**, which is what a reader of
-   * the settings screen ticks and unticks; false takes it away.
-   *
-   * Written this way round because the screen is a list of names of things on the page,
-   * and an empty box beside each name reads as "none of these are here" — the opposite of
-   * the truth. Storing "hidden" and turning it round on the screen alone was worse: two
-   * halves of one program saying opposite things about the same field (2026-09-03).
+   * What of the page is on screen: **true means it is there**, matching what the settings
+   * screen ticks and unticks. Written this way round because the screen lists names of things
+   * on the page, and an unticked box would otherwise read as "none of these are here".
    */
   rail: XRailSettings;
   nav: XNavSettings;
@@ -705,33 +607,24 @@ export type XChromeSettings = {
   /** The two bars X floats in the bottom-right corner, one for Grok and one for chat */
   grokDrawer: boolean;
   chatDrawer: boolean;
-  /**
-   * The box for writing a post at the head of the timeline. The box for writing a reply
-   * on a post's own page is the same element of X's, and stays either way.
-   */
+  /** The box for writing a post at the head of the timeline. The reply box on a post's own page is the same X element, and stays either way */
   composeBox: boolean;
   /**
-   * Presses the bar X floats over the timeline to say that posts have arrived, as soon
-   * as it appears, so the timeline fills itself.
-   *
-   * The one item here that does something rather than takes something away, and the one
-   * that needs more than a stylesheet (`timeline/new-posts.ts`). It sits with the rest
-   * because it answers the same question they do — what x.com does around the timeline —
-   * and asking it on a screen of its own would only make it harder to find.
+   * Presses the bar X floats over the timeline announcing new posts, as soon as it appears,
+   * so the timeline fills itself. The one item here that adds rather than removes, and the
+   * only one needing more than a stylesheet (`timeline/new-posts.ts`); it sits with the rest
+   * because it answers the same question — what x.com does around the timeline.
    */
   autoNewPosts: boolean;
 };
 
 /**
- * Whether anything on this page has been asked for at all — that is, whether it differs
- * from the page x.com draws on its own.
+ * Whether anything on this page differs from what x.com draws on its own. Lives here,
+ * beside the shape, so the settings screen's "this has something in it" mark cannot drift
+ * from what actually happens.
  *
- * It lives here, beside the shape, so that the settings screen's "this has something in
- * it" mark cannot drift from what the page actually does.
- *
- * Widening the timeline counts: it takes the rail away to make the room, so it changes
- * the page on its own. So does bringing new posts in, which adds rather than takes away —
- * the mark says "something is set", not "something is gone".
+ * Widening the timeline counts (it removes the rail to make room), as does auto-loading new
+ * posts — the mark says "something is set", not just "something is gone".
  */
 export const changesAnyChrome = (chrome: XChromeSettings): boolean =>
   chrome.wideTimeline ||
@@ -744,16 +637,13 @@ export const changesAnyChrome = (chrome: XChromeSettings): boolean =>
   X_MENU_KEYS.some((key) => !chrome.menu[key]);
 
 /**
- * What X slips into a timeline that is not a post: the accounts it suggests following,
- * and the posts it appends under a conversation as "Discover more".
+ * What X slips into a timeline that is not a post: suggested accounts to follow, and posts
+ * appended under a conversation as "Discover more".
  *
- * Held per site rather than per tier. Both sites draw both blocks, and neither is
- * something anyone means differently from one column to the next — X decides where they
- * go, not the reader. Put on a tier they would drag through the merging (`resolve.ts`)
- * and the "is this tier empty" judgements with nothing to say in either.
- *
- * Plain booleans for the reason `ComposeSettings` gives: with no tier above to inherit
- * from, "not set" would be saying the same as false twice.
+ * Held per site rather than per tier: both sites draw both blocks, and it is X deciding
+ * where they go, not the reader, so a tier would drag them through the merging
+ * (`resolve.ts`) and "is this tier empty" judgements with nothing to say. Plain booleans
+ * for the reason `ComposeSettings` gives.
  */
 export type InjectedSettings = {
   /** true means the block is left where X puts it; false takes it away (as in `XChromeSettings`) */
@@ -768,20 +658,14 @@ export const changesAnyInjected = (injected: InjectedSettings): boolean =>
 /**
  * Whether the detailed search form is put into x.com's rail.
  *
- * Not part of `XChromeSettings`, though it is shown beside it and governed by the same
- * `wideTimeline`. That type is a list of things **x.com draws**, each switch saying
- * whether it stays; this is a thing **the extension adds**. Putting it there would make
- * the type's name and its contents disagree — the mistake already made once, when the
- * compose box and the new-posts bar sat under "around the timeline" without standing
- * around it (2026-09-02).
+ * Not part of `XChromeSettings`, though shown beside it and governed by the same
+ * `wideTimeline`: that type lists things **x.com draws**, each switch saying whether it
+ * stays, while this is something **the extension adds** — including it there would make
+ * name and contents disagree. Plain boolean, not a tier's `boolean | null`, for the reason
+ * `ComposeSettings` gives.
  *
- * A plain boolean rather than a tier's `boolean | null`, for the reason
- * `ComposeSettings` gives: with nothing above to inherit from, "not set" would be saying
- * the same as false twice.
- *
- * **Starts off.** Everything else about x.com's page starts as x.com draws it, and this
- * adds something a reader never asked for; the rail is not ours to fill uninvited.
- * The two posting switches start off for the same reason.
+ * **Starts off**, unlike the rest of x.com's page: this adds something never asked for, and
+ * the rail is not ours to fill uninvited (the two posting switches start off for the same reason).
  */
 export type SearchSettings = {
   /** true puts the form in the rail. Read only on x.com; X Pro has no rail */
@@ -789,13 +673,10 @@ export type SearchSettings = {
 };
 
 /**
- * Whether anything about the search has been asked for.
- *
- * Beside the shape, like `changesAnyChrome` and `changesAnyInjected`, so that the mark
- * the settings screen puts on "all of x.com" cannot drift from what is actually set.
- * Written as a predicate rather than read as a field at the call site: what counts as
- * "something is set" is this file's answer to give, and a second item added here would
- * otherwise have to be remembered in the screen as well.
+ * Whether anything about the search has been asked for. Beside the shape, like
+ * `changesAnyChrome` and `changesAnyInjected`, so the settings screen's "all of x.com" mark
+ * cannot drift from what is actually set. A predicate rather than a field read at the call
+ * site, so a second item added here need not also be remembered in the screen.
  */
 export const changesAnySearch = (search: SearchSettings): boolean => search.form;
 
@@ -809,70 +690,56 @@ export type Settings = {
   xChrome: XChromeSettings;
   /** What the extension adds to x.com's search. One for the whole site, like `xChrome` */
   search: SearchSettings;
-  /**
-   * What X slips into a timeline, one answer per site. Kept apart by site rather than
-   * shared, because the two sites are read in different frames of mind and what is
-   * unwanted on one may be wanted on the other.
-   */
+  /** What X slips into a timeline, one answer per site — the two are read in different frames of mind, so what is unwanted on one may be wanted on the other */
   injected: { pro: InjectedSettings; x: InjectedSettings };
   /**
-   * X's own words for a picture nobody described ("Image", 「画像」), which are never
-   * passed on as a description (`appearance/alt.ts`).
+   * X's own words for a picture nobody described ("Image", 「画像」), never passed on as a
+   * description (`appearance/alt.ts`).
    *
-   * The words are X's, in X's interface language, so they cannot be listed in advance:
-   * they are learned from the pages being read and written back here, where they can be
-   * read and corrected. The learning only ever adds — a word written by hand is never
-   * rewritten or dropped — and it never stops, X having a different word for a photo and
-   * for a video and a page showing them at different times.
-   *
-   * One for the whole extension, like `language`: they follow the language X is shown in,
-   * which is one for the account rather than one per column.
+   * The words are X's, in X's interface language, so they cannot be listed in advance —
+   * they're learned from pages read and written back here, where they can be corrected. The
+   * learning only ever adds (a hand-written word is never rewritten or dropped) and never
+   * stops, since X uses a different word for a photo and a video, and even changes it over
+   * time. One for the whole extension, like `language`: it follows the language X is shown
+   * in, per account rather than per column.
    */
   genericAlts: string[];
   global: SettingsNode;
   /** Screen name → settings, the screen name being all that can be obtained from the DOM */
   accounts: Record<string, SettingsNode>;
   /**
-   * One tier per site: what applies while that site is being read, whichever account and
-   * whichever column or view. It sits below the account and above the column
-   * (`tiersFor` in resolve.ts), so what a site says wins over what an account says.
+   * One tier per site: applies while that site is read, whichever account and column/view.
+   * Sits below the account and above the column (`tiersFor` in resolve.ts), so a site's say
+   * wins over an account's.
    *
-   * That order is what makes the two directions expressible. An account's tier reaches
-   * both sites, which is what it is for — the colour of the form a post is written in
-   * follows the account wherever it posts from. Where that is not wanted, the site is
-   * where it gets taken back, and only a tier that wins can take something back.
-   *
-   * A tier like the other three, so unlike `injected` or `xChrome` it does go through the
-   * merging and the "is this tier empty" judgements.
+   * That order makes both directions expressible: an account's tier reaches both sites — the
+   * compose form's colour follows the account wherever it posts — and where that is unwanted
+   * the site is where it is taken back, since only a winning tier can take something back. A
+   * tier like the other three, so unlike `injected` or `xChrome` it goes through the merging
+   * and the "is this tier empty" judgements.
    */
   surfaces: { pro: SettingsNode; x: SettingsNode };
   /**
-   * Per site, per account: what applies while that account is being read on that site.
-   * It sits below the site and above the column, so it wins over both of the tiers it is
-   * made of — the more particular of two answers is the one worth having.
+   * Per site, per account: applies while that account is read on that site. Sits below the
+   * site and above the column, winning over both tiers it is made of — the more particular
+   * answer is the one worth having.
    *
-   * The account and the site each reach further than they can say. An account's tier
-   * reaches both sites and a site's tier reaches every account, so "keep this account's
-   * colour off X Pro, but leave the other account's alone" had nowhere to be written.
-   * This is that square of the multiplication, and nothing else belongs in it: what holds
-   * for an account everywhere still goes on the account, and only the exception comes here.
-   *
-   * Screen name → settings, the same shape as `accounts` and for the same reason.
+   * The account and site each reach further than they can say alone: an account's tier
+   * reaches both sites, a site's tier every account, so "keep this account's colour off X
+   * Pro but leave the other account alone" had nowhere to live. This is that intersection,
+   * and nothing else belongs in it — what holds for an account everywhere stays on the
+   * account, only the exception comes here. Screen name → settings, same shape as
+   * `accounts`, same reason.
    */
   surfaceAccounts: { pro: Record<string, SettingsNode>; x: Record<string, SettingsNode> };
-  /**
-   * columnId → settings. Never deleted just because no matching column can be found.
-   * "Not found" often only means pro.x.com is not open, and holding it as a state would be a lie.
-   */
+  /** columnId → settings. Never deleted for lacking a matching column — "not found" often just means pro.x.com is not open, and treating that as a state would be a lie */
   columns: Record<string, SettingsNode>;
 };
 
 // --- Normalizing stored values ---
 //
-// The input arrives as unknown from storage or a JSON import, so a value of an
-// unexpected type falls back to "not set".
-// Better to have one item return to its default than to have one broken value make the
-// whole settings unreadable.
+// Input arrives as unknown from storage or a JSON import, so an unexpected type falls back
+// to "not set" — one item reverting to default beats one broken value making everything unreadable.
 
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -882,9 +749,8 @@ const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
 /**
- * A size in px or in lines. Only positive integers are accepted.
- * A 0 or a negative number reaching `buildCss` would make the column zero-wide and it
- * would vanish from the screen.
+ * A size in px or in lines. Only positive integers are accepted: a 0 or a negative number
+ * reaching `buildCss` would make the column zero-wide and it would vanish from the screen.
  */
 const size = (v: unknown): number | null =>
   typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null;
@@ -918,8 +784,8 @@ const condition = (v: unknown): Condition | null => {
     if (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes <= 0) return null;
     return { kind: 'age', minutes };
   }
-  // 0 is kept, unlike the age above: "0 or fewer likes" is a rule worth writing, while
-  // "older than 0 minutes" would only mean every post
+  // 0 is kept, unlike the age above: "0 or fewer likes" is worth writing, while "older
+  // than 0 minutes" would mean every post
   if (o.kind === 'count') {
     const count = o.count;
     if (!isCountMetric(o.metric)) return null;
@@ -932,8 +798,8 @@ const condition = (v: unknown): Condition | null => {
   const target = isTarget(o.target) ? o.target : 'text';
   const mode = isMode(o.mode) ? o.mode : 'contains';
 
-  // "Is the author" attached to a target that cannot offer it is discarded, so no state
-  // exists where the judging applies something the screen does not show
+  // "Is the author" on a target that cannot offer it is discarded, so judging never
+  // applies something the screen does not show
   if (isSelfMode(mode)) {
     return canCompareToSelf(target) ? { kind: 'text', target, mode, pattern: '', caseSensitive: false, negate } : null;
   }
@@ -951,17 +817,13 @@ const condition = (v: unknown): Condition | null => {
   };
 };
 
-/** Reads a rule. A rule with no conditions matches every post and is discarded */
 /**
- * Whether a stored condition says something no longer expressible: an age on the young
- * side, written either as "newer than an hour" or as "not older than an hour". Both are
- * gone (see `Condition`).
- *
- * The rule carrying one is dropped whole. Reading it as "older" would turn the rule
- * inside out, and dropping the condition alone would take a term out of an AND and leave
- * the rule matching more posts than it was written for — a rule that hides would start
- * hiding what it never touched. A rule that stops applying is the one outcome that takes
- * nothing off the screen that the reader did not ask to lose.
+ * Whether a stored condition expresses something no longer possible: an age on the young
+ * side, written as "newer than an hour" or "not older than an hour" — both gone (see
+ * `Condition`). The whole rule is dropped: reading it as "older" would invert the rule, and
+ * dropping just the condition would remove an AND term and widen the match — a hiding rule
+ * would start hiding what it never touched. Dropping the whole rule is the only outcome that
+ * takes nothing off screen the reader did not ask to lose.
  */
 const saysYoungerThan = (v: unknown): boolean => {
   const o = rec(v);
@@ -969,6 +831,7 @@ const saysYoungerThan = (v: unknown): boolean => {
   return o.direction === 'newer' ? o.negate !== true : o.negate === true;
 };
 
+/** Reads a rule. A rule with no conditions matches every post and is discarded */
 const rule = (v: unknown): Rule | null => {
   const o = rec(v);
   if (arr(o.conditions).some(saysYoungerThan)) return null;
@@ -981,7 +844,7 @@ const rule = (v: unknown): Rule | null => {
     action: isAction(o.action) ? o.action : ACTIONS.COLLAPSE,
     color: hexColor(o.color),
     label: str(o.label) ?? '',
-    // Settings with no on/off are taken as never having been meant to be stopped, and are enabled
+    // No stored on/off means never meant to be stopped, so it is enabled
     enabled: bool(o.enabled) ?? true,
   };
 };
@@ -990,13 +853,10 @@ export const defaultOrder = (filter: Omit<FilterNode, 'order'>): string[] =>
   filter.rules.map((rule) => rule.id);
 
 /**
- * Brings the order into exact correspondence with the rules that exist.
- * Ids of rules that do not exist are dropped, and rules missing from the order are
- * appended at the end.
- *
- * Used both when reading stored values and when the settings screen adds or removes a
- * rule. Without aligning it on the screen side, an added rule would be saved without
- * entering the order and would never reach the judging.
+ * Brings the order into exact correspondence with the rules that exist: unknown ids are
+ * dropped, and rules missing from the order are appended at the end. Used both when reading
+ * stored values and when the settings screen adds or removes a rule — without this, an added
+ * rule could be saved without entering the order and never reach the judging.
  */
 export const syncOrder = (order: unknown, rules: Rule[]): string[] => {
   const ids = new Set(rules.map((rule) => rule.id));
@@ -1019,12 +879,9 @@ const isClearableItem = (v: unknown): v is ClearableItem =>
   (CLEARABLE_ITEMS as readonly unknown[]).includes(v);
 
 /**
- * The list of items put back to "as X shows it". A name this version does not know is
- * dropped, and the same name twice counts once.
- *
- * The order is not kept as anything meaningful — the list is only ever asked "is this
- * item in you" — but it is left as written rather than sorted, so a stored file reads the
- * way it was saved.
+ * The list of items put back to "as X shows it". An unknown name is dropped, and the same
+ * name twice counts once. Order is not meaningful (only ever asked "is this item in you") but
+ * is left as written rather than sorted, so a stored file reads the way it was saved.
  */
 const fillCleared = (v: unknown): ClearableItem[] => [
   ...new Set(arr(v).filter(isClearableItem)),
@@ -1038,7 +895,7 @@ export const fillNode = (v: unknown): SettingsNode => {
   const colors = rec(appearance.colors);
   const media = rec(appearance.media);
 
-  // The order is decided by looking at the rules that exist, so it is assembled after the other items are filled
+  // Order depends on which rules exist, so it is assembled after the other items are filled
   const rules = {
     enabled: bool(filter.enabled),
     rules: arr(filter.rules).map(rule).filter(isPresent),
@@ -1070,9 +927,9 @@ export const fillNode = (v: unknown): SettingsNode => {
       media: {
         maxThumbHeight: size(media.maxThumbHeight),
         /*
-         * `collapse` is what this was before the mark was added: a switch for hiding.
-         * Read here so that settings saved then keep hiding, instead of quietly coming
-         * back on screen. Written back in the new shape, so it is read once
+         * `collapse` is what this was before the mark was added — a hide switch. Read here
+         * so old settings keep hiding instead of reappearing, and written back in the new
+         * shape so it is read once
          */
         style: isMediaStyle(media.style) ? media.style : media.collapse === true ? 'hidden' : null,
       },
@@ -1089,26 +946,21 @@ export const fillNode = (v: unknown): SettingsNode => {
 const nodeMap = (v: unknown): Record<string, SettingsNode> =>
   Object.fromEntries(Object.entries(rec(v)).map(([key, node]) => [key, fillNode(node)]));
 
-/**
- * A stored value that is not `true` becomes false. There is no third state to keep, so
- * a missing key and a broken one land on the same side: what X Pro does on its own.
- */
+/** A stored value that is not `true` becomes false — no third state, so a missing key and a broken one both land on what X Pro does on its own */
 const fillCompose = (v: unknown): ComposeSettings => {
   const compose = rec(v);
   return { reopen: compose.reopen === true, keepHashtags: compose.keepHashtags === true };
 };
 
 /**
- * The default is off, so only an explicit `true` puts the form on the page — the opposite
- * way round from `fillChrome` below, and for the opposite reason: this adds something
- * rather than leaving something X drew.
+ * Default is off, so only an explicit `true` puts the form on the page — opposite of
+ * `fillChrome` below, for the opposite reason: this adds something rather than leaving what X drew.
  */
 const fillSearch = (v: unknown): SearchSettings => ({ form: rec(v).form === true });
 
 /**
  * An item missing from the stored value stays where X put it, as does one stored as
- * something odd — so the default is `true` (it is on the page), and only an explicit
- * `false` takes something away.
+ * something odd — default is `true` (on the page), and only an explicit `false` removes it.
  */
 const fillItems = <K extends string>(v: unknown, keys: readonly K[]): Record<K, boolean> => {
   const stored = rec(v);
@@ -1129,19 +981,15 @@ const fillInjected = (v: unknown): { pro: InjectedSettings; x: InjectedSettings 
 };
 
 /**
- * Both sites always have a tier, empty until something is written into it. Kept rather
- * than dropped when empty, unlike the accounts and the columns: there are exactly two and
- * they never go away, so there is no key to tidy up.
+ * Both sites always have a tier, empty until written into. Kept rather than dropped when
+ * empty, unlike accounts and columns: there are exactly two sites always, so no key to tidy up.
  */
 const fillSurfaces = (v: unknown): { pro: SettingsNode; x: SettingsNode } => {
   const surfaces = rec(v);
   return { pro: fillNode(surfaces.pro), x: fillNode(surfaces.x) };
 };
 
-/**
- * The two sites are always there, as in `fillSurfaces`, but what hangs off each of them is
- * a map that empties out with the accounts, as in `nodeMap`.
- */
+/** The two sites are always there, as in `fillSurfaces`, but what hangs off each is a map that empties out with the accounts, as in `nodeMap` */
 const fillSurfaceAccounts = (
   v: unknown
 ): { pro: Record<string, SettingsNode>; x: Record<string, SettingsNode> } => {
@@ -1165,12 +1013,10 @@ const fillChrome = (v: unknown): XChromeSettings => {
 };
 
 /**
- * The words are kept as they were written, only tidied: blank lines are dropped and the
- * same word twice counts once. A word is compared with what X wrote into a picture, so
- * trimming anything else off it would stop it matching.
- *
- * Exported because the settings screen tidies what was typed with the same rule. Written
- * twice, the box would show one thing and the stored list hold another.
+ * Words are kept as written, only tidied: blank lines dropped, duplicates counted once. A
+ * word is compared against what X wrote into a picture, so trimming anything else would
+ * stop it matching. Exported because the settings screen tidies typed input with the same
+ * rule — written twice, the box and the stored list could disagree.
  */
 export const tidyGenericAlts = (words: readonly string[]): string[] => [
   ...new Set(words.filter((word) => word.trim() !== '')),
@@ -1204,12 +1050,10 @@ export const emptyNode = (): SettingsNode => fillNode(undefined);
 export const emptyChrome = (): XChromeSettings => fillChrome(undefined);
 
 /**
- * The colors that only mean something where a scope is a column of its own.
- *
- * Named here, beside the shape they belong to, because two sides have to agree on them:
- * the applying side drops them where the surface has no columns, and the settings screen
- * leaves them out of that surface's tabs. Split apart, one of the two would be forgotten
- * the next time an item is added.
+ * Colours that only mean something where a scope is a column of its own. Named here, beside
+ * the shape they belong to, because two sides must agree: the applying side drops them where
+ * a surface has no columns, and the settings screen leaves them off that surface's tabs —
+ * split apart, one side would be forgotten when an item is added.
  */
 export const COLUMN_COLORS: readonly (keyof AppearanceNode['colors'])[] = [
   'columnTitle',
@@ -1217,58 +1061,45 @@ export const COLUMN_COLORS: readonly (keyof AppearanceNode['colors'])[] = [
 ];
 
 /**
- * The colors answered by the account rather than by the scope on screen.
- *
- * The form a new post is written in belongs to no column and no view: on X Pro it stands
- * beside the deck, on x.com it opens over the page. What it does belong to is the account
- * it will post as, which it carries in its own avatar. So the applying side resolves it
- * with the column tier left out (`resolve.ts`'s `tiersFor` does that for a scope with no
- * `columnId`), and the settings screen offers it only where a scope covers whole accounts.
- *
- * Named here beside the shape for the same reason `COLUMN_COLORS` is: two sides have to
- * agree, and split apart one of them would be forgotten.
+ * Colours answered by the account rather than the on-screen scope. The compose form belongs
+ * to no column or view — X Pro shows it beside the deck, x.com opens it over the page — but
+ * belongs to the posting account, carried in its own avatar. The applying side resolves it
+ * with the column tier left out (`resolve.ts`'s `tiersFor`, for a scope with no `columnId`),
+ * and the settings screen offers it only where a scope covers whole accounts. Named here
+ * beside the shape for the reason `COLUMN_COLORS` is.
  */
 export const ACCOUNT_COLORS: readonly (keyof AppearanceNode['colors'])[] = ['composeBackground'];
 
 /**
- * The colors that only mean something on x.com.
- *
- * X Pro's deck has no page behind the columns to paint — what is behind them is the deck
- * itself, and coloring that is a different setting from coloring a column.
+ * Colours that only mean something on x.com — X Pro's deck has no page behind the columns to
+ * paint; what is behind them is the deck itself, a different setting from coloring a column.
  */
 export const X_ONLY_COLORS: readonly (keyof AppearanceNode['colors'])[] = ['pageBackground'];
 
 /**
- * The same appearance with the column-only items cleared: the width, the name, and the
- * bar behind it. x.com has one timeline filling the middle of the page — no width of its
- * own to set, and its name is written into the page's own header rather than a bar of the
- * view's.
- *
- * Cleared rather than left to miss: `columnWidth` is written onto the scope itself, so on
- * a surface with no columns it would resize the timeline, which is a setting of its own
- * and not this one.
+ * The same appearance with column-only items cleared: width, name, and the bar behind it.
+ * x.com has one timeline filling the page's middle — no width of its own, and its name is
+ * in the page's own header rather than a view's bar. Cleared rather than left unset:
+ * `columnWidth` is written onto the scope itself, so on a surface with no columns it would
+ * resize the timeline instead, a setting of its own.
  */
 export const withoutColumnItems = (appearance: AppearanceNode): AppearanceNode => ({
   ...appearance,
   columnWidth: null,
-  // Written out by name. Built from `COLUMN_COLORS` instead, the keys would go through an
-  // index signature and a misspelt one would be added rather than refused
+  // Written out by name — via `COLUMN_COLORS` the keys would go through an index
+  // signature, and a misspelt one would be added rather than refused
   colors: { ...appearance.colors, columnTitle: null, columnHeader: null },
 });
 
 /**
- * What of an appearance decides how a post is *drawn*, as one string.
- *
- * Two appearances that agree here lay a post out the same way, whatever else differs
- * between them. It is what the extension's own measurements are remembered against
- * (`appearance/apply.ts`): a colour picked, or a mark reworded, leaves every height and
- * every line count where it was, and a column arriving beside others leaves theirs alone.
- *
- * The items are named one by one rather than taken wholesale, because "what changes the
- * layout" is a judgement about each of them: the colours do not, the widths and sizes do,
- * and so does anything that puts words into a post or takes them out. An item added to
- * the appearance and forgotten here shows up as a measurement outliving a setting, which
- * rights itself the next time the post is redrawn or the window is resized.
+ * What of an appearance decides how a post is *drawn*, as one string. Two appearances that
+ * agree here lay a post out the same way, and it is what the extension's own measurements are
+ * remembered against (`appearance/apply.ts`): a colour picked or a mark reworded leaves every
+ * height and line count where it was, and a column arriving beside others leaves theirs
+ * alone. Items are named one by one, not taken wholesale, because "changes the layout" is a
+ * judgement per item: colours do not, widths and sizes do, and so does anything that adds or
+ * removes words from a post. An item added to the appearance and forgotten here shows up as
+ * a measurement outliving a setting, which rights itself on the next redraw or resize.
  */
 export const layoutKey = (appearance: AppearanceNode): string =>
   [
@@ -1288,15 +1119,11 @@ export const layoutKey = (appearance: AppearanceNode): string =>
   ].join('|');
 
 /**
- * What of an appearance decides the colours a post is drawn over, as one string.
- *
- * The companion to `layoutKey`, for the other thing the extension has to measure: what is
- * behind a post, which a translucent highlight is composited over. Measuring it means
- * walking up from the post asking every ancestor what it is painted in, so the answer is
- * kept and used again while this stays the same (`filter/apply.ts`).
- *
- * Every colour goes in, because every one of them is painted somewhere between a post and
- * the page behind it. What is deliberately left out is everything about *other* scopes: a
+ * What of an appearance decides the colours a post is drawn over, as one string. Companion
+ * to `layoutKey`, for the other thing the extension measures: what is behind a post, which a
+ * translucent highlight is composited over. Measuring means walking up from the post asking
+ * every ancestor what it is painted in, so the answer is cached while this stays the same
+ * (`filter/apply.ts`). Every colour goes in; excluded is everything about *other* scopes — a
  * column arriving beside this one changes the stylesheet without changing what is behind
  * anything already on screen.
  */
@@ -1317,29 +1144,28 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.quoteStyle !== null ||
   appearance.autoContrast !== null ||
   appearance.highlightBase !== null ||
-  // Putting an item back to "as X shows it" is a setting like any other. Overlooked here,
-  // a tier that only does that would count as empty and be dropped on save
+  // Putting an item back to "as X shows it" is a setting too — overlooked here, a tier
+  // doing only that would count empty and be dropped on save
   appearance.cleared.length > 0 ||
   Object.values(appearance.colors).some((value) => value !== null) ||
   Object.values(appearance.media).some((value) => value !== null);
 
 const hasAppearanceSettings = (appearance: AppearanceNode): boolean =>
-  // "Whether the appearance applies" is a setting too. Overlooking it would treat a tier
-  // holding only that as empty and discard it
+  // "Whether the appearance applies" is a setting too — overlooking it would treat a
+  // tier holding only that as empty and discard it
   appearance.enabled !== null || hasAppearanceValues(appearance);
 
 /**
- * Whether that tier holds any content. Used by the settings screen to mark the list.
- * The "does it apply" switch is not counted: marking a tier that was merely switched
- * would read as "there is a mark but no rules".
+ * Whether that tier holds any content, used by the settings screen to mark the list. The
+ * "does it apply" switch is not counted, or a merely-switched tier would read as "a mark
+ * but no rules".
  */
 export const hasContent = (node: SettingsNode | undefined): boolean =>
   !!node && (node.filter.rules.length > 0 || hasAppearanceValues(node.appearance));
 
 /**
- * Whether that tier sets nothing at all. Used to drop emptied tiers from storage.
- * Kept around, such a tier would show up in the list as a contentless "unassigned" entry
- * once its column disappeared.
+ * Whether that tier sets nothing at all, used to drop emptied tiers from storage — kept
+ * around, it would show up as a contentless "unassigned" entry once its column disappeared.
  */
 export const isEmptyNode = (node: SettingsNode | undefined): boolean => {
   if (!node) return true;
@@ -1350,9 +1176,5 @@ export const isEmptyNode = (node: SettingsNode | undefined): boolean => {
 
 export const emptySettings = (): Settings => fillAll(undefined);
 
-/**
- * A rule's identifier. It is random because ids of rules created on different devices or
- * in different tiers colliding would, on merging, drop one of them from the order and
- * leave it unjudged.
- */
+/** A rule's identifier. Random because colliding ids from different devices or tiers would, on merging, drop one from the order and leave it unjudged */
 export const newRuleId = (): string => crypto.randomUUID();

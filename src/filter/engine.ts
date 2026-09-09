@@ -1,6 +1,4 @@
-/**
- * Running the filter: watching the DOM for changes, judging posts, and applying the result.
- */
+/** Running the filter: watching the DOM for changes, judging posts, and applying the result */
 import { adjustsContrast, highlightBaseOf, paintKey, type Settings } from '../settings/schema.ts';
 import { appearanceFor, resolve, type ColumnScope } from '../settings/resolve.ts';
 import { surface } from '../surface/index.ts';
@@ -35,9 +33,8 @@ import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
 /**
- * The cells already judged. X causes a flood of changes by rewriting attributes and
- * the like, so this keeps the same cell from being judged over and over. A cell
- * detached from the DOM disappears along with the reference.
+ * Cells already judged. A WeakSet, so a detached cell drops out — needed because X's constant
+ * attribute rewrites would otherwise repeat the judging.
  */
 let judged = new WeakSet<Element>();
 
@@ -48,14 +45,13 @@ let messages: Messages = messagesFor('en');
 /** X's own words for a picture nobody described, as the settings hold them */
 let genericAlts: ReadonlySet<string> = new Set();
 
-/** The effective settings per column, so the merge across tiers and regex compilation are not repeated per post */
+/** Effective settings per column, cached so tier merging and regex compilation are not repeated per post */
 const effective = new Map<string, { filter: CompiledFilter; look: Look }>();
 
 /** On receiving settings, rebuilds the language, the effective settings and the appearance together */
 const adopt = (settings: Settings): void => {
   current = settings;
-  // X's own words for an undescribed picture, which the judging needs to tell a
-  // description from one (`filter/post.ts`). Built here rather than per post
+  // Built here rather than per post
   genericAlts = new Set(settings.genericAlts);
   messages = messagesFor(localeOf(settings.language));
   // The match-reason text comes from the dictionary, so a language change means a rebuild
@@ -64,23 +60,18 @@ const adopt = (settings: Settings): void => {
 };
 
 /**
- * The arrangement of columns most recently resolved. It remembers the sequence of
- * markers rather than the count: with the count alone, switching to a deck with the
- * same number of columns and reordering both raise no signal, and the previous
- * columns' settings keep applying.
+ * Columns last resolved, as the marker sequence rather than a count — a same-count reorder would
+ * otherwise raise no signal, leaving stale column settings applied.
  */
 let knownSignature = '';
 
-/** The column contents most recently reported. They are re-read on every settling, but unchanged contents are not reported */
+/** Column contents last reported; re-read every settling, but unchanged contents are not reported */
 let reported = '';
 
 /**
- * The key the effective settings are looked up by. The same combination of tiers gives
- * the same result.
- *
- * The site is left out although it is one of the tiers: it is fixed for the whole page
- * (the two sites are separate origins, so no navigation swaps one for the other), and a
- * part that is the same in every key is worth leaving out of all of them.
+ * Lookup key for effective settings: same tier combination gives the same result. Site is left
+ * out despite being a tier — the two sites are separate origins, so it is fixed for the page and
+ * identical in every key.
  */
 const keyOf = (scope: ColumnScope): string => `${scope.account ?? ''} ${scope.columnId ?? ''}`;
 
@@ -92,22 +83,15 @@ const effectiveFor = (scope: ColumnScope, settings: Settings) => {
   const node = resolve(settings, scope);
   const built = {
     filter: compileFilter(node.filter, messages, { withoutText: textRulesStopped(broken) }),
-    /*
-     * How highlight and emphasis are shown. `appearanceFor` is not used because it
-     * empties the contents at a tier where the appearance is switched off. Highlight
-     * and emphasis are filter-side actions and appear even with the appearance off,
-     * and stopping only the adjustment there would leave unreadable or muddied colors.
-     */
+    // How highlight/emphasis are shown. Not `appearanceFor`, which empties its result when
+    // appearance is off — highlight and emphasis are filter-side and show anyway, so only the
+    // adjustment must stop, or colours end up muddied or unreadable.
     look: {
       adjustContrast: adjustsContrast(node.appearance.autoContrast),
       highlightBase: highlightBaseOf(node.appearance.highlightBase),
-      /*
-       * What is actually painted in that scope, which is what a composited colour has to
-       * be kept against. `node.appearance` is the merge alone: with the appearance
-       * switched off it still carries the colours, while the page shows none of them
-       * (`settings/resolve.ts`), and a key that cannot tell those apart holds a colour
-       * composited over paint that is no longer there.
-       */
+      // What is actually painted in the scope, which a composited colour is kept against.
+      // `node.appearance` is the merge alone — with appearance off it still carries colours
+      // the page no longer shows (`settings/resolve.ts`), so this tells the two apart.
       paint: paintKey(appearanceFor(settings, scope)),
     },
   };
@@ -116,9 +100,8 @@ const effectiveFor = (scope: ColumnScope, settings: Settings) => {
 };
 
 /**
- * The watch on ad detection. It counts the share among the posts judged and, once that
- * goes too far, switches off ad rules alone. It keeps every post from tipping into
- * being an ad and vanishing the day spotting ads stops working.
+ * Watches ad detection. Once the ad share among judged posts goes too far, switches off ad rules
+ * alone, so a detection failure cannot tip every post into "ad" and hide them all.
  */
 let adWatch = { judged: 0, ads: 0 };
 let adBroken = false;
@@ -128,10 +111,9 @@ let tally: Tally = emptyTally();
 let broken: Marker[] = [];
 
 /**
- * Whether columns exist but not one `columnId` can be resolved.
- * It is recounted only on resolving. Looking at it on every settling would read the
- * moment right after a deck switch, when "the columns have sprouted but the markers
- * are not stamped yet", as broken.
+ * Whether columns exist but not one `columnId` resolves. Recounted only on resolving — every
+ * settling would catch the moment right after a deck switch, columns sprouted but markers not
+ * yet stamped, as broken.
  */
 let columnsBroken = false;
 
@@ -144,9 +126,8 @@ const resetAdWatch = (): void => {
 const ARTICLE_SELECTOR = 'article[role="article"]';
 
 /**
- * Logs that something could not be saved. There is no screen here, so the log is the
- * only way to say so. A storage failure is not reported through storage (the same
- * mechanism is the one failing).
+ * Logs a failed save. There is no screen here, so the log is the only way to report it — a
+ * storage failure cannot be reported through storage.
  */
 const warnSaveFailed =
   (what: string) =>
@@ -161,21 +142,17 @@ const warnSaveFailed =
 let lastFound: Marker[] = [];
 
 /**
- * Checks whether the markers are broken. Called after one full pass of judging.
- * It reports again only when the set of broken markers changes, and when the body-text
- * marker is broken it drops the rules that read the body and judges again.
- *
- * A verdict has to come twice in a row before it counts. A deck being switched empties
- * the columns and fills them again, and in between there is a moment where the posts are
- * in the page but not one of them can be read yet — which is the shape of the body-text
- * marker having been renamed, and was being reported as exactly that (seen on the real
- * site: "post" broken, then unbroken a moment later).
+ * Checks whether the markers are broken, after a full judging pass. Reports again only on a
+ * change, and drops the body-reading rules and re-judges if the body-text marker breaks. A
+ * verdict must come twice running: a deck switch empties and refills the columns, and in
+ * between posts are present but unreadable — looking exactly like a renamed body-text marker
+ * (seen on the real site: "post" broken, then unbroken a moment later).
  */
 const checkHealth = (): void => {
   tally.articles = document.querySelectorAll(ARTICLE_SELECTOR).length;
   tally.cells = document.querySelectorAll(CELL_SELECTOR).length;
   const found = brokenMarkers(tally);
-  // Spotting columns is not counted during judging, so the result from resolving is added
+  // Column-spotting is not counted during judging, so the resolve result is added here
   if (columnsBroken) found.push('column');
   const settled = sameMarkers(found, lastFound);
   lastFound = found;
@@ -189,7 +166,6 @@ const checkHealth = (): void => {
     'color:#f59e0b'
   );
   saveHealth(found).catch(warnSaveFailed('which markers look broken'));
-  // If the treatment of body-reading rules changed, rebuild the effective settings and apply again
   if (textRulesStopped(found) !== stopped) {
     effective.clear();
     judgeAll();
@@ -214,26 +190,17 @@ const watchAd = (isAd: boolean): void => {
 };
 
 /**
- * What each post said when it was last read out.
- *
- * Reading one means a couple of dozen searches through it, and a post on the real site
- * holds hundreds of elements — measured there at nearly 2ms a post, which is what made
- * a deck coming back cost a fifth of a second per column while every post already on
- * screen was read out again.
- *
- * What is remembered is what the post *says*, never what was decided about it: a change
- * to the rules judges every post afresh, from what it said. The reading is dropped where
- * the page changed the post (`postsTouched`), and with it where X built the post anew,
- * that being a different element with nothing remembered about it.
+ * What each post said when last read. Reading one means dozens of searches through it, and a
+ * real post holds hundreds of elements. Remembers what the post *says*, never the verdict, so
+ * a rule change re-judges from the cached reading. Dropped when the page changed the post
+ * (`postsTouched`), or X rebuilt it as a new element.
  */
 const reads = new WeakMap<Element, Post>();
 
 /**
- * Lets go of what was read from the posts the page has changed since the last settling,
- * and of what was worked out about the words in them.
- *
- * Both are answers about a post as it stood. X rewriting one in place leaves the post
- * where it is, so neither would be asked again on its own.
+ * Drops the cached reading and worked-out words for posts the page changed since the last
+ * settling. Both describe the post as it stood; X rewriting one in place leaves it at the same
+ * element, so neither refreshes on its own.
  */
 const forgetTouchedReads = (): void => {
   for (const cell of postsTouched()) {
@@ -245,12 +212,9 @@ const forgetTouchedReads = (): void => {
 /** true once judged. A cell still mid-render, or one that is not a judging target, gives false */
 const judge = (cell: Element): boolean => {
   if (!current) return false;
-  /*
-   * The three parts are timed apart. They are each a different kind of work — searching
-   * the post, matching the rules against what it says, and writing the answer into the
-   * page — and which of them a slow round was spent on is the whole question
-   * (`diagnostics.ts`).
-   */
+  // Timed apart: each part is different work — searching the post, matching rules against
+  // it, writing the answer into the page — and which one a slow round cost is the question
+  // (`diagnostics.ts`).
   const t0 = performance.now();
   const known = reads.get(cell);
   const post = known ?? readPost(cell, genericAlts);
@@ -277,11 +241,9 @@ const judge = (cell: Element): boolean => {
 };
 
 /**
- * Looks only at cells not judged yet. A cell that could not be judged is not
- * remembered (if it was mid-render, it has to be picked up again on the next change).
- *
- * `onlySettled` is for while the arrangement of columns is changing: it skips cells
- * whose scope may still move and judges the settled ones first.
+ * Looks only at cells not yet judged. One that could not be judged is not remembered — if
+ * mid-render, it is picked up next change. `onlySettled` is for while columns rearrange: skips
+ * cells whose scope may yet move, judging settled ones first.
  */
 const judgeNew = (root: ParentNode, onlySettled = false): void => {
   let fresh = 0;
@@ -295,33 +257,23 @@ const judgeNew = (root: ParentNode, onlySettled = false): void => {
   }
   counted('posts judged', fresh);
   keepWordsReadable();
-  // A round that looked at only part of them is no material for the watch. The skipped
-  // cells were not unreadable, merely unlooked-at, and letting them through would
-  // wrongly report "there are cells but not one could be read"
+  // A partial round is not material for the watch: skipped cells are unlooked-at, not
+  // unreadable, and would wrongly report "cells, none readable"
   if (!onlySettled) checkHealth();
 };
 
 /**
- * Judges every visible cell again. Called when the rules change and when the
- * arrangement of columns changes.
- *
- * A cell that gets judged is not cleared first: the judgement says what its whole state
- * is, down to "nothing applies", and clearing it beforehand only takes the placeholder
- * out to put an identical one back. Doing that to every post on the page is a few hundred
- * changes to the DOM for nothing — and every one of them is a post the marking passes
- * then have to look at again (`appearance/changed.ts`).
- *
- * What is cleared is what could not be judged: a cell mid-render keeps whatever the rules
- * that are gone gave it, and nothing else is coming to take it off.
+ * Judges every visible cell again, on a rule change or column rearrangement. Not cleared first
+ * — the judgement gives its whole state, down to "nothing applies", and clearing would mean a
+ * few hundred wasted DOM changes re-looked-at by the marking passes (`appearance/changed.ts`).
+ * What is cleared is what could not be judged: a mid-render cell would otherwise keep stale
+ * state with nothing to remove it.
  */
 const judgeAll = (): void => {
   judged = new WeakSet();
-  /*
-   * Asked here as well as at a settling, because this runs on a change to the settings
-   * too — which can arrive between the page changing a post and the settling that would
-   * have heard about it, and judging that post from what it used to say would stand until
-   * the rules changed again
-   */
+  // Called here too, not just at a settling, since this also runs on a settings change,
+  // which can land between the page changing a post and the settling that would notice —
+  // otherwise the stale reading stands until the rules change again
   forgetTouchedReads();
   // Carrying the previous round's counts over would count the same cell twice
   resetAdWatch();
@@ -341,28 +293,19 @@ const judgeAll = (): void => {
 };
 
 /**
- * Looks at the words in the posts this round highlighted, all of them together.
- * Held back until here for what it costs to read a colour back out of a page that has
- * just been written to (`filter/readable.ts`).
+ * Looks at the words in posts highlighted this round, all together — held back until here
+ * because reading a colour out of a page just written to is costly (`filter/readable.ts`).
  */
 const keepWordsReadable = (): void => {
-  /*
-   * Put off until the browser has laid the page out and painted it (`quiet.ts`). Both of
-   * these read colours back out of the page, and doing that in the middle of a round —
-   * with everything the round has just written still to be worked out — is what costs the
-   * page its answering: measured on a real timeline at about 85ms for the first reading of
-   * a round, whether it is answering for one post or twenty.
-   *
-   * What waits is a colour arriving a frame or two after the post it belongs to, which is
-   * not something a reader can see.
-   */
+  // Put off until the browser has laid out and painted the page (`quiet.ts`). Both passes
+  // below read colours back, and doing that mid-round, with writes still pending, costs the
+  // page its responsiveness. The trade-off: a colour arriving a frame or two late, unseeable.
   atAQuietMoment(() => {
     const started = performance.now();
     try {
-      // Both of the passes below read the page back, and the first reading pays for
-      // whatever has been written since it was last drawn. Asked for here, that cost is
-      // told apart from what the passes themselves do (`diagnostics.ts`) — and nothing is
-      // forced on a round with nothing to read
+      // Both passes read the page back; the first pays for whatever was written since it
+      // last drew. Timed here to tell that cost apart from the passes themselves
+      // (`diagnostics.ts`); nothing is forced on a round with nothing to read
       if (coloursWaiting() || wordsWaiting()) pageCaughtUp();
       const ours = performance.now();
       const coloured = composeWaiting();
@@ -377,22 +320,16 @@ const keepWordsReadable = (): void => {
         spentOn('· keeping words readable', performance.now() - words);
       }
     } finally {
-      /*
-       * Whatever the round found to do, and however it ended. What a round measured is
-       * cleared where it is said, and nowhere else — a round that read the page and then
-       * said nothing leaves its numbers to be added to the next line printed, which is
-       * then reporting work it never did. A round that cost nothing still says nothing:
-       * that judgement belongs to `diagnostics.ts`, not here.
-       */
+      // Runs whatever the round did, however it ended. Measurements are cleared only where
+      // reported, or a silent round would report work it never did on the next printed line.
       say('colouring the posts that were highlighted', performance.now() - started);
     }
   });
 };
 
 /**
- * Judges again and then looks at the marker watch. It is not called from inside
- * `judgeAll` because a broken body-text marker would make `judgeAll` run again and the
- * two would bounce back and forth.
+ * Judges again and then looks at the marker watch. Not called from inside `judgeAll` because a
+ * broken body-text marker would make `judgeAll` run again and the two would bounce.
  */
 const judgeAllAndCheck = (): void => {
   judgeAll();
@@ -402,9 +339,8 @@ const judgeAllAndCheck = (): void => {
 let hooks: EngineHooks | null = null;
 
 /**
- * Reports the columns found, staying quiet when the contents are unchanged.
- * They are re-read on every settling, and reporting each time would repeat the
- * reading and writing of storage.
+ * Reports the columns found, staying quiet when unchanged: re-read every settling, and reporting
+ * each time would repeat writing to storage.
  */
 const report = (columns: ScopeInfo[]): void => {
   // The recording side needs to know which deck the columns belong to, so the deck state goes along
@@ -416,18 +352,15 @@ const report = (columns: ScopeInfo[]): void => {
 };
 
 /**
- * Whether a resolve is in flight. `refresh` waits for the MAIN world's reply, which in
- * an environment where it does not run takes 9.8 seconds over three attempts. The DOM
- * changes during that wait, so without a brake a new resolve would start on every
- * settling and pile up.
+ * Whether a resolve is in flight. `refresh` waits for the MAIN world's reply, which where it
+ * does not run takes 9.8 seconds over three attempts; without this brake, a new resolve would
+ * start on every settling during that wait and pile up.
  */
 let refreshing = false;
 /** Whether the arrangement changed during a resolve. Remembered so it can be chased once that finishes */
 let pending = false;
 
 const refreshColumns = async (): Promise<ScopeInfo[]> => {
-  // Nothing is queued while one is running. Only the fact that something changed is
-  // passed on, to be chased after it finishes
   if (refreshing) {
     pending = true;
     return [];
@@ -461,9 +394,9 @@ const refreshColumns = async (): Promise<ScopeInfo[]> => {
 };
 
 /**
- * Runs one piece of settling work. A failure is recorded rather than rethrown.
- * This is degrading, not swallowing: the work here is a row of mutually independent
- * jobs, and stopping all of them over one failure would take the whole extension down.
+ * Runs one piece of settling work, recording a failure rather than rethrowing. Degrades, not
+ * swallows: the jobs are independent, and stopping everything over one would take the whole
+ * extension down.
  */
 const guard = (name: string, step: () => void): void => {
   try {
@@ -474,11 +407,9 @@ const guard = (name: string, step: () => void): void => {
 };
 
 /**
- * Says what a round cost, where it cost enough to be felt (`diagnostics.ts`).
- *
- * How big the page is decides nearly everything about the number, so it goes in the line
- * — counted here rather than kept, because it is only ever wanted where a line is about
- * to be printed.
+ * Says what a round cost, where it cost enough to be felt (`diagnostics.ts`). Page size decides
+ * nearly everything about the number, so it is counted here, only when about to print, rather
+ * than kept continuously.
  */
 const say = (what: string, took: number): void => {
   if (feltAsSlow(took)) counted('posts on the page', document.querySelectorAll(CELL_SELECTOR).length);
@@ -486,12 +417,9 @@ const say = (what: string, took: number): void => {
 };
 
 /**
- * One settling, start to finish.
- *
- * However the work below leaves off, the round is closed: what the passes were told to
- * look at has been looked at. What they wrote themselves is reported to the watch after
- * this task rather than during it, so it lands on the next round instead of being
- * cleared here unlooked-at (`appearance/changed.ts`).
+ * One settling, start to finish. However the work below ends, the round is closed. What the
+ * passes wrote is reported to the watch after this task, not during it, so it lands on the
+ * next round instead of being cleared here unlooked-at (`appearance/changed.ts`).
  */
 const settle = (): void => {
   const started = performance.now();
@@ -499,32 +427,29 @@ const settle = (): void => {
     settleWork();
   } finally {
     handledChanges();
-    // Said only where it took long enough to be felt (`diagnostics.ts`)
     say('settling', performance.now() - started);
   }
 };
 
 /**
- * The work itself: everything that has to be looked at again once the DOM has stopped
- * changing. The jobs are independent, so a failure in one lets the rest proceed. An
- * exception escaping upward would leave neither the markers nor the judging running, and
- * the whole extension would look dead.
+ * The work itself: everything looked at again once the DOM stops changing. The jobs are
+ * independent, so a failure in one lets the rest proceed — an escaping exception would stop
+ * both markers and judging, and the extension would look dead.
  */
 const settleWork = (): void => {
   guard('onSettle', () => hooks?.onSettle?.());
   // Discard the emphasis ranges attached to posts that left the screen
   guard('sweep', sweep);
-  // A redraw by X wipes the column markers and the media frame markers, so they are set again on every settling
+  // X's redraws wipe the column and media-frame markers, so both are set again every settling
   guard('stampColumns', stampColumns);
   guard('stampMediaFrames', stampMediaFrames);
-  // When the arrangement of columns changes, resolve the columnIds and accounts again
   if (surface().signature() !== knownSignature) {
     refreshColumns().catch((error: unknown) => {
       hooks?.logStyled(`xpro-tweaks: column refresh failed: ${String(error)}`, 'color:#f59e0b');
     });
-    // Columns arrive one at a time over tens of seconds, so waiting for all of them
-    // would leave new posts untouched. Cells inside a column with no marker are
-    // skipped: a result reached without the column tier gets overturned later and flickers
+    // Columns arrive one at a time over tens of seconds, so waiting for all would leave new
+    // posts untouched. Cells in a column with no marker yet are skipped — a result reached
+    // without the column tier gets overturned later and flickers
     forgetTouchedReads();
     guard('judge', () => judgeNew(document, true));
     return;
@@ -536,14 +461,11 @@ const settleWork = (): void => {
   guard('judge', () => judgeNew(document));
 };
 
-/**
- * A single Observer for the whole deck.
- * Not being per column, it needs no re-attaching as columns are created and destroyed.
- */
+/** A single Observer for the whole deck: not being per column, it needs no re-attaching as columns come and go */
 const observe = (): void => {
-  // Rather than judging on every change, wait a little and pick up the unjudged cells
-  // together. X inserts in bulk while scrolling, and handling them one at a time cannot
-  // keep up. How long to wait is `pace.ts`'s to answer, from what the last round cost
+  // Rather than judging on every change, wait and pick up unjudged cells together — X
+  // inserts in bulk while scrolling, and handling them one at a time cannot keep up. How
+  // long to wait is `pace.ts`'s call, from what the last round cost.
   let timer: ReturnType<typeof setTimeout> | null = null;
   let wait = SETTLE_MS;
 
@@ -560,12 +482,9 @@ const observe = (): void => {
   const observer = new MutationObserver(soon);
   observer.observe(document.body, { childList: true, subtree: true });
 
-  /*
-   * A scope changing width moves nothing in the page, so the Observer above hears nothing
-   * about it — and everything measured inside that scope has just been thrown away
-   * (`appearance/apply.ts`). Without this the page would go on showing what it was given
-   * at the old width until a post happened to arrive.
-   */
+  // A scope changing width moves nothing in the page, so the Observer hears nothing of it,
+  // even though everything measured inside it was just thrown away (`appearance/apply.ts`).
+  // Without this the page would keep the old width's layout until a post happened to arrive.
   askForASettling(soon);
 };
 
@@ -573,14 +492,10 @@ export const updateSettings = (settings: Settings): void => {
   const started = performance.now();
   timed('appearance', () => adopt(settings));
   timed('judge', judgeAllAndCheck);
-  /*
-   * Which columns stay on record depends on whether they have settings, so a change to
-   * the settings means narrowing them down again.
-   * `report` drops duplicates by the contents of what was detected, so without clearing
-   * the memory a settings-only change would go unreported.
-   * It does not wait for a settling because there is no telling when the next one comes
-   * in a background tab.
-   */
+  // Which columns stay on record depends on whether they have settings, so a settings change
+  // means narrowing them down again. `report` drops duplicates by detected contents, so
+  // without clearing this a settings-only change would go unreported. Does not wait for a
+  // settling — in a background tab there is no telling when the next one comes.
   reported = '';
   report(surface().detect());
   say('applying a change to the settings', performance.now() - started);

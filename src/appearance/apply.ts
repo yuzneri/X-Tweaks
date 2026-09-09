@@ -1,7 +1,6 @@
 /**
- * Applies the appearance settings: sets the markers the CSS targets and puts the built
- * CSS into a single `<style>`. Only attributes are added, so removing them restores the
- * original.
+ * Applies the appearance settings: sets the markers the CSS targets and puts the built CSS
+ * into a single `<style>`. Only attributes are added, so removing them restores the original.
  *
  * Which elements hold one scope, and where its name is drawn, is the surface's business
  * (`surface/`). Nothing here names a column or a deck.
@@ -98,15 +97,11 @@ import {
 const STYLE_ID = 'xpro-tweaks-appearance-style';
 
 /**
- * Marks each scope, the bar carrying its name, and whether it holds a post opened to be
- * read. The marker goes on the range covering one whole scope; marking only its body
- * leaves the header stranded in black.
- *
- * The marker's value is the target key, not the position in the order. Using the
- * position would carry the width and the colors straight over to the neighboring
- * column when the deck is switched.
- * The bar is not searched for again while its marker is still there: the cost of
- * searching turns into a delay in judging new posts.
+ * Marks each scope, the bar carrying its name, and whether it holds a post opened to be read.
+ * The marker covers one whole scope; on the body alone it leaves the header stranded in black.
+ * Its value is the target key, not the position in the order, which would carry the width and
+ * the colors straight over to the neighboring column when the deck is switched. The bar is not
+ * searched for again while its marker stands, the search costing a delay in judging new posts.
  */
 export const stampColumns = (): void => {
   /** The ranges enumerated this round. A marker outside them is a leftover from something that is no longer a scope, so it comes off */
@@ -123,9 +118,8 @@ export const stampColumns = (): void => {
     live.push(scope);
 
     /*
-     * Asked every round: a post is opened and closed without the scope changing at all.
-     * Not written while it already says so, the same as the marker above. The CSS targets
-     * this attribute, so writing it costs a style recalculation over the whole scope
+     * Asked every round: a post is opened and closed without the scope changing. Not written
+     * while it says so, as above: the CSS targets it, so a write recalculates the whole scope
      */
     const opened = on.opened(scope);
     if (opened !== scope.hasAttribute(OPENED_ATTR)) {
@@ -173,27 +167,18 @@ const MAX_ANCESTORS = 12;
 
 
 /**
- * The same answer as `frameOf`, worked out without writing to the page first, and whether
- * X has drawn the media at all.
- *
- * `frameOf` takes what our rules are doing off the box before reading it, and a write
- * between two readings makes the browser work the page out again — measured on a real
- * timeline at 90 to 175ms a round, however few pictures the round was measuring. This
- * reads instead what the media sits in: our rules are on the box, but the thing above it
- * that decides its height is left alone until it is marked, so its own height is the one
- * X would draw.
- *
- * Checked against `frameOf` on the real site before it was trusted with anything: the two
- * agreed on every picture being seen for the first time. Where the frame already carries
- * our marker the walk below is not attempted at all, for the reason given there.
+ * Which element is the frame around one medium, and whether X has drawn the media at all.
+ * Read from what the media sits in rather than from the box itself: our rules are on the box,
+ * but the thing above it that decides its height is left alone until it is marked, so its own
+ * height is the one X would draw. Where the frame already carries our marker the walk below
+ * is not attempted at all, for the reason given there.
  */
 const frameAround = (media: Element): { frame: Element | null; drawn: boolean } => {
   /*
    * What the media sits in, nearest first, as far up as a frame could be — and not media
-   * itself. Our rules are on every box X marks as media, and a box we have taken off the
-   * page or capped cannot say how tall another would be drawn: X puts one inside another
-   * (a video is marked twice over, `filter/post.ts`), so these really do turn up in the
-   * walk rather than only at the bottom of it.
+   * itself: our rules are on every box X marks as media, so one taken off the page or capped
+   * cannot say how tall another would be drawn, and X puts one inside another (a video is
+   * marked twice over, `filter/post.ts`), so they turn up mid-walk, not only at the bottom.
    */
   const above: Element[] = [];
   for (let el = media.parentElement, i = 0; el && i < MAX_ANCESTORS; el = el.parentElement, i++) {
@@ -203,12 +188,11 @@ const frameAround = (media: Element): { frame: Element | null; drawn: boolean } 
   }
 
   /*
-   * A frame already marked is the answer, and no reading below it can improve on it.
-   * Everything inside a marked frame is drawn to the height our own rules impose on it
-   * (`css.ts`: the frame's height is replaced, and its contents are held to it), so a walk
-   * from the media would compare X's shape against ours and find nothing that fits —
-   * answering "no frame at all", which takes the marker off and opens the frame up empty
-   * on a timeline whose reader asked for no pictures.
+   * A frame already marked is the answer. Everything inside one is drawn to the height our
+   * own rules impose (`css.ts`: the frame's height is replaced and its contents held to it),
+   * so a walk from the media would compare X's shape against ours, find nothing that fits and
+   * answer "no frame at all" — taking the marker off and opening the frame up empty on a
+   * timeline whose reader asked for no pictures.
    */
   const marked = above.find((el) => el.hasAttribute(MEDIA_FRAME_ATTR));
   if (marked) return { frame: marked, drawn: true };
@@ -228,13 +212,11 @@ const frameAround = (media: Element): { frame: Element | null; drawn: boolean } 
 };
 
 /**
- * Whether this element is the one that decides the height, from what X wrote on it as much
- * as from what is on screen.
- *
- * A percentage `padding-bottom` is resolved against the width here rather than handed to
- * `setsHeight`, which compares lengths: read off the element, `56.25%` arrives as the
- * string it was written as, and `56.25` beside a height in the hundreds says "sets no
- * height" about the very element that sets it.
+ * Whether this element is the one that decides the height, from what X wrote on it as much as
+ * from what is on screen. A percentage `padding-bottom` is resolved against the width here
+ * rather than handed to `setsHeight`, which compares lengths: read off the element, `56.25%`
+ * arrives as the string it was written as, and `56.25` beside a height in the hundreds says
+ * "sets no height" about the very element that sets it.
  */
 const declaresHeight = (el: Element, height: number): boolean => {
   const shown = getComputedStyle(el);
@@ -251,13 +233,11 @@ const declaresHeight = (el: Element, height: number): boolean => {
 type MarkedColumn = { element: Element; appearance: AppearanceNode };
 
 /**
- * The scopes on screen, each with its appearance.
- *
- * Every pass that marks something walks these rather than the whole page, and asks each
- * scope for what is inside it. Going the other way — every picture, every body, every
- * cell on the page, each walking back up to find its scope and then searching the list
- * for that scope's appearance — costs a walk and a search per element, and there are
- * hundreds of them on a timeline.
+ * The scopes on screen, each with its appearance. Every pass that marks something walks these
+ * rather than the whole page, and asks each scope for what is inside it. Going the other way —
+ * every picture, body and cell on the page walking back up to find its scope, then searching
+ * the list for that scope's appearance — costs a walk and a search per element, and a timeline
+ * holds hundreds of them.
  */
 const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
   const byKey = new Map(columns.map((column) => [column.key, column.appearance]));
@@ -274,15 +254,11 @@ const columnsOnScreen = (columns: ColumnAppearance[]): MarkedColumn[] => {
 };
 
 /**
- * The scopes on screen, worked out at most once in a round and handed to every pass that
- * wants them — as `changed` is asked once and handed to all of them.
- *
- * Finding them means a walk of the whole page for the marker, and the passes all want the
- * same answer: measured on a real deck of 9 columns (`test/pro_ad.htm`, 23,235 elements)
- * at 0.46ms an ask, which the six passes between them were paying six times over.
- *
- * Worked out on being asked rather than up front, so a round in which every pass is
- * switched off pays nothing.
+ * The scopes on screen, worked out at most once in a round and handed to every pass that wants
+ * them — as `changed` is asked once and handed to all of them. Finding them means a walk of
+ * the whole page for the marker, and the passes all want the same answer, which the six of
+ * them were paying for six times over. Worked out on being asked rather than up front, so a
+ * round in which every pass is switched off pays nothing.
  */
 const columnsThisRound = (columns: ColumnAppearance[]): (() => MarkedColumn[]) => {
   let found: MarkedColumn[] | null = null;
@@ -290,27 +266,21 @@ const columnsThisRound = (columns: ColumnAppearance[]): (() => MarkedColumn[]) =
 };
 
 /**
- * Whether a marker of ours may still be standing in the page, per pass.
- *
- * Every settling asks each `clear…` below to take off what a pass nobody is asking for any
- * more left behind, and each of them walks the whole page to do it — measured on
- * `test/pro_ad.htm` (23,235 elements) at 0.24ms an ask. Three passes switched off is three
- * walks of the page, every settling, for a reader who never turned any of them on. So each
- * is asked only while the pass that writes those markers has written some.
- *
- * They start as "may be": an extension updated over an open tab is left with whatever the
- * copy before it wrote, and that has to be swept up once. The pass that marks sets its own
- * back to "may be" as it marks.
+ * Whether a marker of ours may still be standing in the page, per pass. Every settling asks
+ * each `clear…` below to take off what a pass nobody is asking for any more left behind, and
+ * each walks the whole page to do it: three passes switched off are three walks of the page,
+ * every settling, for a reader who never turned any of them on. So each is asked only while
+ * the pass that writes those markers has written some. They start as "may be": an extension
+ * updated over an open tab is left with whatever the copy before it wrote, and that has to be
+ * swept up once; the marking pass sets its own back to "may be" as it marks.
  */
 const mayHold = { counts: true, times: true, frames: true };
 
 /**
- * Every marker off, and everything they were carrying with them.
- *
- * Called where no scope wants frames marked at all — the settings cleared, or the
- * extension switched off. The cap written onto the frame itself has to come off here too:
- * left behind, it holds a picture short with no rule of ours to explain it, and nothing
- * short of reloading the page would take it off.
+ * Every marker off, and everything they were carrying with them. Called where no scope wants
+ * frames marked at all — the settings cleared, or the extension switched off. The cap written
+ * onto the frame itself has to come off here too: left behind, it holds a picture short with
+ * no rule of ours to explain it, and nothing short of reloading the page would take it off.
  */
 const clearMediaFrames = (): void => {
   if (!mayHold.frames) return;
@@ -322,12 +292,10 @@ const clearMediaFrames = (): void => {
 };
 
 /**
- * The posts in one scope that this round has to look at, and where to search for what
- * they hold.
- *
- * A round that was told which posts changed searches those posts; one that was told
- * nothing — the settings moved, or the safety round came due — searches the whole scope.
- * Which it is comes from `changed.ts`, and is the same answer for every pass in a settling.
+ * The posts in one scope that this round has to look at, and where to search for what they
+ * hold. A round told which posts changed searches those posts; one told nothing — the
+ * settings moved, or the safety round came due — searches the whole scope. Which it is comes
+ * from `changed.ts`, and is the same answer for every pass in a settling.
  */
 const cellsIn = (element: Element, changed: Set<Element> | null): Element[] =>
   changed === null
@@ -339,12 +307,10 @@ const rootsIn = (element: Element, changed: Set<Element> | null): Element[] =>
   changed === null ? [element] : cellsIn(element, changed);
 
 /**
- * The same, for a round that is going to measure: the posts left waiting for it come
- * back in as well.
- *
- * Only the two passes that measure ask for this. Bringing what is waiting into every
- * pass would have them work out a post's lines and captions again for no reason — the
- * post has not changed, it is only that nobody has measured it yet.
+ * The same, for a round that is going to measure: the posts left waiting for it come back in
+ * as well. Only the two passes that measure ask for this — bringing what is waiting into
+ * every pass would have them work out a post's lines and captions again for no reason, the
+ * post being unchanged and only unmeasured.
  */
 const rootsToMeasure = (element: Element, changed: Set<Element> | null): Element[] =>
   changed === null
@@ -352,10 +318,9 @@ const rootsToMeasure = (element: Element, changed: Set<Element> | null): Element
     : [...new Set([...changed, ...toMeasure])].filter((cell) => element.contains(cell));
 
 /**
- * Where to take a mark off again.
- *
- * A round working from the changed posts must only tidy up inside them: a sweep of the
- * whole page would take the marks off every post it did not look at this time.
+ * Where to take a mark off again. A round working from the changed posts must only tidy up
+ * inside them: a sweep of the whole page would take the marks off every post it did not look
+ * at this time.
  */
 const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
   changed === null ? [document] : [...changed];
@@ -363,45 +328,36 @@ const sweepIn = (changed: Set<Element> | null): (Element | Document)[] =>
 /*
  * ---- What was measured, and when it stops being true --------------------------------
  *
- * Two of the passes below have to measure the page: the media frames walk up asking how
- * tall each box is drawn, and the "Show more" asks whether a body has more text than its
- * limit shows. Both force the browser to lay the page out then and there, and both used
- * to ask again for every picture and every body on every settling — which on a timeline
- * of several hundred posts is what made the page stop responding (measured: ~860ms of a
- * settling, over 90% of it in `getBoundingClientRect`, `clientHeight` and
- * `getComputedStyle`).
+ * Two passes below measure the page: the media frames ask how tall each box is drawn, the
+ * "Show more" whether a body holds more than its limit shows. Both force a layout, so what was
+ * measured is remembered per element — the element itself being the key, since X builds a post
+ * anew when it redraws one and a new element has nothing remembered about it.
  *
- * So what was measured is remembered per element. The element itself is the key: X
- * builds a post anew when it redraws one, and a new element has nothing remembered
- * about it, which is the same answer as measuring it again.
- *
- * What the memory cannot see is the page changing around an element that stayed put.
- * Three things do that, and each has its own answer:
- *   - the settings for its scope changed the way it is drawn: the measurement carries
- *     which settings it was taken under (`measuredUnder`), so it stands or falls with
- *     them — and with them alone, leaving the scopes beside it untouched
- *   - a scope changed size: `remeasureEverything`, because everything in it wraps
- *     differently at another width. Watched on the scopes themselves rather than on the
- *     window, so that a column widened where it stands — by our own setting, by X Pro's,
- *     or by the window — is caught the same way
- *   - a picture finished loading: that one picture is forgotten, not the page — pictures
- *     arrive one at a time while the reader scrolls, and forgetting everything each time
- *     one did would leave nothing remembered at all
+ * What the memory cannot see is the page changing around an element that stayed put. Three
+ * things do that, and each has its own answer:
+ *   - the settings for its scope changed the way it is drawn: the measurement carries which
+ *     settings it was taken under (`measuredUnder`), so it stands or falls with them alone,
+ *     leaving the scopes beside it untouched
+ *   - a scope changed size: `remeasureEverything`, since everything in it wraps differently at
+ *     another width. Watched on the scopes rather than on the window, so a column widened
+ *     where it stands — by our own setting, by X Pro's, or by the window — is caught alike
+ *   - a picture finished loading: that one picture is forgotten, not the page, since pictures
+ *     arrive one at a time while the reader scrolls and forgetting everything each time would
+ *     leave nothing remembered at all
  */
 
 /*
  * Measuring waits (`filter/pace.ts` decides how long). What needs it is remembered and
- * answered together, and what is waiting keeps whatever it was given last — a picture
- * already capped stays capped, a button already there stays there — so the wait shows as
- * a mark arriving late on something new, never as one flickering on something already on
- * screen.
+ * answered together, and what is waiting keeps whatever it was given last — a picture already
+ * capped stays capped — so the wait shows as a mark arriving late on something new, never as
+ * one flickering on something already on screen.
  */
 
 /*
- * When the last round of measuring ran. Before any has, it is not "the beginning of
- * time" but "long enough ago": the clock behind it starts at nothing when the page loads
- * (`performance.now()`), so a zero here would hold the first round back by the whole of
- * the wait, on the one occasion there is most to measure.
+ * When the last round of measuring ran. Before any has, it is "long enough ago" rather than
+ * "the beginning of time": `performance.now()` starts at nothing when the page loads, so a
+ * zero here would hold the first round back by the whole of the wait, on the one occasion
+ * there is most to measure.
  */
 let lastMeasured = Number.NEGATIVE_INFINITY;
 
@@ -412,18 +368,13 @@ let measureWait = MEASURE_MS;
 const toMeasure = new Set<Element>();
 
 /**
- * How many posts make a round of measuring worth what it costs, and how long the ones
- * waiting may be kept waiting for company.
- *
- * A round reads the page back, which makes the browser work out everything written since
- * it was last drawn, and then writes its answers — which the browser has to work out again
- * before it draws. That pair costs the same whether the round answers for twenty posts or
- * for one: measured on a real timeline in Firefox, rounds that looked at one and at three
- * posts cost 64ms and 110ms, all but a millisecond of it the page catching up. So a
- * handful of posts waits for company rather than buying a whole round for itself.
- *
- * The patience is what keeps a quiet timeline from leaving a picture at its full height
- * for ever: whatever has been waiting this long is measured, however few of them there are.
+ * How many posts make a round of measuring worth what it costs, and how long the ones waiting
+ * may be kept waiting for company. A round reads the page back, making the browser work out
+ * everything written since it was last drawn, then writes its answers, which it must work out
+ * again before drawing. That pair costs the same for twenty posts as for one, so a handful
+ * waits for company rather than buying a whole round for itself. The patience keeps a quiet
+ * timeline from leaving a picture at its full height for ever: whatever has been waiting this
+ * long is measured, however few of them there are.
  */
 const WORTH_A_ROUND = 6;
 const MEASURE_PATIENCE_MS = 2000;
@@ -447,21 +398,14 @@ let inTheBookedRound = false;
 let measured = false;
 
 /**
- * Measures at the next moment the browser has nothing else to do with the page.
+ * Measures at the next moment the browser has nothing else to do with the page. Two frames out
+ * rather than one: a callback on the next frame runs *before* that frame is laid out, and
+ * would read a page our own writes had just made stale. A background tab never gets there, and
+ * nothing in it wants measuring.
  *
- * Two frames out rather than one: a callback on the next frame runs *before* that frame
- * is laid out, so it would be reading a page our own writes had just made stale — which
- * is the forced layout this is here to avoid. A callback on the frame after that finds
- * the page laid out and painted, and reading it costs nothing.
- *
- * A background tab never gets there, and nothing in it wants measuring: it comes back
- * when the tab does.
- *
- * A round asked for before the page has earned it waits out the difference on the clock
- * first. Booking it straight away would put it two frames out, where it would find its
- * turn still not come, do the whole round's walking for nothing, and book itself again —
- * once every couple of frames until the wait ran out, which on a page slow enough to have
- * earned a long wait is a hundred rounds of exactly the work the wait exists to prevent.
+ * A round asked for before the page has earned it waits out the difference on the clock first.
+ * Booked straight away it would arrive two frames later, find its turn not come, walk the
+ * whole round for nothing and book itself again, every couple of frames until the wait ran out.
  */
 const measureSoon = (): void => {
   if (booked || waitingToBook !== null) return;
@@ -492,10 +436,9 @@ const measureSoon = (): void => {
     measured = false;
     const started = performance.now();
     try {
-      // What the passes below read the page for pays, on the first reading, for whatever
-      // has been written since it was last drawn — X's own writes as much as ours. Asked
-      // for here it stands on its own line rather than landing on the first pass that
-      // happens to read (`diagnostics.ts`). Only a round that is going to read asks
+      // The first reading pays for everything written since the page was last drawn, X's own
+      // writes as much as ours. Asked for here it stands on its own line rather than landing
+      // on the first pass that happens to read (`diagnostics.ts`). Only a reading round asks
       if (mayMeasure()) pageCaughtUp();
       stampMediaFrames();
     } finally {
@@ -512,13 +455,11 @@ const measureSoon = (): void => {
 };
 
 /**
- * Whether this round may measure.
- *
- * Only the booked round measures — the one that runs once the browser has laid the page
- * out — and only when the page has had the time it earned since the last one. Nothing is
- * let through early, a change the reader made included: what waits on a measurement is a
- * picture keeping its full height, or a "Show more" arriving late, and neither is worth a
- * page that stops answering.
+ * Whether this round may measure. Only the booked round does — the one that runs once the
+ * browser has laid the page out — and only when the page has had the time it earned since the
+ * last one. Nothing is let through early, a change the reader made included: what waits on a
+ * measurement is a picture keeping its full height, or a "Show more" arriving late, and
+ * neither is worth a page that stops answering.
  */
 const mayMeasure = (): boolean => inTheBookedRound && performance.now() - lastMeasured >= measureWait;
 
@@ -530,14 +471,10 @@ const measureLater = (element: Element): void => {
   toMeasure.add(cell);
 };
 
-/** What was measured for one medium, and the state of the page it was measured in */
 /**
- * Which element is the frame around one medium.
- *
- * No longer held against the round it was found in or the width it was found at: what is
- * remembered is which element the frame is, and that does not move when the column is
- * resized or the settings change. What does depend on those — how tall the picture may be
- * drawn — is the stylesheet's answer now, given afresh every round (`capFrame`).
+ * Which element is the frame around one medium. What is remembered does not move when the
+ * column is resized or the settings change; what does depend on those — how tall the picture
+ * may be drawn — is the stylesheet's answer now, given afresh every round (`capFrame`).
  */
 const frames = new WeakMap<Element, { frame: Element | null }>();
 
@@ -551,12 +488,11 @@ const overflows = new WeakMap<Element, { key: string; over: boolean }>();
 let generation = 0;
 
 /**
- * What a measurement was taken under: the round, and how the scope it sits in is drawn.
- *
- * The scope's own share of it is what keeps a change to one scope off the others. A deck
- * comes back a column at a time, and every column arriving rewrites the stylesheet —
- * measured against the page as a whole, that would mean measuring every picture and every
- * body on screen again, five or ten times over, while the reader waits.
+ * What a measurement was taken under: the round, and how the scope it sits in is drawn. The
+ * scope's own share of it is what keeps a change to one scope off the others. A deck comes
+ * back a column at a time, and every column arriving rewrites the stylesheet — measured
+ * against the page as a whole, that would mean measuring every picture and every body on
+ * screen again, five or ten times over, while the reader waits.
  */
 const measuredUnder = (appearance: AppearanceNode): string =>
   `${generation}|${layoutKey(appearance)}`;
@@ -569,16 +505,13 @@ const remeasureEverything = (): void => {
 const widths = new WeakMap<Element, number>();
 
 /**
- * Watches the scopes for a change of *width*.
- *
- * The height is ignored on purpose. A timeline grows taller with every batch of posts
- * that arrives — on x.com the scope itself is what grows — and treating that as a reason
- * to measure the page again would throw the memory away exactly while scrolling, which is
- * the one time it is worth having. Nothing measured here follows the height: what a body
- * wraps at and how tall a picture is drawn both follow the width.
- *
- * The first answer for a scope says how wide it already is, which is not a change: it is
- * ignored, and only a scope that later changes width has what was measured in it dropped.
+ * Watches the scopes for a change of *width*. The height is ignored on purpose: a timeline
+ * grows taller with every batch of posts that arrives — on x.com the scope itself is what
+ * grows — and treating that as a reason to measure the page again would throw the memory away
+ * exactly while scrolling, the one time it is worth having. Nothing measured here follows the
+ * height: what a body wraps at and how tall a picture is drawn both follow the width. The
+ * first answer for a scope says how wide it already is, which is not a change: it is ignored,
+ * and only a scope that later changes width has what was measured in it dropped.
  */
 const sizes = new ResizeObserver((entries) => {
   let changed = false;
@@ -586,12 +519,6 @@ const sizes = new ResizeObserver((entries) => {
     const width = entry.contentRect.width;
     const known = widths.get(entry.target);
     widths.set(entry.target, width);
-    /*
-     * The first word about a scope is not news. A scope is watched the moment it is seen,
-     * and the answer that comes back says how wide it already was — nothing was measured
-     * under any other width. Taking it for a change is what made a deck coming back a
-     * column at a time measure every picture on screen again for each one that arrived.
-     */
     if (known !== undefined && known !== width) changed = true;
   }
   if (!changed) return;
@@ -643,10 +570,9 @@ const watchMeasurements = (): void => {
   if (watchingLoads) return;
   watchingLoads = true;
   /*
-   * A picture's height is only known once it has loaded, and until then it measures as
-   * "not drawn yet". Caught on the way down because `load` does not bubble: a listener
-   * on `document` still sees it in the capture phase, which is one listener for every
-   * picture on the page rather than one apiece.
+   * A picture's height is only known once it has loaded; until then it measures as "not drawn
+   * yet". Caught in the capture phase because `load` does not bubble, which is one listener
+   * on `document` for every picture on the page rather than one apiece.
    */
   const arrived = (event: Event): void => {
     const target = event.target;
@@ -658,8 +584,7 @@ const watchMeasurements = (): void => {
   };
   /*
    * `load` for a picture, and the arrival of a video's metadata — which is when its shape
-   * is known, and which `load` never announces. Both caught on the way down because
-   * neither bubbles: one listener for the page rather than one per medium.
+   * is known, and which `load` never announces.
    */
   document.addEventListener('load', arrived, true);
   document.addEventListener('loadedmetadata', arrived, true);
@@ -667,22 +592,18 @@ const watchMeasurements = (): void => {
 
 /**
  * X's own words for a picture nobody described (`appearance/alt.ts` says how they are
- * recognised).
- *
- * Kept here rather than worked out afresh each time: X has one such word per kind of
- * media and per interface language, and what is on screen at any one moment may not
+ * recognised). Kept here rather than worked out afresh each time: X has one such word per
+ * kind of media and per interface language, and what is on screen at any one moment may not
  * repeat enough to show them.
  */
 let genericAlts: ReadonlySet<string> = new Set();
 
 /**
- * The words in force, from the settings.
- *
- * The learning never stops, because the words turn up one at a time: X has a different
- * one for a photo and for a video, and a page that shows plenty of the first may show
- * none of the second. Stopping at the first word found would leave the others out for
- * good. Nothing here is ever rewritten or dropped, only added to, so a word written by
- * hand stands as it was written.
+ * The words in force, from the settings. The learning never stops, because the words turn up
+ * one at a time: X has a different one for a photo and for a video, and a page that shows
+ * plenty of the first may show none of the second, so stopping at the first word found would
+ * leave the others out for good. Nothing here is ever rewritten or dropped, only added to, so
+ * a word written by hand stands as it was written.
  */
 export const useGenericAlts = (words: readonly string[]): void => {
   genericAlts = new Set(words);
@@ -695,23 +616,15 @@ export const useGenericAlts = (words: readonly string[]): void => {
 const ALT_ATTR = 'data-xpro-alt';
 
 /**
- * Puts the description written for a picture where it can be read: the tooltip on the
- * picture itself.
+ * Puts the description written for a picture into its tooltip. Not a setting of its own: X
+ * carries the description and shows it nowhere on X Pro, and a picture nobody described is
+ * left alone.
  *
- * Not a setting of its own. X carries the description but shows it nowhere on X Pro, so
- * there is nothing to weigh up — reading it is the only thing this can do, and a picture
- * nobody described is left untouched.
- *
- * Every picture on the page, not only those inside a scope: the description belongs to
- * the picture rather than to the column it happens to stand in, and nothing about it is
- * set per scope.
- *
- * Ours is marked, so that a description gone from a picture X has reused for another post
- * takes the tooltip with it, while a `title` that was never ours is never touched.
- *
- * The learning rides along on the same walk, both wanting the same thing of every picture.
- * Answers with X's own words where this round added one, for the caller to keep
- * (`content.ts`). null the rest of the time, which is every round once they are known.
+ * Every picture on the page, not only those inside a scope — the description belongs to the
+ * picture, and nothing about it is set per scope. Ours is marked, so a description gone from a
+ * picture X reused takes the tooltip with it while a `title` that was never ours is untouched.
+ * The learning rides along on the same walk. Answers with X's own words where this round added
+ * one, for the caller to keep (`content.ts`), and null once they are known.
  */
 export const stampAltTitles = (): readonly string[] | null => {
   /** Every picture and what it says. Read once: walking the page is the whole cost here */
@@ -740,9 +653,8 @@ export const stampAltTitles = (): readonly string[] | null => {
   for (const [picture, alt] of read) {
     const description = descriptionOf(alt, genericAlts);
     if (description !== null) {
-      // Written only where it would say something else: the same description goes back on
-      // the same picture on every settling, and X keeps a picture for as long as the post
-      // it is on stays on screen
+      // Written only where it would say something else: the same description goes back on the
+      // same picture every settling, and X keeps a picture as long as its post is on screen
       if (!picture.hasAttribute(ALT_ATTR)) picture.setAttribute(ALT_ATTR, '');
       if (picture.getAttribute('title') !== description) picture.setAttribute('title', description);
     } else if (picture.hasAttribute(ALT_ATTR)) {
@@ -780,16 +692,14 @@ const shownCountIn = (box: Element): Element | null =>
   Array.from(box.children).find((el) => !el.classList.contains(COUNT_CLASS)) ?? null;
 
 /**
- * Writes a reaction count X rounded off ("22万") as the number it is.
- *
- * X's own element is left where it is and hidden by CSS, and a copy of it — the same
- * element with the same classes, carrying the number instead — goes in beside it. Copying
- * rather than drawing an `::after` on the box is what keeps the number the size X's own
- * count is: X styles it on the element inside the box (see `COUNT_CLASS`).
- *
- * The number is read from the button's label rather than counted (`filter/post.ts`), and
- * only the counts X actually rounded are written (`appearance/counts.ts`) — on a timeline
- * that is a handful of posts, so the walk leaves almost all of them untouched.
+ * Writes a reaction count X rounded off ("22万") as the number it is. X's own element is left
+ * where it is and hidden by CSS, and a copy of it — the same element with the same classes,
+ * carrying the number instead — goes in beside it. Copying rather than drawing an `::after` on
+ * the box keeps the number the size X's own count is: X styles it on the element inside the
+ * box (see `COUNT_CLASS`). The number is read from the button's label rather than counted
+ * (`filter/post.ts`), and only the counts X actually rounded are written
+ * (`appearance/counts.ts`) — on a timeline a handful of posts, so the walk leaves almost all
+ * of them untouched.
  */
 const restampCounts = (columns: MarkedColumn[], changed: Set<Element> | null): void => {
   /** The boxes written this round. What carries a marker outside them has it taken off */
@@ -824,8 +734,7 @@ const restampCounts = (columns: MarkedColumn[], changed: Set<Element> | null): v
     }
   }
 
-  // Something of ours stands in the page, so it has to be swept up when this is switched
-  // off again (`mayHold`)
+  // Something of ours stands in the page, to be swept up when this is switched off (`mayHold`)
   if (marked.size > 0) mayHold.counts = true;
 
   for (const where of sweepIn(changed)) {
@@ -860,9 +769,8 @@ const restampTimes = (
   const marked = new Set<Element>();
 
   for (const { element, appearance } of columns) {
-    // Under "both" only the clock time is added. X already shows either a relative
-    // time or a month and day, so the clock time is what is missing; adding the date
-    // as well steals width from the ID and hides it in narrow columns
+    // Under "both" only the clock time is added: X already shows a relative time or a month
+    // and day, and adding the date too steals width from the ID, hiding it in narrow columns
     if (timeFormatOf(appearance.timeFormat) === 'relative') continue;
     for (const root of rootsIn(element, changed)) {
       root.querySelectorAll('time').forEach((time) => {
@@ -927,10 +835,9 @@ const restampMediaFrames = (
         }
         if (!measuring) {
           /*
-           * Which element the frame is has still to be worked out, and this round is not
-           * the one to do it: finding it reads the page back, and a reading in the middle
-           * of a settling is what costs the page its answering (`quiet.ts`). What the
-           * frame was given before stands until then.
+           * Which element the frame is has still to be worked out, and not by this round:
+           * finding it reads the page back, and a reading in the middle of a settling is what
+           * costs the page its answering (`quiet.ts`). What the frame was given before stands.
            */
           measureLater(media);
           const marked = media.closest(`[${MEDIA_FRAME_ATTR}]`);
@@ -944,16 +851,16 @@ const restampMediaFrames = (
           return;
         }
         /*
-         * Nothing drawn there: a picture X has not got to yet, or a post folded away.
-         * Nothing is remembered about it — the answer would be wrong the moment X draws
-         * it — so it is looked at again on a later round.
+         * Nothing drawn there: a picture X has not got to yet, or a post folded away. Nothing
+         * is remembered about it — the answer would be wrong the moment X draws it — so it is
+         * looked at again on a later round.
          */
         /*
-         * Drawn, but nothing around it looks like a frame. Not remembered: with nothing
-         * left to invalidate what is remembered — the answer no longer turns on a width or
-         * on the settings — an answer taken while X was still building the post would
-         * stand for as long as the page is open. Looking again costs a walk up a dozen
-         * elements, in a quiet moment, for the few media this happens to.
+         * Drawn, but nothing around it looks like a frame. Not remembered either: nothing
+         * would invalidate it — the answer no longer turns on a width or on the settings — so
+         * one taken while X was still building the post would stand for as long as the page is
+         * open. Looking again costs a walk up a dozen elements, in a quiet moment, for the few
+         * media this happens to.
          */
         if (!drawn) return;
       });
@@ -962,8 +869,8 @@ const restampMediaFrames = (
 
   counted('frames marked', wanted.size);
 
-  // Something of ours stands in the page, so it has to be swept up when every tier drops
-  // the limit (`mayHold`)
+  // Something of ours stands in the page, to be swept up when every tier drops the limit
+  // (`mayHold`)
   if (wanted.size > 0) mayHold.frames = true;
 
   /*
@@ -985,29 +892,20 @@ const restampMediaFrames = (
 };
 
 /**
- * What X had written on a frame before the cap went on, kept so that taking the cap off
- * puts back exactly that.
- *
- * Read back out of our own `min(…)` instead, it would be right only as long as X never
- * writes a `min()` of its own — and where it did, taking our cap off would throw away
- * whatever X had put in the second half of it.
+ * What X had written on a frame before the cap went on, kept so that taking the cap off puts
+ * back exactly that. Read back out of our own `min(…)` instead, it would be right only as
+ * long as X never writes a `min()` of its own — and where it did, taking our cap off would
+ * throw away whatever X had put in the second half of it.
  */
 const askedFor = new WeakMap<Element, { value: string; priority: string }>();
 
 /**
- * Holds a frame to the limit, or lets it go.
- *
- * A frame drawn from `aspect-ratio`, or from nothing but its contents, is held by the
- * stylesheet's own `max-height` and wants nothing here. A frame drawn from a percentage
- * `padding-bottom` is not: a percentage padding is laid out against the width and pays no
- * attention to `max-height` (measured in Chromium: a 350px box stays 350px). The cap goes
- * on the padding itself instead, and the browser takes the smaller of the two — which
- * leaves a picture already shorter than the limit exactly as X drew it.
- *
- * The alternative was to replace the height outright, which is what this did before. That
- * needs the height X would have drawn, which needs our own rules taken off the box and the
- * page laid out again to read it back — 90 to 175ms a round on a real deck — and it
- * stretched a short picture up to the limit rather than leaving it alone.
+ * Holds a frame to the limit, or lets it go. A frame drawn from `aspect-ratio`, or from
+ * nothing but its contents, is held by the stylesheet's own `max-height` and wants nothing
+ * here. One drawn from a percentage `padding-bottom` is not: a percentage padding is laid out
+ * against the width and pays no attention to `max-height` (measured in Chromium: a 350px box
+ * stays 350px). The cap goes on the padding itself instead, and the browser takes the smaller
+ * of the two, leaving a picture already shorter than the limit exactly as X drew it.
  */
 const capFrame = (frame: Element, limit: number | null): void => {
   const own = (frame as HTMLElement).style;
@@ -1022,12 +920,11 @@ const capFrame = (frame: Element, limit: number | null): void => {
   }
   const value = asked?.value ?? own.getPropertyValue('padding-bottom');
   /*
-   * Where there is nothing here to hold, the stylesheet's own `max-height` is what holds
-   * the frame. A frame whose percentage comes from a class rather than from the element
-   * falls there too, and `max-height` will not hold it — working out the percentage from
-   * what is on screen would mean reading a width back, and a reading in the middle of a
-   * settling is the cost this is here to avoid. Not seen in any of the pages this was
-   * checked against: X writes the shape on the element.
+   * Where there is nothing here to hold, the stylesheet's own `max-height` holds the frame. A
+   * frame whose percentage comes from a class rather than from the element falls there too,
+   * and `max-height` will not hold it — working the percentage out from what is on screen
+   * would mean reading a width back, the cost this is here to avoid. Not seen in any of the
+   * pages this was checked against: X writes the shape on the element.
    */
   const want = cappedPadding(value, limit);
   if (want === null) return;
@@ -1040,22 +937,19 @@ const capFrame = (frame: Element, limit: number | null): void => {
 };
 
 /**
- * The button that opens the compose form, in X Pro's side rail.
- *
- * X paints it with the color the user picked, the same one it draws links in, and it is
- * there whether or not anything on screen happens to carry a link.
- * The rail is found by a marker of X Pro's own, and the button within it by being the
- * only one X paints a background on. Its label ("Post") changes with the interface
- * language and is not used.
+ * The button that opens the compose form, in X Pro's side rail. X paints it with the color the
+ * user picked, the same one it draws links in, and it is there whether or not anything on
+ * screen happens to carry a link. The rail is found by a marker of X Pro's own, the button
+ * within it by being the only one X paints a background on; its label ("Post") changes with
+ * the interface language and is not used.
  */
 const COMPOSE_BUTTON_SELECTOR =
   'div:has(> [data-tourstep="side-nav-decks"]) button[style*="background-color"]';
 
 /**
- * One of X's own links in a post, where the same color arrives as the text color.
- * Read when the button cannot be found, so that a change to the rail costs the color
- * rather than losing it.
- * Ours are left out: with a color of our own on them, the one written last time would be
+ * One of X's own links in a post, where the same color arrives as the text color. Read when
+ * the button cannot be found, so that a change to the rail costs the color rather than losing
+ * it. Ours are left out: with a color of our own on them, the one written last time would be
  * read back as X's and would stay behind after the user picked another.
  */
 const X_LINK_SELECTOR = `[${COLUMN_ATTR}] ${TWEET_TEXT_SELECTOR} a[style*="color:"]:not(.${ATTACHMENT_CLASS})`;
@@ -1064,13 +958,11 @@ const styleOf = (selector: string): string | null =>
   document.querySelector(selector)?.getAttribute('style') ?? null;
 
 /**
- * Reads the color X draws its links in, at most once per settling.
- *
- * One place anywhere is enough: the color is one setting for the whole of X, not
- * something a column decides. Reading per column would leave a column that happens to
- * hold no link showing a different color from the one beside it.
- * null when neither can be found, and what would have been painted is left to inherit
- * as before.
+ * Reads the color X draws its links in, at most once per settling. One place anywhere is
+ * enough: the color is one setting for the whole of X, not something a column decides, and
+ * reading per column would leave a column that happens to hold no link showing a different
+ * color from the one beside it. null when neither can be found, and what would have been
+ * painted is left to inherit as before.
  */
 const linkColorReader = (): (() => string | null) => {
   let read: string | null | undefined;
@@ -1085,10 +977,10 @@ const linkColorReader = (): (() => string | null) => {
 };
 
 /**
- * Draws what the extension added in the color X draws its own links in, so it reads as a
- * link rather than as body text.
- * Written inline, which the appearance's own link color still beats: that rule carries
- * `!important`. With no color to read, X's own is left to the stylesheet's fallback.
+ * Draws what the extension added in the color X draws its own links in, so it reads as a link
+ * rather than as body text. Written inline, which the appearance's own link color still beats:
+ * that rule carries `!important`. With no color to read, X's own is left to the stylesheet's
+ * fallback.
  */
 const paintLikeLink = (el: HTMLElement, readLinkColor: () => string | null): void => {
   const color = readLinkColor();
@@ -1097,11 +989,10 @@ const paintLikeLink = (el: HTMLElement, readLinkColor: () => string | null): voi
 };
 
 /**
- * Colors one line by whether it opens anything.
- *
- * A card's line is a link and is drawn like one. A quote, an article, a photo have
- * nowhere to go — the frame X draws them in carries no address — so they stay in the
- * body's own color: painting them like links would promise a click that does nothing.
+ * Colors one line by whether it opens anything. A card's line is a link and is drawn like one.
+ * A quote, an article, a photo have nowhere to go — the frame X draws them in carries no
+ * address — so they stay in the body's own color: painting them like links would promise a
+ * click that does nothing.
  */
 const paintLine = (el: HTMLElement, line: Line, readLinkColor: () => string | null): void => {
   if (line.href === null) el.style.removeProperty('color');
@@ -1130,9 +1021,9 @@ const quotePartsOf = (frame: Element): LineParts => {
   const who = [name, author === null ? null : `@${author}`].filter((part) => part !== null);
   const body = frame.querySelector(TWEET_TEXT_SELECTOR);
   return {
-    // Only what the quoted post says. A quote of a post with a photo has a mark of ours
-    // in that body, put there on an earlier settling, and reading it back would carry
-    // the mark into this line and its tooltip
+    // Only what the quoted post says. A quote of a post with a photo has a mark of ours in
+    // that body from an earlier settling, which reading it back would carry into this line
+    // and its tooltip
     words: body === null ? null : ownTextOf(body).trim() || null,
     source: who.length > 0 ? who.join(' ') : null,
   };
@@ -1151,9 +1042,8 @@ const bodyBefore = (el: Element, cell: Element): Element | null => {
 };
 
 /**
- * The address to hand the line. Only `http(s)` is taken: the value comes out of the
- * page, and writing whatever it holds into an `href` of ours would carry a
- * `javascript:` URL along with it.
+ * The address to hand the line. Only `http(s)` is taken: the value comes out of the page, and
+ * writing whatever it holds into an `href` of ours would carry a `javascript:` URL with it.
  */
 const linkTargetOf = (card: Element): string | null => {
   const href = card.querySelector('a[href]')?.getAttribute('href') ?? null;
@@ -1196,11 +1086,10 @@ const movesCards = (style: AttachmentStyle): boolean => style === 'text' || styl
 const movesMedia = (style: MediaStyle): boolean => style === 'text' || style === 'mark';
 
 /**
- * What hangs off a post, in the order the lines go in: the cards first, then the
- * article, then the photos and videos.
- *
- * The two sides are asked for separately. The cards and the photos are two settings, and
- * a post can well have its cards turned into text while its photos stay on screen.
+ * What hangs off a post, in the order the lines go in: the cards first, then the article, then
+ * the photos and videos. The two sides are asked for separately, the cards and the photos
+ * being two settings: a post can well have its cards turned into text while its photos stay
+ * on screen.
  */
 const linesIn = (
   cell: Element,
@@ -1286,13 +1175,12 @@ const linesIn = (
       ['video', VIDEO.join(', ')],
     ] as const) {
       /*
-       * One video answers to both of X's markers, so only the outer one is counted:
-       * otherwise its description goes into the line twice (`isOutermostMedia`).
-       *
-       * A quoted post's pictures are not this post's, and are left out of both the count
-       * and the words. Counted, they made the post look as though it carried more; and
-       * their descriptions, set down in the quoting post, read as the quoting author's.
-       * The quoted post stands for itself, under its own setting.
+       * One video answers to both of X's markers, so only the outer one is counted, or its
+       * description goes into the line twice (`isOutermostMedia`). A quoted post's pictures
+       * are not this post's, and are left out of both the count and the words: counted, they
+       * made the post look as though it carried more, and their descriptions, set down in the
+       * quoting post, read as the quoting author's. The quoted post stands under its own
+       * setting.
        */
       const pictures = [...cell.querySelectorAll(selector)]
         .filter(isOutermostMedia)
@@ -1302,10 +1190,10 @@ const linesIn = (
       const first = pictures[0];
       if (!first) continue;
       /*
-       * A mark apiece, each carrying what that picture's author wrote for it: the words
-       * shown beside it, cut to the length a line has room for, and the whole of them in
-       * the tooltip. A picture nobody described has neither, and its mark stands alone —
-       * which is what says "there was a fourth photo, and nothing was written for it".
+       * A mark apiece, carrying what that picture's author wrote for it: the words shown
+       * beside it, cut to the length a line has room for, and the whole of them in the
+       * tooltip. A picture nobody described has neither and its mark stands alone, which is
+       * what says "there was a fourth photo, and nothing was written for it".
        */
       const parts = pictures.map((picture) => {
         const said: LineParts = { words: descriptionOf(altTextOf(picture), generic), source: null };
@@ -1332,31 +1220,20 @@ const linesIn = (
 };
 
 /**
- * How the lines go into one body: what parts them from the post's own words, whether the
- * words they carry are dropped in favour of the mark alone, and whether they stand outside
- * the body rather than at the end of it.
+ * How the lines go into one body: what parts them from the post's own words, whether the mark
+ * stands alone, and whether they sit outside the body rather than at the end of it.
  *
- * They always go after the post's own words. Putting them in front was tried, to keep them
- * out of reach of the line limit's cut, but a mark standing before the post's first words
- * reads as part of them; and where the limit did not reach, the same line sat at the other
- * end instead, so which end it was on told the reader nothing.
- *
- * `outside` is what keeps them from being cut instead. A line inside the body is counted
- * by `-webkit-line-clamp` along with the post's words, and a body limited to a line or two
- * is filled by those words alone — the mark then goes with everything past the cut, and a
- * post whose photos are hidden shows no sign of ever having had one. Outside the body the
- * cut cannot reach it, and the order reads as it should: the words, the mark, then the
- * "Show more" that opens the rest.
+ * They always come after the post's own words — in front, a mark reads as part of the first
+ * words. `outside` is what keeps them from being cut: inside, `-webkit-line-clamp` counts
+ * them along with the post's words, and a body limited to a line or two is filled by those
+ * alone, so a post whose photos are hidden would show no sign of ever having had one.
  */
 type Placement = { lead: string; marksOnly: boolean; full: boolean; outside: boolean };
 
 /**
- * What comes before a line at the end of a body: a break, always.
- *
- * It needs something in front, or it butts against the last word, and a line of its own is
- * where it reads best. Where the post's own line breaks are being folded into spaces, this
- * one is folded along with them by the same rule (`white-space: normal`), so the setting
- * still gets the single paragraph it asks for.
+ * What comes before a line at the end of a body: a break, or it butts against the last word.
+ * Where the post's own breaks are folded into spaces it is folded with them by the same rule
+ * (`white-space: normal`), so the setting still gets its single paragraph.
  */
 const LEAD = '\n';
 
@@ -1364,28 +1241,25 @@ const LEAD = '\n';
 const ON_ITS_OWN: Placement = { lead: '', marksOnly: false, full: false, outside: false };
 
 /**
- * What the lines say in one body, and whether they stand outside it.
+ * What the lines say in one body, and whether they stand outside it. Both follow from one
+ * thing: whether the post is being shown cut short. A post that is cut gets marks alone,
+ * standing outside the body. Alone, because a post showing a line or two of its own words has
+ * no room for a headline that can take three more; outside, because `-webkit-line-clamp`
+ * counts whatever is inside the body and a body already filled by the post's own words would
+ * take the mark away with the rest.
  *
- * Both follow from one thing: whether the post is being shown cut short.
- *
- * A post that is cut gets marks alone, standing outside the body. Alone, because a post
- * showing a line or two of its own words has no room for a headline that can take three
- * more; outside, because `-webkit-line-clamp` counts whatever is inside the body and a
- * body already filled by the post's own words would take the mark away with the rest.
- *
- * Cut covers X's own doing as well as ours. X shortens a long post whether or not a limit
- * of ours is set, and a post cut by X while our line spelled out a whole description
- * underneath read as though the two belonged to different posts.
- *
- * Opened, everything is shown as it was written — the words come back and the line goes
- * back inside the body, where it reads as part of the post. Both buttons lead here: ours,
- * and X's own, which `listenToXShowMore` watches for.
+ * Cut covers X's own doing as well as ours: X shortens a long post whether or not a limit of
+ * ours is set, and a post cut by X while our line spelled out a whole description underneath
+ * read as though the two belonged to different posts. Opened, everything is shown as it was
+ * written — the words come back and the line goes back inside the body, where it reads as
+ * part of the post. Both buttons lead here: ours, and X's own, which `listenToXShowMore`
+ * watches for.
  */
 const placementFor = (body: Element, cell: Element, appearance: AppearanceNode): Placement => {
   /*
-   * Opened by "Show more": the words go in whole. Nothing is being saved room for any
-   * more, so cutting them to the length a line has room for would only hold back what the
-   * press asked to see.
+   * Opened by "Show more": the words go in whole. No room is being saved for anything more,
+   * so cutting them to the length a line has room for would hold back what the press asked
+   * to see.
    */
   if (cell.classList.contains(OPENED_CLASS)) {
     return { lead: LEAD, marksOnly: false, full: true, outside: false };
@@ -1420,12 +1294,11 @@ const matches = (el: Element, line: Line, where: Placement): boolean =>
 
 /**
  * Builds the element for one line: an `a` where there is something to open, a `span` where
- * there is not, holding the mark and — where they are shown — the words after it.
- *
- * The two are separate elements so that each can be treated on its own: the tooltip goes
- * on the mark, where it is the only way to the whole of what the line stands for, and not
- * on the words, where it would repeat under the pointer what is already being read. The
- * words of a picture or a quote are drawn dim, being about the post rather than of it.
+ * there is not, holding the mark and — where they are shown — the words after it. The two are
+ * separate elements so each can be treated on its own: the tooltip goes on the mark, where it
+ * is the only way to the whole of what the line stands for, and not on the words, where it
+ * would repeat under the pointer what is already being read. The words of a picture or a
+ * quote are drawn dim, being about the post rather than of it.
  */
 const lineElement = (line: Line, where: Placement): HTMLElement => {
   const el = document.createElement(line.href === null ? 'span' : 'a');
@@ -1445,10 +1318,10 @@ const fillLine = (el: HTMLElement, line: Line, where: Placement): void => {
   // being shown cut short, or there being no words to show in the first place
   el.className = shows ? ATTACHMENT_CLASS : `${ATTACHMENT_CLASS} ${MARK_CLASS}`;
   /*
-   * Whether anything is being kept from the reader, which is what a "Show more" is put in
-   * for (`wantsShowMore`). Not the same as "the line is not saying everything": under the
-   * mark-only style the words were declined rather than held back, and a button offering
-   * to undo the setting would be answering a question nobody asked.
+   * Whether anything is being kept from the reader, which is what a "Show more" is put in for
+   * (`wantsShowMore`). Not the same as "the line is not saying everything": under the
+   * mark-only style the words were declined rather than held back, and a button offering to
+   * undo the setting would answer a question nobody asked.
    */
   if (!line.terse && line.parts.some((part) => moreThanShown(part, where))) {
     el.classList.add(ATTACHMENT_CUT_CLASS);
@@ -1463,15 +1336,10 @@ const fillLine = (el: HTMLElement, line: Line, where: Placement): void => {
     mark.className = ATTACHMENT_MARK_CLASS;
     mark.textContent = part.mark;
     /*
-     * A mark says more than it is showing where it stands alone, and where the words
-     * beside it were cut to the length a line has room for. Only then is there anything to
-     * put on it: a tooltip repeating what is already on screen says nothing.
-     */
-    /*
-     * A tooltip goes on exactly where the mark has more to say than it is showing: on the
-     * mark alone, and only while something is still held back. What opens it out is the
-     * "Show more" under the post (`addShowMore`), which is put there for our lines as well
-     * as for a body the limit cut.
+     * A tooltip goes on exactly where the mark has more to say than it is showing: on the mark
+     * alone, and only while something is still held back. What opens it out is the "Show more"
+     * under the post (`addShowMore`), put there for our lines as well as for a body the limit
+     * cut.
      */
     if (moreThanShown(part, where)) mark.title = part.title!;
     el.append(mark);
@@ -1523,13 +1391,12 @@ const lastLineAfter = (body: Element): Element => {
 };
 
 /**
- * The block a photo or a video occupies: the outermost thing around it that holds no
- * text of the post. It is the same range `frameOf` walks, without the measuring.
- *
- * A line put before this one lands where the media was and stays outside everything the
- * hiding reaches — the box, and the frame the height limit marks. Going by the frame's
- * marker instead would depend on it having been set already, and a frame that only
- * appears once the media has loaded would leave the line hidden inside it.
+ * The block a photo or a video occupies: the outermost thing around it that holds no text of
+ * the post, the same range `frameAround` walks, without the measuring. A line put before this
+ * one lands where the media was and stays outside everything the hiding reaches — the box, and
+ * the frame the height limit marks. Going by the frame's marker instead would depend on it
+ * having been set already, and a frame that only appears once the media has loaded would leave
+ * the line hidden inside it.
  */
 const mediaBlockOf = (media: Element, cell: Element): Element => {
   let block = media;
@@ -1549,13 +1416,11 @@ const insertionPoint = (line: Line, cell: Element): Element =>
   line.source ?? mediaBlockOf(line.anchor, cell);
 
 /**
- * Puts what hangs off each post into the post itself, as a line of text apiece, and
- * marks what the line came from so the CSS can take it away.
- *
- * The line goes inside the body, so it follows the body's size and color and is cut by
- * the line limit along with it, and it carries the link where there is one to carry.
- * A post with no body — a photo posted on its own, an article — takes its lines where
- * what they stand for was, so nothing is left saying nothing.
+ * Puts what hangs off each post into the post itself, as a line of text apiece, and marks what
+ * the line came from so the CSS can take it away. The line goes inside the body, so it follows
+ * the body's size and color and is cut by the line limit along with it, and it carries the
+ * link where there is one. A post with no body — a photo posted on its own, an article — takes
+ * its lines where what they stand for was, so nothing is left saying nothing.
  */
 const restampAttachments = (
   columns: MarkedColumn[],
@@ -1612,10 +1477,10 @@ const restampAttachments = (
         // ones left at the other place have to be found to be taken away
         const existing = linesOf(body);
         /*
-         * Left as they are while they still say the same thing. Rebuilding them on every
-         * settling would take the text away from under a selection or a click.
-         * Compared as a whole rather than one by one: with the count or the order changed,
-         * which of them to keep is not worth working out.
+         * Left as they are while they still say the same thing: rebuilding them on every
+         * settling would take the text away from under a selection or a click. Compared as a
+         * whole rather than one by one, since with the count or the order changed, which of
+         * them to keep is not worth working out.
          */
         const same =
           existing.length === wanted.length &&
@@ -1695,26 +1560,18 @@ const clearAttachments = (
 };
 
 /**
- * Writes under a picture the description its author gave it.
+ * Writes under a picture the description its author gave it. The tooltip `stampAltTitles` puts
+ * on the picture says the same thing without taking room, but only to a pointer — a `title`
+ * cannot be reached with a finger.
  *
- * The tooltip `stampAltTitles` puts on the picture says the same thing and takes up no
- * room saying it, but it says it only to a pointer: a `title` cannot be reached at all on
- * a screen there is nothing but a finger for. This is that same text put where it is
- * simply read, in the columns whose setting asks for it.
+ * One caption to a block of media rather than one to a picture: X positions four photos
+ * itself, and a line of text between them would land inside that layout. The descriptions
+ * share the caption, a line apiece, in the order the pictures hang off the post. Not held
+ * back where a post is opened (`OPENED_ATTR`), this adding words rather than removing any.
  *
- * One caption to a block of media rather than one to a picture. X lays four photos out as
- * boxes it positions itself, and a line of text dropped between them would land inside
- * that layout; so a post's descriptions share the one caption, a line apiece, in the order
- * the pictures hang off the post.
- *
- * Not held back where a post is opened, unlike the rules that take things off a timeline
- * (`OPENED_ATTR`): those stand down because the post was opened to be read, which is a
- * reason to leave this one running — it adds words rather than removing anything.
- *
- * Folded to a couple of lines, with a button under it where there is more. Of the
- * descriptions people were seen to write, most ran to several lines and the longest to
- * some 900 characters, so a caption laid out in full would bury the timeline it is meant
- * to be read alongside.
+ * Folded to a couple of lines with a button under it: descriptions people write run to
+ * several lines and the longest seen to some 900 characters, which laid out in full would
+ * bury the timeline.
  */
 const restampCaptions = (
   columns: MarkedColumn[],
@@ -1723,10 +1580,9 @@ const restampCaptions = (
   changed: Set<Element> | null
 ): void => {
   /**
-   * The quote frame of a cell, asked at most once for each.
-   *
-   * Finding one means searching the post (`quoteFrameOf`), so only the cells that got as
-   * far as holding a described picture are ever asked.
+   * The quote frame of a cell, asked at most once for each. Finding one means searching the
+   * post (`quoteFrameOf`), so only the cells that got as far as holding a described picture
+   * are ever asked.
    */
   const quoteFrames = new Map<Element, Element | null>();
   const quotedIn = (cell: Element): Element | null => {
@@ -1738,11 +1594,10 @@ const restampCaptions = (
   };
 
   /**
-   * What goes under each block: which picture of that block each description belongs to,
-   * how much of it a caption shows, and the whole of it for once it is opened out.
-   *
-   * Cut to the same length the line put into a post is cut to (`shortLineFrom`), so that
-   * the two ways of showing a description show the same amount of it.
+   * What goes under each block: which picture of that block each description belongs to, how
+   * much of it a caption shows, and the whole of it for once it is opened out. Cut to the same
+   * length the line put into a post is cut to (`shortLineFrom`), so the two ways of showing a
+   * description show the same amount of it.
    */
   const blocks = new Map<Element, { nth: number; short: string; full: string }[]>();
   /** How many pictures each block holds, described or not. What the numbering counts against */
@@ -1796,9 +1651,9 @@ const restampCaptions = (
     if (showsOwnAltButton(block)) continue;
     /*
      * Which picture each description belongs to, but only where the post carries more than
-     * one. With a single picture the caption sits under the thing it describes and saying
-     * "the first" adds nothing; with four in a grid, an unlabelled run of lines leaves the
-     * reader to guess which is which — and the pictures nobody described leave gaps in it.
+     * one: with a single picture the caption sits under the thing it describes and "the first"
+     * adds nothing, while with four in a grid an unlabelled run of lines leaves the reader to
+     * guess which is which — the pictures nobody described leaving gaps in it.
      */
     const many = (counts.get(block) ?? 0) > 1;
     const said = (nth: number, description: string): string =>
@@ -1844,16 +1699,12 @@ const captionElement = (): HTMLElement => {
   const words = document.createElement('div');
   words.className = CAPTION_TEXT_CLASS;
   /*
-   * The words are kept out of the accessibility tree.
-   *
-   * The picture's own `alt` already carries them, and carries them unfolded. This copy is
-   * for someone looking at a screen with no pointer to hover with; read out as well, it
-   * would only say the same description twice over.
-   *
-   * The marker goes on the words alone and not on the caption around them. The button is
-   * focusable, and a focusable thing inside an `aria-hidden` range can be reached by the
-   * keyboard while being announced as nothing at all — worse than the repetition this is
-   * here to stop.
+   * The words are kept out of the accessibility tree: the picture's own `alt` already carries
+   * them, and carries them unfolded, so this copy — for someone looking at a screen with no
+   * pointer to hover with — read out as well would say the same description twice over. The
+   * marker goes on the words alone, not on the caption around them: the button is focusable,
+   * and a focusable thing inside an `aria-hidden` range can be reached by the keyboard while
+   * being announced as nothing at all, worse than the repetition this stops.
    */
   words.setAttribute('aria-hidden', 'true');
   caption.append(words);
@@ -1861,19 +1712,18 @@ const captionElement = (): HTMLElement => {
 };
 
 /**
+ * What each caption's button does, refreshed every round. A button kept from an earlier round
+ * would otherwise open the words it was built with, and X puts another post's picture in a
+ * box it has finished with — the caption is rewritten for the new one while the button still
+ * holds what the old one said.
+ */
+const opens = new WeakMap<Element, () => void>();
+
+/**
  * Puts the button under a caption holding something back, and takes it away again where
  * there is nothing left to open — the caption was opened, or the words were replaced by
  * shorter ones that go in whole.
  */
-/**
- * What each caption's button does, refreshed every round.
- *
- * A button kept from an earlier round would otherwise open the words it was built with,
- * and X puts another post's picture in a box it has finished with — the caption is
- * rewritten for the new one while the button still holds what the old one said.
- */
-const opens = new WeakMap<Element, () => void>();
-
 const showMore = (
   caption: HTMLElement,
   folded: boolean,
@@ -1933,39 +1783,33 @@ const lineHeightOf = (text: Element): number => {
 };
 
 /**
- * Whether that body wants a "Show more" under it.
- *
- * Every reason not to have one is gathered here, because each of them is also a reason
- * to take away the one that is already there. A button standing under a body that is no
- * longer cut off says there is more to read where there is not, and the ways a body
- * stops being cut off — the column has a post opened in it, the posts get packed, the
- * limit is lifted — arrive long after the button was put in.
+ * Whether that body wants a "Show more" under it. Every reason not to have one is gathered
+ * here, because each of them is also a reason to take away the one that is already there: a
+ * button standing under a body no longer cut off says there is more to read where there is
+ * not, and the ways a body stops being cut off — the column has a post opened in it, the
+ * posts get packed, the limit is lifted — arrive long after the button was put in.
  */
 const wantsShowMore = (
   text: Element,
   appearance: AppearanceNode,
   measuring: boolean
 ): boolean | null => {
-  // Body text inside a quote is outside the limit (matching the targets in css.ts).
-  // A scope with a post opened is too, and is turned away by the caller, which knows
-  // the scope without having to walk up from the body to find it
+  // Body text inside a quote is outside the limit (matching the targets in css.ts). A scope
+  // with a post opened is too, turned away by the caller, which knows the scope without a walk
   if (text.closest(QUOTE_SELECTOR)) return false;
   const cell = text.closest(CELL_SELECTOR);
   if (!cell || cell.classList.contains(OPENED_CLASS)) return false;
-  // Nothing is added to a cell that has X's own "Show more". Two side by side would
-  // mean pressing both to get the full text. X sometimes brings one out later, so in
-  // that case the added button is withdrawn
+  // Nothing is added to a cell that has X's own "Show more": two side by side would mean
+  // pressing both to get the full text. X sometimes brings one out later, so ours is withdrawn
   if (cell.querySelector(X_SHOW_MORE)) return false;
 
   /*
-   * A line of ours holding something back wants the button too, and wants it whether or
-   * not a limit was ever set on the body. A description of a couple of hundred characters
-   * shows its first eighty, and on a post nothing else cut short there would otherwise be
-   * nothing to press: the rest would be in the tooltip alone, out of reach of a finger.
-   *
-   * Told from the marker the line is given when it holds something back
-   * (`ATTACHMENT_CUT_CLASS`), which is narrower than "carries a tooltip": the mark-only
-   * style keeps its tooltip while wanting no button.
+   * A line of ours holding something back wants the button too, whether or not a limit was
+   * ever set on the body: a description of a couple of hundred characters shows its first
+   * eighty, and on a post nothing else cut short the rest would be in the tooltip alone, out
+   * of reach of a finger. Told from the marker the line is given when it holds something back
+   * (`ATTACHMENT_CUT_CLASS`), which is narrower than "carries a tooltip": the mark-only style
+   * keeps its tooltip while wanting no button.
    */
   if (linesOf(text).some((line) => line.classList.contains(ATTACHMENT_CUT_CLASS))) return true;
 
@@ -1975,18 +1819,16 @@ const wantsShowMore = (
 };
 
 /**
- * Whether that body holds more than the limit shows.
+ * Whether that body holds more than the limit shows. Being cut off is not enough; the text
+ * must also have reached the limit. Where X itself truncates the body, the text is
+ * "overflowing" as well, and a 5-line limit would collapse it at 2. This also guards against
+ * the height wobbling mid-render.
  *
- * Being cut off is not enough; the text must also have reached the limit. Where X itself
- * truncates the body, the text is "overflowing" as well, and a 5-line limit would
- * collapse it at 2. This also guards against the height wobbling mid-render.
- *
- * Measured once and remembered (see "What was measured"). What is remembered alongside is
- * how long the words were and what limit they were measured against: X puts another
- * post's words in a body it has finished with, and the answer for those is not this one.
- *
- * A body drawn at no height is not remembered. It is not short, it is not on screen yet,
- * and remembering "it fits" would leave the button off once it appears.
+ * Measured once and remembered (see "What was measured"), along with how long the words were
+ * and what limit they were measured against: X puts another post's words in a body it has
+ * finished with, and the answer for those is not this one. A body drawn at no height is not
+ * remembered — it is not short, it is not on screen yet, and remembering "it fits" would
+ * leave the button off once it appears.
  */
 const overflowsLimit = (
   text: Element,
@@ -2013,10 +1855,9 @@ const overflowsLimit = (
 };
 
 /**
- * Puts a "Show more" under body text cut off by the line limit, and takes it away again
- * where it is no longer wanted.
- * Whether it is cut off can only be measured (CSS alone cannot show the button on
- * overflowing posts only). Clicking adds a class to that cell, lifting the CSS
+ * Puts a "Show more" under body text cut off by the line limit, and takes it away again where
+ * it is no longer wanted. Whether it is cut off can only be measured (CSS alone cannot show
+ * the button on overflowing posts only). Clicking adds a class to that cell, lifting the CSS
  * limit for that cell alone.
  */
 const addShowMore = (
@@ -2028,9 +1869,9 @@ const addShowMore = (
 ): void => {
   /*
    * Every body is decided before any of them is written to. Deciding costs a measurement
-   * (`overflowsLimit`), and a write in between makes the next measurement wait for the
-   * page to be laid out again — with a body decided and written one after the other, a
-   * timeline of several hundred posts pays that hundreds of times over.
+   * (`overflowsLimit`), and a write in between makes the next measurement wait for the page to
+   * be laid out again — decided and written one after the other, a timeline of several hundred
+   * posts pays that hundreds of times over.
    */
   const decided: {
     text: Element;
@@ -2047,8 +1888,8 @@ const addShowMore = (
       root.querySelectorAll(TWEET_TEXT_SELECTOR).forEach((text) => {
         /*
          * The button belongs under everything the extension put after the body, not directly
-         * under the body: with the marks standing out there too, the order to read is the
-         * post's words, then the mark, then the way to open the rest.
+         * under it: with the marks standing out there too, the order to read is the post's
+         * words, then the mark, then the way to open the rest.
          */
         const under = lastLineAfter(text);
         const next = under.nextElementSibling;
@@ -2110,10 +1951,9 @@ const strayShowMore = (text: Element): Element | null => {
 };
 
 /**
- * When X's own "Show more" is pressed, lift our limit for that cell too.
- * X's truncation and ours overlap, so lifting only one still leaves the text short.
- * A single capturing listener on `document` is enough (it arrives even if X stops
- * the event further in).
+ * When X's own "Show more" is pressed, lift our limit for that cell too: X's truncation and
+ * ours overlap, so lifting only one still leaves the text short. A single capturing listener
+ * on `document` is enough (it arrives even if X stops the event further in).
  */
 let listening = false;
 const listenToXShowMore = (): void => {
@@ -2149,9 +1989,9 @@ let lastColumns: ColumnAppearance[] = [];
 let lastMessages: Messages | null = null;
 
 /**
- * Sets the media frame markers again (called on every settling of the DOM).
- * It measures sizes, so it only measures when some tier sets a height limit, and only
- * what has not been measured already (see "What was measured").
+ * Sets the media frame markers again (called on every settling of the DOM). It measures sizes,
+ * so it only measures when some tier sets a height limit, and only what has not been measured
+ * already (see "What was measured").
  */
 export const stampMediaFrames = (): void => {
   watchMeasurements();
@@ -2161,10 +2001,9 @@ export const stampMediaFrames = (): void => {
    * agree about it, or one of them would tidy up after a post another never looked at
    */
   /*
-   * The booked round is not a settling: it was called to measure what was waiting, so it
-   * looks at those posts and nothing else — and leaves the settlings' own bookkeeping
-   * (`changed.ts`) alone, since what changed since the last settling is still theirs to
-   * deal with.
+   * The booked round is not a settling: it was called to measure what was waiting, so it looks
+   * at those posts and nothing else, and leaves the settlings' own bookkeeping (`changed.ts`)
+   * alone — what changed since the last settling is still theirs to deal with.
    */
   const changed = inTheBookedRound ? new Set(toMeasure) : changedCells();
   if (changed === null) noted('every post');
@@ -2181,9 +2020,8 @@ export const stampMediaFrames = (): void => {
    * on the first pass that wants it, so a round with every pass switched off pays nothing
    */
   const onScreen = columnsThisRound(lastColumns);
-  // The time markers are set again on the same occasion. When every tier says
-  // "as X shows it", they are stripped so that no marker of ours is left in X's DOM
-  // even though no rule targets them
+  // The time markers are set again on the same occasion. When every tier says "as X shows it"
+  // they are stripped, so no marker of ours is left in X's DOM though no rule targets them
   if (
     lastMessages &&
     lastColumns.some((column) => timeFormatOf(column.appearance.timeFormat) !== 'relative')
@@ -2192,8 +2030,7 @@ export const stampMediaFrames = (): void => {
   } else {
     clearTimes();
   }
-  // The counts written out in full are set again on the same occasion, and stripped
-  // once no scope asks for them
+  // The counts written out in full are set again here, stripped once no scope asks for them
   if (lastColumns.some((column) => showsRawCounts(column.appearance.rawCounts))) {
     timed('· counts', () => restampCounts(onScreen(), changed));
   } else {
@@ -2226,10 +2063,10 @@ export const stampMediaFrames = (): void => {
   );
   if (lastMessages && stampsLines) {
     /*
-     * Watched from here as well as from the line limit below. A post X cut short takes the
-     * mark alone even where no limit of ours is set (`placementFor`), and pressing X's own
-     * "Show more" is then the only way back to the words — the listener is what turns that
-     * press into the mark being opened out.
+     * Watched from here and from the line limit below. A post X cut short takes the mark
+     * alone even where no limit of ours is set (`placementFor`), and pressing X's own
+     * "Show more" is then the only way back to the words: the listener turns that press into
+     * the mark being opened out.
      */
     listenToXShowMore();
     timed('· lines', () =>
@@ -2239,10 +2076,10 @@ export const stampMediaFrames = (): void => {
     clearAttachments();
   }
   /*
-   * The captions written under pictures, redone on the same occasion and for the same
-   * reason as the lines: X redraws a post and takes ours away with it.
-   * After the frames above, so that a caption is measured around a picture already given
-   * its final height rather than one still to be marked.
+   * The captions written under pictures, redone on the same occasion and for the same reason
+   * as the lines: X redraws a post and takes ours away with it. After the frames above, so a
+   * caption is measured around a picture already given its final height rather than one still
+   * to be marked.
    */
   if (
     lastMessages &&
@@ -2294,9 +2131,9 @@ const styleElement = (): HTMLStyleElement => {
 };
 
 /**
- * Applies the appearance again for the current arrangement of columns. Called when
- * the settings change and when columns come and go.
- * Identical content is not rewritten (rewriting makes the browser rebuild the style).
+ * Applies the appearance again for the current arrangement of columns. Called when the
+ * settings change and when columns come and go. Identical content is not rewritten (rewriting
+ * makes the browser rebuild the style).
  */
 export const applyAppearance = (
   settings: Settings,
@@ -2305,24 +2142,21 @@ export const applyAppearance = (
 ): void => {
   /*
    * Every post is marked again: what a line says follows settings that never reach the
-   * stylesheet (how much of a description goes on screen, above all). What was *measured*
-   * is a different question, answered below — it follows how the page is drawn, which is
-   * the stylesheet itself.
+   * stylesheet (how much of a description goes on screen, above all). What was *measured* is a
+   * different question, answered below — it follows how the page is drawn, the stylesheet.
    */
   watchChanges();
   changeEverything();
   stampColumns();
 
-  // Columns sharing a key share their rules, so they are folded into one.
-  // Without folding, columns of the same account standing side by side would emit
-  // the same rules over and over
+  // Columns sharing a key share their rules, so they are folded into one: without folding,
+  // columns of the same account standing side by side would emit the same rules over and over
   const columns: ColumnAppearance[] = [];
   const seen = new Set<string>();
   /*
-   * The tiers above are shared by both sites, so they can hold items that only mean
-   * something where a scope is a column. They are dropped here rather than refused when
-   * written: written on X Pro they do apply, and this is the one place that knows which
-   * site the settings are being applied on
+   * The tiers above are shared by both sites, so they can hold items that only mean something
+   * where a scope is a column. Dropped here rather than refused when written: written on X Pro
+   * they do apply, and this is the one place that knows which site they are being applied on
    */
   const here = surface().hasColumns ? (node: AppearanceNode) => node : withoutColumnItems;
   for (const scope of scopes) {
@@ -2332,10 +2166,9 @@ export const applyAppearance = (
     columns.push({ key, appearance: here(appearanceFor(settings, scope)) });
   }
   /*
-   * The page's own furniture belongs to the site rather than to any scope, and only
-   * x.com has any. Written out here rather than left to match nothing on X Pro: which
-   * site is being drawn on is known in this one place, and saying so beats relying on
-   * selectors happening to miss.
+   * The page's own furniture belongs to the site rather than to any scope, and only x.com has
+   * any. Written out here rather than left to match nothing on X Pro: which site is being
+   * drawn on is known in this one place, and saying so beats relying on selectors to miss.
    */
   const chrome = surface().id === 'x' ? chromeCss(settings.xChrome) : '';
   /*
@@ -2344,11 +2177,10 @@ export const applyAppearance = (
    */
   const injected = injectedCss(settings.injected[surface().id]);
   /*
-   * The form a new post is written in, and the page behind x.com. Both are written from
-   * the settings rather than from what is on screen: the form comes and goes as it is
-   * used, and rebuilding the stylesheet each time it opened would cost a repaint for
-   * nothing. `appearance/compose-mark.ts` puts the account on the form; these rules wait
-   * for it.
+   * The form a new post is written in, and the page behind x.com. Both written from the
+   * settings rather than from what is on screen: the form comes and goes as it is used, and
+   * rebuilding the stylesheet each time it opened would cost a repaint for nothing.
+   * `appearance/compose-mark.ts` puts the account on the form; these rules wait for it.
    */
   const { colors, except } = composeColors(settings, surface().id);
   const compose = composeCss(colors, except);

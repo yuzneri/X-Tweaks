@@ -1,7 +1,7 @@
 /**
- * Inserts an item that opens that column's settings into X Pro's column options.
- * The drawer's marker (`drawerAnimatedDiv`) is shared with the compose form, so which
- * kind it is gets told apart by whether a column-options row (`OPTION_ITEM`) is inside.
+ * Inserts an item that opens that column's settings into X Pro's column options. The
+ * drawer's marker (`drawerAnimatedDiv`) is shared with the compose form, so the two are told
+ * apart by whether a column-options row (`OPTION_ITEM`) is inside.
  */
 import {
   columnElements,
@@ -16,34 +16,30 @@ import type { Start } from './panel.tsx';
 const DRAWER = '[data-testid="drawerAnimatedDiv"]';
 
 /**
- * The marker X Pro puts on one row of the column options ("Duplicate", "Remove column"
- * and so on).
- * Inserting without telling the kinds apart would put the item into the compose form's
- * header and double up its rows, so only a drawer with this marker counts as the column
- * options.
+ * The marker X Pro puts on one row of the column options ("Duplicate", "Remove column" and
+ * so on). Only a drawer carrying it counts as the column options: without telling the kinds
+ * apart the item would land in the compose form's header and double up its rows.
  *
  * It is matched by prefix because the second half of the marker is the row's wording
- * (`option-icon_コピーする`) and changes per language. Whether the first half is the
- * same in other languages is unconfirmed, but being wrong only means the item is not
- * inserted, and the panel can still be opened from the bottom-left menu.
+ * (`option-icon_コピーする`) and changes per language. Whether the first half is the same in
+ * other languages is unconfirmed, but being wrong only means the item is not inserted, and
+ * the panel can still be opened from the bottom-left menu.
  */
 const OPTION_ITEM = '[data-testid^="option-icon"]';
 /** The mark on an inserted item, checked so nothing is inserted twice */
 const MARK = 'data-xpro-column-options-item';
 
 /**
- * The column whose header was pressed most recently. Drawers are drawn outside the
- * columns and several can remain open at once. Which drawer belongs to which column
- * cannot be traced from the DOM, so it is decided by what opened it.
- *
- * The insertion itself happens into every drawer found. Otherwise a drawer that is
- * already open would never get the item.
+ * The column whose header was pressed most recently. Drawers are drawn outside the columns,
+ * several can remain open at once, and which one belongs to which column cannot be traced
+ * from the DOM, so it is decided by what opened it. The insertion itself happens into every
+ * drawer found, or a drawer already open would never get the item.
  */
 let column: Element | null = null;
 /**
- * The columnId at the moment of pressing. If X redraws between the press and the
- * settings opening, the remembered element becomes unusable.
- * It is not looked up again by position, which could point at a different column.
+ * The columnId at the moment of pressing: if X redraws between the press and the settings
+ * opening, the remembered element becomes unusable. It is not looked up again by position,
+ * which could point at a different column.
  */
 let triggered: string | null = null;
 
@@ -59,15 +55,14 @@ export const rememberTrigger = (target: Element | null): void => {
 };
 
 /**
- * Drawer element → the columnId of the column that drawer serves.
- * The fallback for when there is no record of a header press (the drawer was already
- * open when the page loaded, and so on): the DOM offers no clue, so it is read from
- * React's internal state and remembered.
+ * Drawer element → the columnId that drawer serves. The fallback when there is no record of
+ * a header press (the drawer was already open when the page loaded, and so on): the DOM
+ * offers no clue, so it is read from React's internal state and remembered.
  */
 const drawerColumn = new WeakMap<Element, string>();
 /**
- * Drawers already asked about. Remembered whether or not an answer came, so they are
- * not asked again. Without remembering, every change to the DOM would trigger another query.
+ * Drawers already asked about, remembered whether or not an answer came: without that,
+ * every change to the DOM would trigger another query.
  */
 const asked = new WeakSet<Element>();
 
@@ -91,9 +86,9 @@ const isOptionRow = (el: Element): boolean =>
 
 /**
  * Finds the surface the items are laid out on, or null when it is not the column options.
- * The column-options rows sit under a single parent, and that parent is chosen as the
- * element with the most rows as direct children (no wording and no class is consulted).
- * A drawer with no rows yields no surface, and the caller then stops inserting.
+ * The rows sit under a single parent, chosen as the element with the most rows as direct
+ * children (no wording and no class is consulted); a drawer with no rows yields no surface,
+ * and the caller then stops inserting.
  */
 const sheetOf = (drawer: Element): Element | null => {
   let sheet: Element | null = null;
@@ -114,9 +109,8 @@ const sheetOf = (drawer: Element): Element | null => {
 let onOpenPanel: ((start: Start) => void) | null = null;
 
 /**
- * Receives clicks on the inserted item through a capturing listener on document.
- * A listener on the item itself is not enough: if X stops the same click in a
- * capturing listener further up, it never reaches the item.
+ * Receives clicks on the inserted item through a capturing listener on document. One on the
+ * item itself never arrives when X stops the same click further up in its own capture.
  */
 export const watch = (onOpen: (start: Start) => void): void => {
   onOpenPanel = onOpen;
@@ -157,10 +151,9 @@ export const watch = (onOpen: (start: Start) => void): void => {
 };
 
 /**
- * Builds one item by cloning an existing button and replacing its contents.
- * Inside the template, an icon and a heading-plus-description are nested. The icon
- * depicts another feature and is removed, and only the innermost element holding text
- * is rewritten.
+ * Builds one item by cloning an existing button and replacing its contents. The template
+ * nests an icon and a heading-plus-description: the icon depicts another feature and is
+ * removed, and only the innermost element holding text is rewritten.
  */
 const buildItem = (template: Element, label: string): HTMLElement => {
   const item = template.cloneNode(true) as HTMLElement;
@@ -180,14 +173,12 @@ const buildItem = (template: Element, label: string): HTMLElement => {
 
 /**
  * Inserts the item into the column options currently open, returning how many were added.
- * The caller can simply call it on every settling of the DOM; double insertion is
- * prevented here.
+ * Safe to call on every settling of the DOM: double insertion is prevented here.
  */
 export const insertInto = (messages: Messages): number => {
   const drawers = Array.from(document.querySelectorAll(DRAWER));
-  // Reads which drawer belongs to which column from React's internal state and
-  // remembers it. Asking is only needed when drawers come and go, so it happens here,
-  // where the insertion is done
+  // Reads which drawer belongs to which column from React's internal state and remembers
+  // it. Asking is only needed when drawers come and go, so it happens here, with insertion
   const unasked = drawers.filter((drawer) => !asked.has(drawer));
   if (unasked.length > 0) {
     for (const drawer of unasked) asked.add(drawer);

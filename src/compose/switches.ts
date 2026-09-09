@@ -1,10 +1,8 @@
 /**
  * Puts the two posting switches into the compose form itself, in the space under its
- * toolbar.
- *
- * They are a second way in to the settings the "Posting" tab already holds, not a second
- * copy of them: a change is written to storage the usual way, and the settings screen
- * hears about it through the same subscription as any other change.
+ * toolbar. They are a second way in to the settings the "Posting" tab already holds, not a
+ * second copy: a change is written to storage the usual way, and the settings screen hears
+ * about it through the same subscription as any other.
  */
 import type { Messages } from '../i18n/index.ts';
 import type { ComposeSettings } from '../settings/schema.ts';
@@ -14,9 +12,8 @@ import { composeDrawer } from './keep.ts';
 const MARK = 'data-xpro-compose-switches';
 
 /**
- * The row of buttons for photos, GIFs and the rest. What is under it is empty, which is
- * where these switches go.
- * X Pro marks it, so neither the wording nor the position has to be relied on.
+ * The row of buttons for photos, GIFs and the rest; the empty space under it is where
+ * these switches go. X Pro marks it, so neither the wording nor the position is relied on.
  */
 const TOOLBAR = '[data-testid="toolBar"]';
 
@@ -24,10 +21,9 @@ const TOOLBAR = '[data-testid="toolBar"]';
 const KEY_ATTR = 'data-xpro-compose-key';
 
 /**
- * What the two switches show. Kept apart from the DOM so that the pairing with the
- * settings screen can be checked without a browser.
- * Neither switch waits on the other: with the form left to close, the tags wait for the
- * next form opened by hand instead.
+ * What the two switches show. Kept apart from the DOM so the pairing with the settings
+ * screen can be checked without a browser. Neither switch waits on the other: with the
+ * form left to close, the tags wait for the next form opened by hand instead.
  */
 export type SwitchState = { key: keyof ComposeSettings; label: string; checked: boolean };
 
@@ -42,10 +38,9 @@ let current: ComposeSettings = { reopen: false, keepHashtags: false };
 let onChange: ((next: ComposeSettings) => void) | null = null;
 
 /**
- * Receives changes through a capturing listener on document.
- * A listener on the box itself is not enough: X Pro stops some events further up, and the
- * inserted node is replaced whenever X redraws the drawer, which would take its listeners
- * with it.
+ * Receives changes through a capturing listener on document. One on the box itself is not
+ * enough: X Pro stops some events further up, and X replaces the inserted node whenever it
+ * redraws the drawer, taking its listeners with it.
  */
 let listening = false;
 const listen = (): void => {
@@ -98,9 +93,9 @@ const sync = (box: Element, messages: Messages): void => {
 };
 
 /**
- * Inserts the switches into the compose form now open, returning how many were added.
- * Safe to call on every settling of the DOM: a form that already has them is only brought
- * back in line, and a drawer that is a reply or a quote is left alone (`composeDrawer`).
+ * Inserts the switches into the compose form now open, returning how many were added. Safe
+ * on every settling of the DOM: a form that already has them is brought back in line, and
+ * a reply or quote drawer is left alone (`composeDrawer`).
  */
 export const insertInto = (messages: Messages): number => {
   const drawer = composeDrawer();
@@ -113,7 +108,7 @@ export const insertInto = (messages: Messages): number => {
   }
 
   // Without the toolbar there is no telling where the space under the form is, so nothing
-  // is inserted. The switches are still reachable from the settings screen
+  // is inserted; the switches are still reachable from the settings screen
   const toolbar = drawer.querySelector(TOOLBAR);
   if (!toolbar) return 0;
 

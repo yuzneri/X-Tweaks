@@ -20,8 +20,8 @@ test('読み込みの断りが最優先', () => {
 });
 
 test('失敗は、先に立っていた成功の知らせより先に出る', () => {
-  // If "forget the record" fails after a copy, nothing was cleared, so the box's contents are unchanged
-  // and the copy notice stays up. In the reverse order the failure would be hidden
+  // A failed "forget the record" after a copy clears nothing, so the box is unchanged and the copy
+  // notice stays true; in the reverse order the failure would be hidden
   assert.deepEqual(noteOf(outcome({ copied: 'done', forgotten: 'failed' })), {
     kind: 'forgetFailed',
   });

@@ -1,8 +1,7 @@
 /**
- * Injects the styles the search form uses.
- *
- * Kept apart from the module that owns the form, the way `compose/styles.ts` is: the
- * stylesheet is brought in through the bundler, which the test runner cannot follow.
+ * Injects the styles the search form uses. Kept apart from the module that owns the form,
+ * the way `compose/styles.ts` is: the stylesheet is brought in through the bundler, which
+ * the test runner cannot follow.
  */
 import css from './styles.css';
 

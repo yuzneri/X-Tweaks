@@ -1,8 +1,6 @@
 /*
- * The frame of the options page.
- *
- * How the parts look lives in ui/panel.css, shared with the in-page panel.
- * Only what applies to the page as a whole goes here.
+ * The frame of the options page. How the parts look lives in ui/panel.css, shared with the in-page
+ * panel; only what applies to the page as a whole goes here.
  */
 :root {
   color-scheme: light dark;

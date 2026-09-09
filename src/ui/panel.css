@@ -1,9 +1,7 @@
 /*
- * How the settings screen's components look.
- *
- * Used on two surfaces: the options page and the in-page panel.
- * Every rule is confined to descendants of `.xpro-ui`, so nothing here leaks out
- * even when placed on an X Pro page.
+ * How the settings screen's components look. Used on two surfaces: the options page and the in-page
+ * panel. Every rule is confined to descendants of `.xpro-ui`, so nothing here leaks out even when
+ * placed on an X Pro page.
  */
 .xpro-ui {
   /* Receives the shell (`.settings`) as a full-height flex item */
@@ -101,10 +99,7 @@
   flex: 0 0 auto;
 }
 
-/*
- * The two panes. Where settings apply on the left, what to set on the right.
- * The left width is set so that "(column not found right now)" fits within two lines.
- */
+/* The two panes: where settings apply on the left, what to set on the right. The left width fits "(column not found right now)" in two lines */
 /*
  * The tabs that pick which screen's settings are shown. They sit above the two panes
  * because they switch the whole of both: the two sites share no scope, and mixing their
@@ -155,9 +150,8 @@
 }
 
 /*
- * The extension's own settings sit apart from the sites'. The three before it answer
- * "which screen"; this one does not, and standing in the same row it would read as a
- * fourth screen.
+ * The extension's own settings sit apart from the sites'. The three before it answer "which screen";
+ * this one does not, and standing in the same row it would read as a fourth screen.
  */
 .xpro-ui .surface.utility {
   margin-left: auto;
@@ -168,10 +162,9 @@
   min-height: 0;
   display: grid;
   /*
-   * 200px, not the mock's 232px. The mock's rows carry the scope key underneath
-   * (`view:list:1795…`), which needs the room; the real list carries the account and a
-   * count, which does not. The width the mock does not need comes out of the right pane,
-   * where the settings actually are.
+   * 200px, not the mock's 232px. The mock's rows carry the scope key underneath (`view:list:1795…`),
+   * which needs the room; the real list carries the account and a count, which does not. The width the
+   * mock does not need comes out of the right pane, where the settings actually are.
    */
   grid-template-columns: 200px minmax(0, 1fr);
 }
@@ -270,11 +263,9 @@
 }
 
 /*
- * An explanation that belongs to one row, under its name.
- *
- * It goes here rather than into the control: an option carrying its own explanation makes
- * the select as wide as that sentence, and the select takes the width out of the name
- * beside it. Sitting under the name, the same words cost no width at all.
+ * An explanation that belongs to one row, under its name. It goes here rather than into the control:
+ * an option carrying its own explanation makes the select as wide as that sentence, and the select
+ * takes the width out of the name beside it. Sitting under the name, the same words cost no width.
  */
 .xpro-ui .row > span:first-child > small {
   display: block;
@@ -346,11 +337,9 @@
 }
 
 /*
- * The box holding X's own words for a picture, one to a line.
- *
- * It takes the whole width under its name rather than sitting beside it: the words are
- * X's, in whatever language X is shown in, and one of them can be long enough that a
- * field squeezed into half a row would show a few characters of it.
+ * The box holding X's own words for a picture, one to a line. It takes the whole width under its name
+ * rather than sitting beside it: the words are X's, in whatever language X is shown in, and one can be
+ * long enough that a field squeezed into half a row would show a few characters of it.
  */
 .xpro-ui .generic-alts textarea {
   box-sizing: border-box;
@@ -411,10 +400,8 @@
 }
 
 /*
- * A number box and the two buttons that step it (`ui/Rules.tsx`).
- *
- * The three sit in one container so the row treats them as a single control, the way it
- * treats a text box: the container takes the growth and the box inside it takes the rest.
+ * A number box and the two buttons that step it (`ui/Rules.tsx`). The three sit in one
+ * container so the row treats them as a single control, the way it treats a text box.
  */
 .xpro-ui .number-box {
   display: flex;
@@ -428,16 +415,9 @@
   min-width: 0;
 }
 
-/*
- * Square, and no wider than the character on them. They are the same height as the box
- * beside them, which `align-items: stretch` above gives them
- */
 .xpro-ui button.step {
   flex: 0 0 auto;
-  /* The box centres what is on it, rather than the character being left where the
-     browser's own styling for a button puts it. Chromium centres it either way (measured);
-     the report of it sitting to the left came from elsewhere, and saying it here rather
-     than relying on what a button inherits leaves nothing to differ over */
+  /* Centred here rather than left to what a button inherits, which differs by browser */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -458,9 +438,8 @@
 }
 
 /*
- * The controls are a size down from the body text (the mock's proportions). A row is
- * label and control side by side, and at the same size the control competes with the
- * name of the thing it sets.
+ * The controls are a size down from the body text (the mock's proportions). A row is label and control
+ * side by side, and at the same size the control competes with the name of the thing it sets.
  */
 .xpro-ui select {
   padding: 3px 8px;
@@ -677,9 +656,8 @@
 }
 
 /*
- * On an element with display set, the hidden attribute (the UA's display:none) is overridden.
- * To hide an element that carries display:flex, such as .color-field, with hidden from JavaScript,
- * the meaning of hidden is restored here.
+ * On an element with display set, the hidden attribute (the UA's display:none) is overridden, so the
+ * meaning of hidden is restored here for elements carrying display:flex such as .color-field.
  */
 .xpro-ui [hidden] {
   display: none !important;
@@ -703,11 +681,10 @@
 }
 
 /*
- * The color-code box. Its selector is made stronger than `input[type="text"]`.
- * `.xpro-ui .colorcode` (0,2,0) alone loses to `.xpro-ui input[type="text"]` (0,2,1), letting
- * `flex: 1` and `min-width` take effect and stretch the box.
- * The width is `--field`, shared with the size box so their right edges line up. It holds
- * `#rrggbbaa` (nine characters) and the short dimmed text alike.
+ * The color-code box. Its selector is made stronger than `input[type="text"]`: `.xpro-ui .colorcode`
+ * (0,2,0) alone loses to `.xpro-ui input[type="text"]` (0,2,1), letting `flex: 1` and `min-width` take
+ * effect and stretch the box. The width is `--field`, shared with the size box so their right edges line
+ * up; it holds `#rrggbbaa` (nine characters) and the short dimmed text alike.
  */
 .xpro-ui input[type="text"].colorcode {
   /* Specified as the width including padding and border (the same treatment as `.size-box`) */
@@ -719,25 +696,20 @@
 }
 
 /*
- * The switch that puts one item back to how X shows it. It stands at the end of the
- * colour and size rows, and appears only where it does something (`ClearToggle`).
- * The words are dimmed and small: it is a note on the field beside it rather than a
- * setting of its own, and the row already carries the item's name.
- *
- * It follows the field in the markup rather than preceding it (the reason is in
- * `ClearToggle`: a control ahead of the field would take the row's own label away from
- * it), and it is lifted out of the row's flow so that following it costs the field
- * nothing. In flow it pushed the box of its own row some 70px left of every other row's,
- * and at a narrow width it wrapped onto a second line and made the row taller.
+ * The switch that puts one item back to how X shows it. It stands at the end of the colour and size
+ * rows, and appears only where it does something (`ClearToggle`). The words are dimmed and small: it is
+ * a note on the field beside it rather than a setting of its own, and the row already carries the item's
+ * name. It follows the field in the markup rather than preceding it (the reason is in `ClearToggle`: a
+ * control ahead of the field would take the row's own label away from it), and it is lifted out of the
+ * row's flow so following it costs the field nothing: in flow it pushed the box of its own row some 70px
+ * left of every other row's, and at a narrow width it wrapped onto a second line and made the row taller.
  */
 .xpro-ui .clear-toggle {
   /*
-   * A line of its own under the field, rather than beside it. Beside it, the switch stole
-   * about 70px from its own row and left that row's box out of line with every other
-   * row's; at a narrow width it wrapped anyway. Reserving the width on every row instead
-   * moved the wrapping onto the labels, which is worse — it costs height on rows that have
-   * no switch at all. Under the field, the cost falls only on the rows that carry one, and
-   * the boxes down the panel keep a single right edge at every width.
+   * A line of its own under the field, rather than beside it. Reserving the width on every row instead
+   * moved the wrapping onto the labels, which is worse — it costs height on rows that have no switch at
+   * all. Under the field, the cost falls only on the rows that carry one, and the boxes down the panel
+   * keep a single right edge at every width.
    */
   flex-basis: 100%;
   display: flex;
@@ -764,14 +736,11 @@
 }
 
 /*
- * The name of a row whose field carries the switch sits on the field's own line, not
- * halfway down the two. Centred, it floats between the box and the switch and stops
- * reading as the box's name.
- *
- * Selected with `:has()` rather than by a class the row is given. Whether the switch shows
- * is `ClearToggle`'s to decide (it weighs three things), and a class would mean writing
- * that decision out a second time where it could drift. The floor the extension declares
- * is Chrome 111 / Firefox 140, both well past `:has()`.
+ * The name of a row whose field carries the switch sits on the field's own line, not halfway down the
+ * two: centred, it floats between the box and the switch and stops reading as the box's name. Selected
+ * with `:has()` rather than by a class the row is given — whether the switch shows is `ClearToggle`'s to
+ * decide (it weighs three things), and a class would mean writing that decision out a second time where
+ * it could drift. The floor the extension declares is Chrome 111 / Firefox 140, both well past `:has()`.
  */
 .xpro-ui .row:has(.clear-toggle) {
   align-items: flex-start;
@@ -889,10 +858,7 @@
   letter-spacing: 0.07em;
 }
 
-/*
- * The note beside the heading (the deck currently on screen).
- * A deck name can get long, so what shrinks is the name rather than this.
- */
+/* The note beside the heading (the deck currently on screen). A deck name can get long, so what shrinks is the name */
 .xpro-ui .scope-group h2 .group-note {
   flex: 0 0 auto;
   padding: 0 5px;
@@ -1083,9 +1049,7 @@
   margin-top: 12px;
 }
 
-/*
- * The description of the selected action. It takes two lines' height so it does not shrink when switched to a shorter description.
- */
+/* The description of the selected action. It takes two lines' height so it does not shrink when switched to a shorter one */
 .xpro-ui .action-hint {
   margin: 4px 0 0;
   min-height: 2.6em;
@@ -1182,10 +1146,7 @@
   white-space: nowrap;
 }
 
-/*
- * Numbered in judging order.
- * A `li` made a grid shows no `::marker`, so a counter is used, as on the editing surface (`.rules`).
- */
+/* Numbered in judging order. A `li` made a grid shows no `::marker`, so a counter is used, as on `.rules` */
 .xpro-ui .effective-rules {
   margin: 0;
   padding: 0;

@@ -1,9 +1,7 @@
 /**
- * Which view of x.com a URL points at.
- *
- * x.com has no columns, so the tier below the account is the view being looked at. It is
- * read from the path alone: nothing in the DOM names a view, and the path is the one
- * thing X keeps stable across languages and redesigns.
+ * Which view of x.com a URL points at. x.com has no columns, so the tier below the account
+ * is the view being looked at, read from the path alone: nothing in the DOM names a view,
+ * and the path is the one thing X keeps stable across languages and redesigns.
  */
 
 /**
@@ -14,13 +12,11 @@
 export const VIEW_PREFIX = 'view:';
 
 /**
- * First path segments that are X's own pages rather than someone's screen name.
- *
- * Best effort, and deliberately so. A profile is "one segment that is not one of these",
- * which means a page X adds later would be taken for a profile until this list catches
- * up. The cost of that is the profile settings applying somewhere they were not meant
- * to; the cost of the opposite — listing screen names — is not being able to have
- * profile settings at all.
+ * First path segments that are X's own pages rather than someone's screen name. Best effort,
+ * and deliberately so: a profile is "one segment that is not one of these", so a page X adds
+ * later would be taken for a profile until this list catches up. The cost of that is the
+ * profile settings applying somewhere they were not meant to; the cost of the opposite —
+ * listing screen names — is not being able to have profile settings at all.
  */
 const NOT_A_PROFILE = new Set([
   'home',
@@ -53,16 +49,15 @@ const LIST = /^\/i\/lists\/(\d+)/;
 const HASHTAG = /^\/hashtag\/([^/]+)/;
 
 /**
- * The view key for that URL, or null where it is not one of the views settings can be
- * held for. null means the post runs on the global and account settings alone, which is a
- * normal state rather than a failure — a post's detail page is one.
+ * The view key for that URL, or null where it is not one of the views settings can be held
+ * for. null means the post runs on the global and account settings alone, which is a normal
+ * state rather than a failure — a post's detail page is one.
  *
- * A profile and a search are held one per person and one per query. Lumping them into a
- * key each would be tidier to list, but it would also mean a rule written for one
- * person's profile applying to everybody's.
- *
- * A screen name is folded to lower case: X treats `/Alice` and `/alice` as the same
- * person, and two entries for one profile would be two places to look for the setting.
+ * A profile and a search are held one per person and one per query: lumping them into a key
+ * each would be tidier to list, but would mean a rule written for one person's profile
+ * applying to everybody's. A screen name is folded to lower case, X treating `/Alice` and
+ * `/alice` as the same person and two entries for one profile being two places to look for
+ * the setting.
  */
 export const viewKeyOf = (pathname: string, search = ''): string | null => {
   const path = pathname.replace(/\/+$/, '') || '/';
@@ -104,11 +99,10 @@ export const viewKeyOf = (pathname: string, search = ''): string | null => {
 const STATUS = /^\/[^/]+(?:\/web)?\/status\/\d+(?:\/|$)/;
 
 /**
- * Whether that path is a post opened to be read.
- *
- * x.com holds one timeline, so unlike X Pro it cannot tell "opened to be read" from
- * "there to be skimmed" by what is on the page: the box for writing a reply is the same
- * one it shows at the top of the home timeline. The address says it instead.
+ * Whether that path is a post opened to be read. x.com holds one timeline, so unlike X Pro
+ * it cannot tell "opened to be read" from "there to be skimmed" by what is on the page: the
+ * box for writing a reply is the same one it shows at the top of the home timeline. The
+ * address says it instead.
  */
 export const isPostPage = (pathname: string): boolean => STATUS.test(pathname);
 
@@ -124,14 +118,11 @@ const UNREAD_COUNT = /^\(\d+\)\s*/;
 const X_SUFFIX = /\s*\/\s*X$/;
 
 /**
- * What X calls that view, taken from the page title. null when the title says nothing
- * usable, and the settings screen falls back to naming the view itself.
- *
- * The title is where X writes the name it chose, a list's own name included — the one
- * place the extension can reach it without reading the page's chrome.
- *
- * A bare "X" is refused. That is the title before X has set one for the view, and the
- * record would otherwise be painted over with it.
+ * What X calls that view, taken from the page title. null when the title says nothing usable,
+ * and the settings screen falls back to naming the view itself. The title is where X writes
+ * the name it chose, a list's own name included — the one place the extension can reach it
+ * without reading the page's chrome. A bare "X" is refused: that is the title before X has
+ * set one for the view, and the record would otherwise be painted over with it.
  */
 export const viewNameFrom = (pageTitle: string): string | null => {
   const name = pageTitle.replace(UNREAD_COUNT, '').replace(X_SUFFIX, '').trim();

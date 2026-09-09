@@ -1,13 +1,10 @@
 /**
- * Identifying columns and resolving the account each belongs to.
- *
- * `columnId` never appears in a DOM attribute and lives only in React's internal
- * state, so the MAIN world is asked to stamp it onto the elements. The account can
- * be read from the avatar in the column header.
- *
- * Columns are never addressed by their position. Switching decks replaces the
- * elements wholesale, and an assignment remembered as "the Nth from the left"
- * becomes another column's settings as it stands.
+ * Identifying columns and resolving the account each belongs to. `columnId` never appears in
+ * a DOM attribute and lives only in React's internal state, so the MAIN world is asked to
+ * stamp it onto the elements; the account can be read from the avatar in the column header.
+ * Columns are never addressed by their position: switching decks replaces the elements
+ * wholesale, and an assignment remembered as "the Nth from the left" becomes another
+ * column's settings as it stands.
  */
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { ScopeInfo } from '../surface/index.ts';
@@ -72,33 +69,25 @@ const askMainWorld = (timeoutMs = 3000): Promise<ColumnResponse> =>
   });
 
 /**
- * Returns the range covering one whole column: an element that holds the header and
- * the body but not the neighboring column.
+ * Returns the range covering one whole column: an element that holds the header and the
+ * body but not the neighboring column.
  *
- * Walks up from the column body and stops at whichever comes first:
- *   - just before an ancestor comes to hold two or more column bodies (so the
- *     neighboring column is not swept in)
- *   - the moment it holds the column header (that column's header has been reached)
+ * Walks up from the column body and stops at whichever comes first: just before an ancestor
+ * comes to hold two or more column bodies (so the neighboring column is not swept in), or
+ * the moment it holds the column header. With the former alone, an environment with a single
+ * column never satisfies the condition and the walk runs to the root element, picking up the
+ * sidebar's account avatar as the column's account; the latter is what stops that. maxDepth
+ * is insurance for a structure where neither condition holds, and is normally never reached.
  *
- * With the former alone, an environment with a single column never satisfies the
- * condition and the walk runs to the root element, picking up the sidebar's account
- * avatar as the column's account. The latter is what stops that.
- * maxDepth is insurance for a structure where neither condition holds; normally it is
- * never reached.
- *
- * `all` is every column body on the page, which the caller has in hand — this is asked
+ * `all` is every column body on the page, which the caller has in hand, this being asked
  * about each of them in turn. Whether an ancestor holds a second column is answered from
  * that list rather than by searching the ancestor, because the search gets dearer the
- * further up the walk goes: at the top it is the whole deck. Measured on a real deck of
- * nine columns (`test/pro_ad.htm`): 0.92ms to answer for all of them by searching, 0.37ms
- * by asking the list.
- *
- * It must be *every* column body: one missing from the list is one the walk cannot see,
- * and the range would climb straight past that column and swallow it. Whether `columnEl`
- * itself is in the list makes no difference — an ancestor holds it either way — which is
- * why the question is asked as "any of the others". It is required rather than defaulted
- * because a default would be worked out afresh on every call, which is the cost this is
- * getting away from.
+ * further up the walk goes: at the top it is the whole deck. It must be *every* column body
+ * — one missing is one the walk cannot see, and the range would climb straight past that
+ * column and swallow it. Whether `columnEl` itself is in the list makes no difference, an
+ * ancestor holding it either way, which is why the question is asked as "any of the others";
+ * it is required rather than defaulted because a default would be worked out afresh on every
+ * call, which is the cost this is getting away from.
  */
 const columnScopeOf = (columnEl: Element, all: readonly Element[], maxDepth = 10): Element => {
   let scope = columnEl;
@@ -127,12 +116,10 @@ const accountOf = (columnEl: Element, all: readonly Element[]): string | null =>
 };
 
 /**
- * The column name. The range is limited so that walking up does not pick up the
- * neighboring column's header.
- *
- * An empty name means "not drawn yet", not "has no name": right after a deck switch
- * the header's box appears first and its contents arrive a few hundred ms later.
- * null is returned so the recording side can treat it as "not known".
+ * The column name. The range is limited so that walking up does not pick up the neighboring
+ * column's header. An empty name means "not drawn yet", not "has no name": right after a
+ * deck switch the header's box appears first and its contents arrive a few hundred ms later,
+ * and null is returned so the recording side can treat it as "not known".
  */
 const titleOf = (columnEl: Element, all: readonly Element[]): string | null => {
   const title = columnScopeOf(columnEl, all).querySelector(TITLE_SELECTOR);
@@ -150,7 +137,7 @@ export const columnElements = (): Element[] =>
 
 /** Links on the deck rail. `manage` and `new` are mixed in, so only readable ids are taken */
 const DECK_LINK = 'a[href*="/i/decks/"]';
-/** "New deck". It is always on the rail, so it serves as a foothold when there is only one deck */
+/** "New deck" */
 const DECK_NEW = /\/i\/decks\/new$/;
 
 /** The deck on screen. It is the one thing on the rail that is not an `<a>`, so its id is read from the URL */
@@ -171,10 +158,9 @@ const railOf = (): Element | null => {
 };
 
 /**
- * Reads the deck rail. Read fresh every time rather than cached.
- * The rail is always in the DOM and lists every deck, including ones never visited,
- * so all that needs remembering is each deck's columns.
- * Deciding the state from what was read is `deckStateFrom`'s job (`deck.ts`).
+ * Reads the deck rail, fresh every time rather than cached: the rail is always in the DOM
+ * and lists every deck, including ones never visited, so all that needs remembering is each
+ * deck's columns. Deciding the state from what was read is `deckStateFrom`'s job (`deck.ts`).
  */
 export const deckState = (): DeckState =>
   deckStateFrom(
@@ -198,10 +184,9 @@ export const columnSignature = (): string =>
     .join('\n');
 
 /**
- * Asks the MAIN world to stamp the markers onto the column elements.
- * When none could be obtained, it waits a little and tries again: the MAIN world is
- * sometimes not ready yet, and giving up after one failure would take the whole
- * column tier out of service.
+ * Asks the MAIN world to stamp the markers onto the column elements. When none could be
+ * obtained, it waits a little and tries again: the MAIN world is sometimes not ready yet,
+ * and giving up after one failure would take the whole column tier out of service.
  */
 const stampIds = async (attempts = 3, waitMs = 400): Promise<void> => {
   for (let attempt = 0; attempt < attempts; attempt++) {
@@ -238,16 +223,13 @@ const scopeOfElement = (column: Element, all: readonly Element[]): ColumnScope =
  * unchanged, so re-reading is necessary.
  */
 export const detect = (): ScopeInfo[] => {
-  // Asked once and handed to each column: working out a column's range is a question
-  // about where the others are (`columnScopeOf`)
   const all = columnElements();
   return all.map((element) => ({ ...scopeOfElement(element, all), title: titleOf(element, all) }));
 };
 
 /**
  * Resolves the list of columns again. Called when the arrangement of columns changes.
- * The MAIN world stamps the markers first, then they are read, and the remembered
- * scopes are thrown away.
+ * The remembered scopes are thrown away.
  */
 export const refresh = async (): Promise<ScopeInfo[]> => {
   if (document.querySelector(COLUMN_SELECTOR)) await stampIds();
@@ -270,16 +252,13 @@ export const scopeOf = (cell: Element): ColumnScope => {
 };
 
 /**
- * Whether that cell's scope will no longer move. Inside a column it is settled once
- * the marker is stamped and the remembered scope agrees with that marker.
- *
- * Looking at the remembered one as well is the point. `scopeOf` returns the
- * remembered value first, and it is only discarded after `refresh` has waited for the
- * MAIN world's reply. Judging by the marker alone would judge a cell with the
- * previous column's settings once the same element becomes a different column.
- *
- * Use it only while the arrangement of columns is changing. Once things have settled,
- * a column whose marker cannot be obtained still applies up to the account tier, so
+ * Whether that cell's scope will no longer move. Inside a column it is settled once the
+ * marker is stamped and the remembered scope agrees with that marker. Looking at the
+ * remembered one as well is the point: `scopeOf` returns it first and it is only discarded
+ * after `refresh` has waited for the MAIN world's reply, so judging by the marker alone would
+ * judge a cell with the previous column's settings once the same element becomes a different
+ * column. Use it only while the arrangement of columns is changing — once things have
+ * settled, a column whose marker cannot be obtained still applies up to the account tier, so
  * this test must not be used.
  */
 export const scopeSettled = (cell: Element): boolean => {

@@ -8,10 +8,7 @@ const KINDS = Object.keys(PALETTES) as PaletteKind[];
 /** The six characters of colour, with any opacity on the end dropped */
 const base = (color: string) => color.slice(0, 7);
 
-/**
- * Where a colour sits on the wheel. Worked out here rather than shipped: the lists are
- * written in order by hand, and this is what checks the hand did not slip.
- */
+/** Where a colour sits on the wheel. Worked out here, not shipped: it checks the hand-written order */
 const wheelOf = (color: string) => {
   const [r, g, b] = [1, 3, 5].map((at) => Number.parseInt(color.slice(at, at + 2), 16) / 255) as [
     number,
@@ -35,11 +32,9 @@ const wheelOf = (color: string) => {
 };
 
 /**
- * Whether a colour reads as a grey.
- *
- * Near black and near white count however much chroma the arithmetic finds: X's body text
- * `#0f1419` comes out at 210° off a few points between its channels, and sorted by that
- * it would land in the middle of the blues.
+ * Whether a colour reads as a grey. Near black and near white count however much chroma the
+ * arithmetic finds: X's body text `#0f1419` comes out at 210° off a few points between its
+ * channels, and sorted by that would land in the middle of the blues.
  */
 const isGrey = (color: string) => {
   const { chroma, light } = wheelOf(color);
@@ -53,8 +48,8 @@ test('どの組も、同じ色を二度出さない', () => {
 });
 
 test('どの組も #rrggbb か #rrggbbaa で書く', () => {
-  // The value goes straight into the settings when a swatch is pressed, and the schema
-  // (`hexColor` in settings/schema.ts) refuses anything else
+  // A pressed swatch goes straight into the settings, and the schema (`hexColor` in
+  // settings/schema.ts) refuses anything else
   for (const kind of KINDS) {
     for (const color of PALETTES[kind]) {
       assert.match(color, /^#[0-9a-f]{6}([0-9a-f]{2})?$/, `${kind}: ${color}`);
@@ -118,10 +113,7 @@ test('ブランド以外の色は、どの組にも同じ顔ぶれで入る', ()
 });
 
 test('緑の帯が、他の帯と同じ密度で埋まっている', () => {
-  /*
-   * 足す前は lime 84° の次が X の緑 160° で、その間 76° がまるごと空だった。
-   * 他の帯は15〜20°刻みなので、そこだけ穴になっていた
-   */
+  /* 足す前は lime 84° の次が X の緑 160° で、その間 76° が空。他の帯は15〜20°刻みで、そこだけ穴だった */
   const greens = PALETTES.tint
     .map((color) => wheelOf(color).hue)
     .filter((hue) => hue >= 70 && hue < 180)

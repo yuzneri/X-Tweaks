@@ -1,7 +1,4 @@
-/*
- * The frame of the popup on the toolbar icon.
- * How the parts look lives in ui/panel.css; this is only size and layout.
- */
+/* The frame of the popup on the toolbar icon. How the parts look lives in ui/panel.css; this is only size and layout */
 :root {
   color-scheme: light dark;
 }
@@ -24,10 +21,7 @@ body {
   font-weight: 600;
 }
 
-/*
- * Whether it is currently running.
- * While paused the color changes, so it registers the moment the popup opens.
- */
+/* Whether it is currently running. While paused the color changes, so it registers the moment the popup opens */
 .xpro-ui .popup-state {
   margin: 0;
   color: var(--muted);

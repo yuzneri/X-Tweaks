@@ -1,7 +1,6 @@
 /**
- * Paints the emphasis on matched characters. It uses the CSS Custom Highlight API,
- * so nothing is added to the DOM. All this does is turn "positions within a string"
- * into positions in the DOM and register them.
+ * Paints the emphasis on matched characters through the CSS Custom Highlight API, so nothing
+ * is added to the DOM: it turns positions within a string into DOM positions and registers them.
  */
 import type { Emphasis, MarkRange } from './decide.ts';
 import { markTargets, ownTextNodesOf, type MarkTarget } from './post.ts';
@@ -11,18 +10,16 @@ import { fixIfWorsened, layer, parseColor, parseCssColor, type Rgb } from '../ap
 const STYLE_ID = 'xpro-tweaks-mark-style';
 
 /**
- * The names passed to `::highlight()`, one per pair of color and target text color.
- * The name is the only way to choose a color, and taking the target through a CSS
- * variable cannot express "leave the text color alone" (both `inherit` and
- * `currentColor` give the parent's color). The only way to keep the original color is
- * to write no `color` at all, hence a separate name per pair.
+ * The names passed to `::highlight()`, one per pair of color and target text color. The name
+ * is the only way to choose a color, and a CSS variable cannot express "leave the text color
+ * alone" (both `inherit` and `currentColor` give the parent's) — keeping the original means
+ * writing no `color` at all.
  */
 const NAME_PREFIX = 'xpro-mark-';
 
 /**
  * lib.dom's `Highlight` carries no set operations, so what is needed is filled in here.
- * `size` and the iterators are implemented inconsistently across browsers, so `forEach`
- * alone is used.
+ * `size` and the iterators vary across browsers, so `forEach` alone is used.
  */
 type RangeSet = Highlight & {
   add: (range: AbstractRange) => void;
@@ -39,9 +36,8 @@ const byStyle = new Map<string, { name: string; ranges: RangeSet; color: string;
 const styleKey = (color: string, fg: string | null): string => `${color}|${fg ?? ''}`;
 
 /**
- * The running number in `::highlight()` names. Colors that fall out of use are
- * discarded, but their numbers are not handed out again: reusing a discarded number
- * would mix with CSS still carrying the previous color's declaration.
+ * The running number in `::highlight()` names. Colors falling out of use are discarded, their
+ * numbers not: a reused one would mix with CSS still carrying the previous color's declaration.
  */
 let nextName = 1;
 
@@ -86,10 +82,9 @@ const setFor = (color: string, fg: string | null): RangeSet | null => {
 type Piece = { range: Range; element: Element };
 
 /**
- * Turns the positions `[start, end)` within the whole text into Ranges, split per text
- * node. As a single Range, a span crossing plain text and a link could only carry one
- * text color. Split up, each piece is judged with its own text color and shifted
- * separately.
+ * Turns the positions `[start, end)` within the whole text into Ranges, split per text node.
+ * As a single Range, a span crossing plain text and a link could only carry one text color;
+ * split up, each piece is judged with its own and shifted separately.
  */
 const piecesOf = (nodes: Text[], start: number, end: number): Piece[] => {
   const pieces: Piece[] = [];
@@ -143,9 +138,8 @@ export const unmark = (cell: Element): void => {
 };
 
 /**
- * Paints the matched characters, removing what was painted before re-painting.
- * Painting follows list order, and where two overlap on the same characters the rule
- * seen first takes it.
+ * Paints the matched characters, removing what was painted before re-painting. Painting
+ * follows list order, and where two overlap on the same characters the rule seen first takes it.
  */
 export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolean): void => {
   unmark(cell);
@@ -155,9 +149,8 @@ export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolea
   /** The ranges already painted, per element. Kept to avoid overlaps */
   const taken = new Map<Element, MarkRange[]>();
   /*
-   * What is behind the post, measured once. Everything painted in it sits on this, and
-   * the walk up from an element runs to the root — above the post it is the same walk
-   * every time (`backgroundWithin`).
+   * What is behind the post, measured once — everything painted sits on this, and the walk
+   * from an element to the root is the same above the post every time (`backgroundWithin`).
    */
   const behind = adjustContrast ? backgroundBehind(cell) : null;
   /** A memo so the same element-and-color pair is not measured twice. Lives for one call only */
@@ -211,11 +204,10 @@ const readableOver = (
 };
 
 /**
- * Whether a Range has nothing left to paint. A Range follows changes in the DOM, and
- * when the text node it pointed at disappears it collapses to a position within the
- * parent and has length 0, so `isConnected` alone is not enough.
- * One that can no longer be touched counts as gone too (Firefox throws on a Range
- * pointing at a discarded node).
+ * Whether a Range has nothing left to paint. A Range follows changes in the DOM, and when the
+ * text node it pointed at disappears it collapses to a position within the parent with length
+ * 0, so `isConnected` alone is not enough. One that can no longer be touched counts as gone
+ * too (Firefox throws on a Range pointing at a discarded node).
  */
 const isGone = (range: AbstractRange): boolean => {
   try {
@@ -226,9 +218,8 @@ const isGone = (range: AbstractRange): boolean => {
 };
 
 /**
- * Discards what belonged to posts that left the screen.
- * When the virtual list removes a cell outright, `unmark` is never reached, and left
- * as they are these would keep piling up.
+ * Discards what belonged to posts that left the screen: when the virtual list removes a cell
+ * outright `unmark` is never reached, and left as they are these would keep piling up.
  */
 export const sweep = (): void => {
   let dropped = false;
@@ -244,11 +235,9 @@ export const sweep = (): void => {
       else live++;
     }
 
-    // A color that has fallen out of use is discarded along with its registration.
-    // Left in place, they would grow every time a color is picked again.
-    // A color that is only temporarily empty because its matches are off screen is
-    // discarded too, but it is registered again as soon as something matches, so
-    // nothing changes visibly
+    // A colour that is fallen out of use is discarded with its registration — left in place
+    // they'd grow every time a colour is picked again. One only temporarily empty (matches
+    // off screen) goes too, but is re-registered as soon as something matches
     if (live === 0) {
       CSS.highlights.delete(name);
       byStyle.delete(key);

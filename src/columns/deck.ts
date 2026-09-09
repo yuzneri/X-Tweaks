@@ -3,10 +3,9 @@
 const NOT_A_DECK = new Set(['manage', 'new']);
 
 /**
- * Reads the `deckId` out of a URL. null when it points at no deck.
- * The rail also carries `manage`, `new`, and the `…/edit` of the deck on screen,
- * so anything with more path after the id is rejected (taking `…/edit` would list
- * the same deck twice).
+ * Reads the `deckId` out of a URL. null when it points at no deck. The rail also carries
+ * `manage`, `new`, and the `…/edit` of the deck on screen, so anything with more path after
+ * the id is rejected (taking `…/edit` would list the same deck twice).
  */
 export const deckIdOf = (url: string): string | null => {
   const found = /\/i\/decks\/([^/?#]+)(\/[^?#]*)?/.exec(url);
@@ -18,7 +17,7 @@ export const deckIdOf = (url: string): string | null => {
 
 /**
  * The enclosing marks, paired open with close and tried in order. Merged into a
- * single character class, `Deck "News" isn't selected` would swallow up to another
+ * single character class, `Deck "News" is not selected` would swallow up to another
  * quote mark and yield `News" isn`.
  */
 const QUOTES: readonly (readonly [string, string])[] = [
@@ -31,12 +30,10 @@ const QUOTES: readonly (readonly [string, string])[] = [
 
 /**
  * Extracts a deck name from its label ("Deck "Tech" is not selected"). null when unreadable.
- *
- * Both the enclosing marks and the surrounding words change with the UI language, so
- * this is only ever used for display. Identification is done by `deckIdOf`, and when
- * that fails the caller falls back to numbering.
- * A name can itself contain the enclosing marks (「あ「い」う」), so the last closing
- * mark is the one taken.
+ * Both the enclosing marks and the surrounding words change with the UI language, so this is
+ * only ever used for display: identification is done by `deckIdOf`, and when that fails the
+ * caller falls back to numbering. A name can itself contain the enclosing marks (「あ「い」う」),
+ * so the last closing mark is the one taken.
  */
 export const deckNameOf = (label: string | null): string | null => {
   const text = label ?? '';
@@ -53,19 +50,17 @@ export const deckNameOf = (label: string | null): string | null => {
 export type DeckInfo = { deckId: string; name: string | null };
 
 /**
- * What could be read about the decks right now.
- *
- * An empty `decks` means "the list is unknown"; a null `deckId` means "which deck is
- * on screen cannot be decided". The recording side uses that distinction to avoid
- * deleting what it does not know.
+ * What could be read about the decks right now. An empty `decks` means "the list is
+ * unknown"; a null `deckId` means "which deck is on screen cannot be decided". The recording
+ * side uses that distinction to avoid deleting what it does not know.
  */
 export type DeckState = { decks: DeckInfo[]; deckId: string | null };
 
 /**
- * The stand-in name for the deck on screen when it cannot be read from the URL.
- * With null, that deck's columns would be recorded nowhere and disappear from the
- * settings screen, so even in an unidentifiable state the columns currently visible
- * can still be listed. X's ids are alphanumeric, so this name never collides.
+ * The stand-in name for the deck on screen when it cannot be read from the URL. With null,
+ * that deck's columns would be recorded nowhere and disappear from the settings screen, so
+ * even unidentifiable the columns currently visible can still be listed. X's ids are
+ * alphanumeric, so this name never collides.
  */
 export const UNKNOWN_DECK = '?';
 
@@ -79,14 +74,12 @@ export type DeckRailItem = {
 };
 
 /**
- * Decides the deck state from the items on the rail and the id of the deck on screen
- * read from the URL.
- *
- * The rail and the URL do not change together. On a switch the URL changes first and
- * the rail follows seconds later, and during that gap the deck the URL points at sits
- * on the "not selected" side of the rail (`<a>`). Read as is, the deck being viewed
- * until a moment ago disappears along with its records.
- * While they disagree, "unknown" is returned and the rail is given time to catch up.
+ * Decides the deck state from the items on the rail and the id of the deck on screen read
+ * from the URL. The rail and the URL do not change together: on a switch the URL changes
+ * first and the rail follows seconds later, and in that gap the deck the URL points at sits
+ * on the "not selected" side of the rail (`<a>`), where read as is the deck being viewed
+ * until a moment ago disappears along with its records. While they disagree, "unknown" is
+ * returned and the rail is given time to catch up.
  */
 export const deckStateFrom = (items: readonly DeckRailItem[], current: string): DeckState => {
   const linked = items.map((item) => deckIdOf(item.href ?? ''));

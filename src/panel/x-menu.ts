@@ -3,11 +3,9 @@
  *
  * The menu is told apart by the button that opened it, the way X Pro's is: the wording
  * inside changes with the UI language, and a post's own menu carries `role="menu"` just
- * the same. Here the button is marked, so no walk up from it is needed — x.com is
- * simpler than X Pro in that one respect.
- *
- * Its items are `a[role="link"]`, not `role="menuitem"`: x.com and X Pro disagree here,
- * which is why the template selector is not shared.
+ * the same. Here the button itself is marked, so no walk up from it is needed. Its items
+ * are `a[role="link"]`, not `role="menuitem"`, which is why the template selector is not
+ * shared.
  */
 import type { Messages } from '../i18n/index.ts';
 import { buildItem, MARK, MENU } from './menu-item.ts';
@@ -19,12 +17,10 @@ const MORE_BUTTON = '[data-testid="AppTabBar_More_Menu"]';
 const MENU_LINK = 'a[role="link"]';
 
 /**
- * The rows of the menu, in the order they are drawn.
- *
- * x.com wraps every link in a row of its own, and it is the row that has to be cloned:
- * clone the link and it lands *inside* the first row, beside "Lists", drawn along the
- * row rather than under it. X Pro puts its items side by side under one parent, which
- * is why this differs.
+ * The rows of the menu, in the order they are drawn. x.com wraps every link in a row of
+ * its own, and it is the row that has to be cloned: clone the link and it lands *inside*
+ * the first row, beside "Lists", drawn along the row rather than under it. X Pro puts its
+ * items side by side under one parent, hence the difference.
  */
 const rowsIn = (menu: Element): Element[] =>
   Array.from(menu.querySelectorAll(MENU_LINK), (link) => link.parentElement).filter(
@@ -35,9 +31,8 @@ const rowsIn = (menu: Element): Element[] =>
 const isMoreMenu = (): boolean => lastTrigger()?.closest(MORE_BUTTON) != null;
 
 /**
- * Inserts the item into the menu currently open, returning true if it did.
- * The caller can simply call it on every settling of the DOM; double insertion is
- * prevented here.
+ * Inserts the item into the menu currently open, returning true if it did. Safe to call on
+ * every settling of the DOM: double insertion is prevented here.
  */
 export const insertInto = (messages: Messages): boolean => {
   if (!isMoreMenu()) return false;

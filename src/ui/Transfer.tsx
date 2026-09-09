@@ -42,7 +42,7 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
 
-  // The timestamp is built along with the contents. Fixing it at the moment of opening would disagree once the settings change
+  // The timestamp is built with the contents; fixed at the moment of opening it would disagree once the settings change
   const { at, text } = useMemo(() => {
     const at = new Date();
     return { at, text: buildExport(settings, detected, at) };
@@ -50,8 +50,8 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
 
   const shown = draft ?? text;
 
-  // Once the contents change, an earlier "copied" notice is stale.
-  // The "loaded" notice is not cleared here (loading also returns the box to the export side, so it clears the instant it appears)
+  // Once the contents change, an earlier "copied" notice is stale. "Loaded" is not cleared here:
+  // loading also returns the box to the export side, so it clears the instant it appears
   useEffect(() => setCopied(null), [shown]);
 
   // On opening, move to where reading starts. Not moved when it is rebuilt by a change in another tab

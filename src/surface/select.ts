@@ -10,9 +10,9 @@ export const PRO_HOST = 'pro.x.com';
 export const X_HOST = 'x.com';
 
 /**
- * null for a host that is neither. The content script is only registered for those two,
- * so it should not come up — but a surface guessed for an unknown host would resolve
- * scopes against a page nobody has looked at, and doing nothing is the safer answer.
+ * null for a host that is neither. The content script is only registered for those two, so
+ * it should not come up — but a surface guessed for an unknown host would resolve scopes
+ * against a page nobody has looked at, and doing nothing is safer.
  */
 export const surfaceFor = (hostname: string): Surface | null => {
   if (hostname === PRO_HOST) return proSurface;

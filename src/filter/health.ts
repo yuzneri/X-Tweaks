@@ -1,9 +1,7 @@
 /**
- * The watch on whether X's markers are broken.
- *
- * Absence is never a conclusion. X Pro renders late, so "not drawn yet" and "broken"
- * show up in the same shape (no marker). Broken is only concluded from the shape where
- * something is drawn but the marker that should accompany it is the only thing missing.
+ * The watch on whether X's markers are broken. Absence is no conclusion: X Pro renders
+ * late, so "not drawn yet" and "broken" both show as a missing marker. Broken is concluded
+ * only where something is drawn and the marker that should accompany it alone is missing.
  */
 
 /** The markers being watched. Each one breaking takes out a different range of behavior */
@@ -11,27 +9,23 @@ export const MARKERS = ['cell', 'post', 'text', 'column'] as const;
 export type Marker = (typeof MARKERS)[number];
 
 /**
- * What was counted. `articles` is counted by its ARIA role, so it survives X renaming a
- * marker, and that is what makes "there are posts but the cell marker is unreadable"
- * distinguishable.
+ * What was counted. `articles` goes by its ARIA role, so it survives X renaming a marker,
+ * which is what makes "there are posts but the cell marker is unreadable" tellable.
  */
 export type Tally = { articles: number; cells: number; posts: number; texts: number };
 
 export const emptyTally = (): Tally => ({ articles: 0, cells: 0, posts: 0, texts: 0 });
 
 /**
- * How many to see before deciding, kept equal to the ad guard's number.
- * A floor against jumping to conclusions right after opening, or while looking at
- * empty columns only.
+ * How many to see before deciding, kept equal to the ad guard's number. A floor against
+ * concluding right after opening, or while looking at empty columns only.
  */
 const SAMPLE = 20;
 
 /**
- * Lists the broken markers.
- *
- * When an upper level breaks there is no way to count the lower ones, so several never
- * come up at once (with zero cells, `posts` never reaches its floor). Only the topmost
- * breakage is listed.
+ * Lists the broken markers. When an upper level breaks there is no way to count the lower
+ * ones, so several never come up at once (with zero cells, `posts` never reaches its
+ * floor): only the topmost breakage is listed.
  */
 export const brokenMarkers = (tally: Tally): Marker[] => {
   const broken: Marker[] = [];
@@ -45,20 +39,17 @@ export const brokenMarkers = (tally: Tally): Marker[] => {
 };
 
 /**
- * Whether columns exist but not one `columnId` resolves. Getting none out of three
- * attempts means "cannot be obtained" rather than "not yet", so no floor on the count
- * is needed.
- * Nothing is switched off when it breaks; it is watched only to report that the column
- * tier has stopped applying.
+ * Whether columns exist but not one `columnId` resolves. None out of three attempts means
+ * "cannot be obtained" rather than "not yet", so no floor on the count is needed. Nothing
+ * is switched off when it breaks: it only reports that the column tier stopped applying.
  */
 export const columnsUnresolved = (total: number, resolved: number): boolean =>
   total > 0 && resolved === 0;
 
 /**
- * Whether to stop the rules that read the body text when the body marker is broken.
- * The reason to stop them is not that they do too little but that they do too much:
- * with the body unreadable, "the body does not contain ○○" matches every post and the
- * whole timeline disappears.
+ * Whether to stop the rules that read the body text when the body marker is broken. Not
+ * because they do too little but too much: with the body unreadable, "the body does not
+ * contain ○○" matches every post and the whole timeline disappears.
  */
 export const textRulesStopped = (broken: readonly Marker[]): boolean => broken.includes('text');
 

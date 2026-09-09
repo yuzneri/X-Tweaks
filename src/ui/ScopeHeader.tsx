@@ -1,7 +1,7 @@
 /**
- * The right pane's heading. It keeps what is being edited visible at the top, and
- * reassigning and deleting unassigned settings happen here too.
- * Reassignment is not in the list on the left: "select" and "move to another key" side by side invite mispresses.
+ * The right pane's heading, keeping what is being edited visible at the top. Reassigning and deleting
+ * unassigned settings happen here, not in the list on the left where "select" and "move to another key"
+ * side by side invite mispresses.
  */
 import { useState } from 'preact/hooks';
 import { useMessages } from './messages.tsx';
@@ -25,9 +25,8 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, si
   const m = useMessages();
   const [forgetting, setForgetting] = useState(false);
   /*
-   * Whole sentences change with the language, so a branch of the dictionary is chosen
-   * rather than a word slotted in. The same holds across sites: a column of X Pro's deck
-   * and a view of x.com are not the same thing, and one sentence cannot cover both
+   * Whole sentences change with the language, so a branch of the dictionary is chosen rather than a
+   * word slotted in. Sites differ too: a column of X Pro's deck and a view of x.com are not the same
    */
   const scopeWords = site === 'x' ? m.unassigned.view : m.unassigned.column;
   // An account on one site is still an account: what it can be moved to is another account
@@ -40,7 +39,7 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, si
   return (
     <>
       <div class="scope-header">
-        {/* The right pane's heading. Navigating by heading with a screen reader lands on the scope being edited */}
+        {/* Navigating by heading with a screen reader lands on the scope being edited */}
         <h2 class="scope-label">{entry.label}</h2>
         {entry.detail && <span class="rule-meta">{entry.detail}</span>}
         {entry.unassigned && (
@@ -80,9 +79,8 @@ export const ScopeHeader = ({ entry, targets, onReassign, onRemove, onForget, si
       )}
 
       {/*
-        Drops a deleted column from the list.
-        The confirmation is only interposed when it has settings: without them nothing is lost,
-        and a column that is still there gets listed again on the next detection.
+        Drops a deleted column from the list. The confirmation is interposed only when it has settings:
+        without them nothing is lost, and a column that is still there is listed again on the next detection
       */}
       {onForget && !entry.unassigned && (
         forgetting ? (

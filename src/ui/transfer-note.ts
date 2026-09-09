@@ -1,5 +1,5 @@
 /**
- * Decides which notice the import/export screen shows. Looking the wording up is `Transfer.tsx`'s job.
+ * Decides which notice the import/export screen shows; the wording is `Transfer.tsx`'s job.
  * `node --test` cannot handle `.tsx`, so the decision lives here.
  */
 
@@ -19,8 +19,8 @@ export type TransferNote =
   | null;
 
 /**
- * Only one notice is shown. A success notice can outlive a later failed action, so failures
- * are looked at before successes. An import refusal is the result of the very action pressed, so it comes first.
+ * Only one notice is shown. A success notice can outlive a later failed action, so failures come
+ * before successes, and an import refusal, being the result of the action just pressed, comes first.
  */
 export const noteOf = (outcome: TransferOutcome): TransferNote => {
   if (outcome.error !== null) return { kind: 'error', text: outcome.error };

@@ -15,42 +15,39 @@ export type ComposeColor = { account: string | null; color: string };
 export type ComposeColors = {
   colors: ComposeColor[];
   /**
-   * Accounts the general colour must not reach.
-   *
-   * An account that switched the appearance off resolves no colour of its own, and
-   * without this the general rule — which matches any marked form — would paint it
-   * anyway, so turning the appearance off would leave the compose form coloured.
+   * Accounts the general colour must not reach. An account that switched the appearance off
+   * resolves no colour of its own, and the general rule matches any marked form, so without
+   * this, turning the appearance off would leave the compose form coloured.
    */
   except: string[];
 };
 
 /**
- * The colour of each account's compose form, general one first.
- *
- * Resolved with no column: the form belongs to an account rather than to anything on
- * screen, so `tiersFor` (`settings/resolve.ts`) leaves the column tier out. The site is
- * passed because it is a tier of its own and sits below the account — a colour set for an
- * account reaches both sites, and the site tier is where one of the two takes it back.
- * The entry for no account carries what the tiers above set, which the accounts that set
- * nothing of their own inherit — written first so a named account's own colour, weighing
- * the same, wins by coming later.
- *
- * Accounts are taken from what is stored rather than from what is on screen: on X Pro the
- * drawer posts as whichever account was chosen in it, which need not be any column's.
- */
-/**
- * Every account with settings that can reach this site's compose form: the ones set for
- * the account itself, and the ones set for that account on this site alone.
- *
- * An account can appear in the second list and not the first — "leave this account's
- * colour off X Pro" is written there and nowhere else — and a name missed here is a form
- * that keeps the general colour it was supposed to lose.
- * The other site's map is left out: nothing in it can reach the form being painted.
+ * Every account with settings that can reach this site's compose form: the ones set for the
+ * account itself, and the ones set for that account on this site alone. An account can
+ * appear in the second and not the first — "leave this account's colour off X Pro" is
+ * written there and nowhere else — and a name missed here is a form that keeps the general
+ * colour it was supposed to lose. The other site's map is left out: nothing in it can reach
+ * the form being painted.
  */
 const accountsIn = (settings: Settings, surface: SurfaceId): string[] => [
   ...new Set([...Object.keys(settings.accounts), ...Object.keys(settings.surfaceAccounts[surface])]),
 ];
 
+/**
+ * The colour of each account's compose form, general one first.
+ *
+ * Resolved with no column: the form belongs to an account rather than to anything on screen,
+ * so `tiersFor` (`settings/resolve.ts`) leaves the column tier out. The site is passed
+ * because it is a tier of its own below the account — a colour set for an account reaches
+ * both sites, and the site tier is where one of the two takes it back. The entry for no
+ * account carries what the tiers above set, which accounts setting nothing of their own
+ * inherit; it comes first so a named account's colour, weighing the same, wins by coming
+ * later.
+ *
+ * Accounts are taken from what is stored rather than from what is on screen: on X Pro the
+ * drawer posts as whichever account was chosen in it, which need not be any column's.
+ */
 export const composeColors = (settings: Settings, surface: SurfaceId): ComposeColors => {
   const colorFor = (account: string | null): string | null =>
     appearanceFor(settings, { account, surface, columnId: null }).colors.composeBackground;
@@ -70,10 +67,9 @@ export const composeColors = (settings: Settings, surface: SurfaceId): ComposeCo
 };
 
 /**
- * The colour behind x.com's page, from the view on screen.
- *
- * x.com draws one view at a time, so there is one answer. The columns are folded by key
- * before they get here, and on x.com that fold leaves a single entry.
+ * The colour behind x.com's page, from the view on screen. x.com draws one view at a time,
+ * so there is one answer: the columns are folded by key before they get here, and on x.com
+ * that fold leaves a single entry.
  */
 export const pageColor = (columns: { appearance: AppearanceNode }[]): string | null =>
   columns[0]?.appearance.colors.pageBackground ?? null;

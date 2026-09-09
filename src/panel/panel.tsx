@@ -1,8 +1,7 @@
 /**
- * The settings panel that opens inside pro.x.com. It adds a single `xpro-panel-host`
- * and removes it on close.
- * No Shadow DOM: the contents go under the `xpro-ui` class and the separation is done
- * on the CSS side.
+ * The settings panel that opens inside pro.x.com. It adds a single `xpro-panel-host` and
+ * removes it on close. No Shadow DOM: the contents go under the `xpro-ui` class and the
+ * separation is done on the CSS side.
  */
 import { render } from 'preact';
 import type { Locale } from '../i18n/index.ts';
@@ -20,10 +19,9 @@ const HOST_CLASS = 'xpro-panel-host';
 let host: HTMLElement | null = null;
 
 /**
- * Closes on Esc, listening only while the panel is open.
- * While the color picker is open it keeps its hands off: stopping the event here would
- * keep it from the picker's own Esc, and the panel alone would vanish, stranding the
- * picker on the page.
+ * Closes on Esc, listening only while the panel is open. While the color picker is open it
+ * keeps its hands off: stopping the event here would keep it from the picker's own Esc and
+ * the panel alone would vanish, stranding the picker on the page.
  */
 const onKeyDown = (event: KeyboardEvent): void => {
   if (event.key !== 'Escape') return;
@@ -60,9 +58,8 @@ export const close = (): void => {
 export type Start = Scope;
 
 /**
- * Opens the panel. If it is already open, it is reopened with a different landing spot.
- * Returning without doing anything would leave the display unchanged when opened from a
- * different column.
+ * Opens the panel. If it is already open it is reopened with a different landing spot:
+ * returning early would leave the display unchanged when opened from a different column.
  */
 export const open = (start?: Start): void => {
   if (host) close();

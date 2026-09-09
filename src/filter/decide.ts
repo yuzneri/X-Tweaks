@@ -21,25 +21,20 @@ import {
 import type { Messages } from '../i18n/index.ts';
 
 /**
- * One post's worth of information, as the judgement sees it.
- * Items without the marker the judgement needs (notifications in a notification
- * column, say) never get this far.
+ * One post's worth of information, as the judgement sees it. Items without the marker it
+ * needs (notifications in a notification column, say) never get this far.
  */
 export type Post = {
   /**
-   * The strings per target. All of them are lists because treating "several" and
-   * "one" separately would split the matching in two. An empty list means the post
-   * has no such value.
+   * The strings per target, all lists because treating "several" and "one" separately would
+   * split the matching in two. An empty list means the post has no such value.
    */
   values: Record<MatchTarget, string[]>;
   isRepost: boolean;
   isQuote: boolean;
   isReply: boolean;
   hasMedia: boolean;
-  /**
-   * The state of a Community Note.
-   * `added` means it is shown, `rating` that it is not shown yet and a rating is being asked for
-   */
+  /** A Community Note's state: `added` is shown, `rating` not shown yet and a rating being asked for */
   communityNote: 'added' | 'rating' | null;
   /** The state of a poll. `open` means voting is still possible, `closed` that the results are out */
   poll: 'open' | 'closed' | null;
@@ -55,16 +50,14 @@ export type Post = {
   /** Whether the text holds a pasted URL, whether or not X drew a card under it */
   hasBodyLink: boolean;
   /**
-   * When it was posted (epoch milliseconds). null when unreadable.
-   * It is the post's own time rather than the quoted post's, and on a repost it is the
-   * original post's time.
+   * When it was posted (epoch milliseconds), null when unreadable. The post's own time
+   * rather than the quoted post's, and on a repost the original post's.
    */
   postedAt: number | null;
   /**
-   * What there is to count about the post. null where the number is not on the post at
-   * all, which is not the same as zero: X shows no number for the views of some posts,
-   * while replies, reposts and likes say "0" outright. What is counted in the body
-   * (the characters, the hashtags, the mentions) is never null — an empty body is 0
+   * What there is to count. null where the number is not on the post at all, which is not
+   * zero — X shows none for some posts' views, while replies, reposts and likes say "0".
+   * In-body counts (the characters, the hashtags, the mentions) are never null: an empty body is 0
    */
   counts: Record<CountMetric, number | null>;
 };
@@ -73,9 +66,8 @@ export type Post = {
 export type MarkRange = { start: number; end: number };
 
 /**
- * How emphasis is decided. Pass a string to `ranges` and it returns the ranges to
- * paint within it, in order. Which element's string to pass is decided by the side
- * that looks at the DOM (filter/apply.ts), based on `target`.
+ * How emphasis is decided: pass a string to `ranges` for the ranges to paint within it, in
+ * order. Which element's string to pass is the DOM side's to decide from `target` (filter/apply.ts).
  */
 export type Emphasis = {
   target: MatchTarget;
@@ -83,10 +75,7 @@ export type Emphasis = {
   color: string;
 };
 
-/**
- * How one post is treated. The shapes are split by action, which makes "collapsed but
- * has a color" impossible to express.
- */
+/** How one post is treated. The shapes are split by action, making "collapsed but has a color" inexpressible */
 export type Decision =
   | { action: typeof ACTIONS.COLLAPSE; label: string }
   | { action: typeof ACTIONS.HIDE; label: string }
@@ -98,9 +87,8 @@ export type Decision =
     };
 
 /**
- * The result of judging one post. Only the first matching action that decides how the
- * post is shown takes effect, but emphasis neither collapses nor hides a post, so
- * every match applies.
+ * The result of judging one post. Only the first matching action deciding how the post is
+ * shown takes effect, but emphasis neither collapses nor hides, so every match applies.
  */
 export type Verdict = {
   decision: Decision | null;
@@ -114,9 +102,8 @@ type CompiledRule = {
   color: string;
   label: string;
   /**
-   * Where to paint, one entry per text condition of that rule.
-   * Empty unless the action is emphasis. Conditions with nothing to paint (negated
-   * ones, unpaintable targets) are left out.
+   * Where to paint, one entry per text condition of that rule; empty unless the action is
+   * emphasis. Conditions with nothing to paint (negated ones, unpaintable targets) are left out.
    */
   emphases: Emphasis[];
 };
@@ -134,10 +121,7 @@ export type CompiledFilter = {
 const caseSensitivityOf = (condition: TextCondition): boolean =>
   isScreenNameTarget(condition.target) ? false : condition.caseSensitive;
 
-/**
- * A match when any one of the target's values matches the pattern.
- * A post with no such value (an empty list) matches no text condition.
- */
+/** A match when any of the target's values matches the pattern. A post with no such value (an empty list) matches none */
 const textMatcher = (condition: TextCondition): ((post: Post) => boolean) => {
   const caseSensitive = caseSensitivityOf(condition);
 
@@ -153,12 +137,10 @@ const textMatcher = (condition: TextCondition): ((post: Post) => boolean) => {
   if (condition.mode === 'regex') {
     let regex: RegExp;
     try {
-      // No g flag: lastIndex would persist and throw off the second and later judgements
-      // with the same regular expression
+      // No g flag: lastIndex would persist and throw off later judgements with the same pattern
       regex = new RegExp(condition.pattern, caseSensitive ? 'u' : 'iu');
     } catch {
-      // Normally impossible, since patterns are validated when saved.
-      // Reading a broken setting must not throw, so treat it as matching nothing
+      // Normally impossible (patterns are validated when saved), but reading a broken setting must not throw: match nothing
       return () => false;
     }
     return (post) => post.values[condition.target].some((value) => regex.test(value));
@@ -176,11 +158,10 @@ const textMatcher = (condition: TextCondition): ((post: Post) => boolean) => {
 const escapeRegex = (pattern: string): string => pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Builds the function returning where the matches are. Both "contains" and regular
- * expressions search with a regular expression.
- * Counting positions in a `toLowerCase()`d string would shift them for characters
- * whose length changes when lowercased (`ß` and the like), so when case is ignored the
- * `i` flag is used and positions are counted in the original string.
+ * Builds the function returning where the matches are; both "contains" and regular
+ * expressions search with one. Counting positions in a `toLowerCase()`d string would shift
+ * them for characters whose length changes when lowercased (`ß` and the like), so when case
+ * is ignored the `i` flag is used and positions are counted in the original string.
  */
 const rangeFinder = (
   rule: TextCondition,
@@ -232,13 +213,10 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
 };
 
 /**
- * How old a post is. `Date.now()` is called on every match rather than at compile time:
- * fixing it at compile time would freeze the age until the settings change.
- *
- * The answer is still the one from the moment the post was read — a post already judged
- * is not judged again as it ages (`filter/engine.ts`), so a post crossing the span while
- * on screen keeps the answer it was given. That standing answer is why only the old side
- * is offered: "newer than" would be true of every post as it arrived and stay true.
+ * How old a post is. `Date.now()` is called on every match, not at compile time, which would
+ * freeze the age until the settings change. The answer still reflects when the post was
+ * read — it is not rejudged as it ages (`filter/engine.ts`) — so only the old side is offered:
+ * "newer than" would be true of every post as it arrived, and stay true.
  */
 const ageMatcher = (condition: AgeCondition): ((post: Post) => boolean) => {
   const limit = condition.minutes * 60_000;
@@ -246,12 +224,9 @@ const ageMatcher = (condition: AgeCondition): ((post: Post) => boolean) => {
 };
 
 /**
- * How many reactions the post carries. The number is the one the post showed when it was
- * read: a post already judged is not judged again as its counts climb, which is the same
- * standing answer `ageMatcher` gives about a post growing older on screen.
- *
- * A count that could not be read matches nothing, as a post with no time matches no age
- * condition — and with no negation to turn that round, it matches nothing either way.
+ * How many reactions the post carries, as it showed when read — not rejudged as counts climb
+ * (the same standing answer `ageMatcher` gives). A count that could not be read matches
+ * nothing, and with no negation to turn that round, it matches nothing either way.
  */
 const countMatcher = (condition: CountCondition): ((post: Post) => boolean) => {
   const atLeast = condition.direction === 'atLeast';
@@ -262,7 +237,6 @@ const countMatcher = (condition: CountCondition): ((post: Post) => boolean) => {
   };
 };
 
-/** Negation simply inverts the result of the evaluation */
 const conditionMatcher = (condition: Condition): ((post: Post) => boolean) => {
   // Neither a count nor an age carries a negation to apply (see `Condition` in schema.ts)
   if (condition.kind === 'count') return countMatcher(condition);
@@ -272,17 +246,15 @@ const conditionMatcher = (condition: Condition): ((post: Post) => boolean) => {
   return condition.negate ? (post) => !test(post) : test;
 };
 
-/** A rule matches only when every one of its conditions holds (AND) */
 const ruleMatcher = (rule: Rule): ((post: Post) => boolean) => {
   const tests = rule.conditions.map(conditionMatcher);
   return (post) => tests.every((test) => test(post));
 };
 
 /**
- * Where emphasis paints. Every text condition of that rule is painted, so
- * "body contains ●● and the user ID is ▲▲" colors both.
- * The order stays the order of the conditions; avoiding overlaps is the painting
- * side's job (filter/emphasis.ts).
+ * Where emphasis paints. Every text condition of that rule is painted, so "body contains ●●
+ * and the user ID is ▲▲" colors both. The order stays the conditions' order; avoiding
+ * overlaps is the painting side's job (filter/emphasis.ts).
  */
 const emphasesOf = (rule: Rule, color: string): Emphasis[] =>
   rule.conditions.flatMap((c) =>
@@ -297,9 +269,8 @@ const isPresent = <T>(v: T | null | undefined): v is T => v !== null && v !== un
 const AD_LIMIT = 0.5;
 
 /**
- * How many to see before deciding. Right after a column opens there are only a few
- * posts, and ads happening to sit among them send the share soaring even when
- * everything works.
+ * How many to see before deciding. Right after a column opens there are only a few posts,
+ * and ads happening to sit among them send the share soaring even when everything works.
  */
 const AD_SAMPLE = 20;
 
@@ -315,17 +286,16 @@ const readsText = (rule: Rule): boolean =>
 
 export type CompileOptions = {
   /**
-   * Drop the rules that look at the body text. With the body unreadable, "the body
-   * does not contain ○○" matches every post and the whole timeline disappears.
+   * Drop the rules that look at the body text: with the body unreadable, "the body does not
+   * contain ○○" matches every post and the whole timeline disappears.
    */
   withoutText?: boolean;
 };
 
 /**
- * Turns the rules into a judgeable form. Regular expressions are compiled once here
- * rather than per post.
- * The names shown as match reasons change with the language, so the dictionary is
- * passed in; when the language changes, the caller throws the cache away and rebuilds.
+ * Turns the rules into a judgeable form, with regular expressions compiled once here rather
+ * than per post. Match-reason names change with the language, so the dictionary is passed
+ * in; on a language change the caller discards the cache and rebuilds.
  */
 export const compileFilter = (
   filter: FilterNode,
@@ -336,7 +306,7 @@ export const compileFilter = (
   const byId = new Map<string, CompiledRule>();
 
   for (const rule of filter.rules) {
-    // Disabled rules take no part in judging. That switch is for stopping a rule temporarily rather than deleting it
+    // That switch is for stopping a rule temporarily rather than deleting it
     if (!rule.enabled) continue;
     if (options.withoutText && readsText(rule)) continue;
     const color = rule.color ?? defaultColorFor(rule.action);
@@ -351,17 +321,15 @@ export const compileFilter = (
 
   return {
     enabled: filterApplies(filter.enabled),
-    // Normalization has already matched the order against the rules that exist. An id
-    // missing here belongs to a rule that was disabled
+    // Normalization already matched the order against the rules that exist: an id missing here was disabled
     rules: filter.order.map((id) => byId.get(id)).filter(isPresent),
   };
 };
 
 /**
- * Decides how one post is treated. The rules are simply walked from the top, in the
- * order compileFilter established.
- * Matching a "do nothing" rule ends the judgement there and throws away the emphases
- * collected so far, which is how an upper tier's settings can be cancelled.
+ * Decides how one post is treated, walking the rules top to bottom in `compileFilter`'s
+ * order. Matching a "do nothing" rule ends the judgement there and discards the emphases
+ * collected so far — how an upper tier's settings get cancelled.
  */
 export const decide = (post: Post, filter: CompiledFilter): Verdict => {
   const verdict: Verdict = { decision: null, emphases: [] };

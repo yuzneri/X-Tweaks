@@ -1,6 +1,6 @@
 /**
- * The appearance settings. It does not know which tier it belongs to; it edits the
- * appearance it was handed and returns it. Every item can be put back to empty, which returns it to X Pro's own display.
+ * The appearance settings. Does not know which tier it belongs to — edits the appearance it is
+ * handed and returns it. Every item can be put back to empty, returning to X Pro's own display.
  */
 import {
   adjustsContrast,
@@ -32,9 +32,9 @@ import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
 /**
- * The order of the color fields, grouped by the kind of thing painted (two backgrounds →
- * four text colors → one line). Backgrounds and text call for different color choices, so ones alike in nature sit together.
- * Within a group the order follows the screen, top to bottom (bar → column, column name → author name → body → dim text → link).
+ * The color fields, grouped by what is painted (two backgrounds → four text colors → one
+ * line, since backgrounds and text need different choices). Within a group, order follows
+ * the screen top to bottom (bar → column, column name → author name → body → dim text → link).
  */
 export const COLOR_ORDER = [
   'columnHeader',
@@ -51,27 +51,23 @@ export const COLOR_ORDER = [
 
 type ColorKey = (typeof COLOR_ORDER)[number];
 
-/** Whether that color is one of the column-only ones (`COLUMN_COLORS`, named beside the shape) */
+/** Whether that color is column-only (`COLUMN_COLORS`) */
 export const isColumnColor = (key: ColorKey): boolean => COLUMN_COLORS.includes(key);
 
 /** Whether that color only means something on x.com (`X_ONLY_COLORS`) */
 export const isXOnlyColor = (key: ColorKey): boolean => X_ONLY_COLORS.includes(key);
 
 /**
- * Whether that color is answered by the account rather than by the scope on screen
- * (`ACCOUNT_COLORS`). Those are offered on the tiers that cover whole accounts and
- * nowhere else: set on a column they would never be read.
+ * Whether that color is answered by the account, not the scope on screen (`ACCOUNT_COLORS`).
+ * Offered only on tiers covering whole accounts — set on a column, it would never be read.
  */
 export const isAccountColor = (key: ColorKey): boolean => ACCOUNT_COLORS.includes(key);
 
 /**
- * What each colour is for, which decides the swatches its picker offers
- * (`ui/palettes.ts`). Written out by name rather than derived from the key: "is this a
- * ground, a piece of text or a line" is a fact about the thing painted, and nothing in
- * the key says it.
- *
- * Every ground takes the tints. A ground is something the page shows through, whether it
- * is laid behind a post or behind the whole page, so one set covers them all.
+ * What each colour is for, deciding the swatches its picker offers (`ui/palettes.ts`).
+ * Written by name, not derived from the key — nothing in the key says whether it is a ground,
+ * text, or a line. Every ground takes the tints, being something the page shows through
+ * whether behind a post or the whole page.
  */
 const PALETTE_OF: Record<ColorKey, PaletteKind> = {
   columnHeader: 'tint',
@@ -87,31 +83,23 @@ const PALETTE_OF: Record<ColorKey, PaletteKind> = {
 };
 
 /**
- * Whether that color belongs in the colors group rather than in the one named after the
- * columns, which only X Pro has.
+ * Whether that color belongs in the colors group, not the columns-only group (only X Pro has
+ * columns). Fixed on every page — what changes is whether it is offered at all, a color the
+ * page cannot apply being left out, not shown dead (`shownColor`).
  *
- * The same answer on every page: a color never moves from one group to another with the
- * page it is read on. What does change is whether it is offered at all, and a color the
- * page cannot apply is left out rather than shown dead (`shownColor`).
- *
- * Only the columns get a group of their own, and only because the width goes in it too —
- * a size among the colors would need a group anyway. A lone color needs no group: what
- * sets it apart is a word under its name (`colorNote`), which is how the compose form's
- * and the page outside the timeline's are handled.
+ * Only columns get their own group, since the width needs one anyway. A lone color needs
+ * none: a word under its name (`colorNote`) sets it apart instead.
  */
 const isPlainColor = (key: ColorKey): boolean => !isColumnColor(key);
 
 /**
  * What is added under a color's name, where the name alone leaves a question.
  *
- * The background is one setting called by one name on both sites, although X Pro paints it
- * inside a column and x.com paints the timeline down the middle of the page. The note says
- * so on every page rather than the name changing with the page, which is what a reader
- * moving between the two of them has to relearn.
- *
- * The page outside the timeline says why its row is not always there: x.com alone has one.
- * (The compose form's row is left out on a column or a view for its own reason — it belongs
- * to neither — and stands without a note.)
+ * The background is one setting on both sites, though X Pro paints it inside a column and
+ * x.com paints the timeline down the middle of the page; the note says so rather than the
+ * name changing, which a reader moving between the two would have to relearn. The
+ * outside-timeline row explains why it is not always there: only x.com has one. (The compose
+ * form's row, left out on a column or view for belonging to neither, stands without a note.)
  */
 const colorNote = (key: ColorKey, m: Messages): string | null =>
   key === 'background'
@@ -124,27 +112,24 @@ type Props = {
   node: AppearanceNode;
   onChange: (node: AppearanceNode) => void;
   /**
-   * The value that comes down from a higher tier when this is left empty.
-   * Every field means "unset falls to the tier above, and if that is unset too, to X Pro's own",
-   * so what is shown dimmed is the effective value as far as it can be resolved.
+   * The value from a higher tier when this is left empty. Every field means "unset falls to
+   * the tier above, and if that is unset too, to X Pro's own", so the dimmed value is the
+   * effective value as far as resolvable.
    */
   inherited: AppearanceNode;
   /**
-   * The same, with the accounts folded in where this scope belongs to none of them
-   * (`settable` in settings/resolve.ts). Read only to decide whether an item is worth
-   * offering to put back to X's own display — never shown.
+   * The same, with accounts folded in where this scope belongs to none of them (`settable`,
+   * settings/resolve.ts). Read only to decide if an item's worth offering to reset — never
+   * shown.
    */
   settable: AppearanceNode;
   /** Which site's settings these are (see `Site`) */
   site: Site;
   /**
-   * Whether what is being edited is one column or view.
-   *
-   * The colors answered as far down as the site rather than by the scope on screen
-   * (`ACCOUNT_COLORS`) are offered everywhere else and not here: the form a post is
-   * written in belongs to no column and no view, so set on one it would never be read.
-   * Told apart from `site` because a site's own page is that site's — so `site` is `pro`
-   * or `x` there, the same as on a column of it — while the range it covers is not a column.
+   * Whether one column or view is being edited. Colors answered by the site, not the scope
+   * (`ACCOUNT_COLORS`), are offered everywhere else but here: the compose form belongs to no
+   * column and no view. Told apart from `site` since a site's own page is `pro`/`x` there
+   * too, but its range is not a column.
    */
   oneColumn: boolean;
 };
@@ -159,13 +144,12 @@ export const Appearance = ({
 }: Props) => {
   const m = useMessages();
   /**
-   * Whether the appearance applies in this scope, as the effective value looking up to the top.
-   * If it does not, the value coming from above is not shown either: the dimmed value means
-   * "what applies if this stays empty", and showing it where it is switched off would read as in effect.
+   * Whether the appearance applies here, as the effective value looking to the top. If not,
+   * the value from above is not shown either — it'd read as in effect while switched off.
    */
   const applying = appearanceApplies(node.enabled ?? inherited.enabled);
   const above = applying ? inherited : emptyNode().appearance;
-  // Switched off here, nothing comes down at all, so there is nothing to offer cancelling
+  // Switched off, nothing comes down, so nothing to offer cancelling
   const settable = applying ? setAbove : emptyNode().appearance;
   const patch = (part: Partial<AppearanceNode>) => onChange({ ...node, ...part });
   const colors = (part: Partial<AppearanceNode['colors']>) =>
@@ -177,14 +161,11 @@ export const Appearance = ({
   const without = (item: ClearableItem) => node.cleared.filter((held) => held !== item);
 
   /**
-   * The props that give a field its "as X shows it" switch.
-   *
-   * `above` is what an upper tier sets for that one item, taken from `settable` rather
-   * than from the dimmed value: on a site's page the dimmed value stops at the global
-   * tier, while an account may well be setting the item — and cancelling an account's
-   * colour on one site is the whole reason this switch exists (`settable` in resolve.ts).
-   * Passed in by the caller, beside the row's `inherited`, so the two cannot come from
-   * different items.
+   * The props for a field's "as X shows it" switch. `above` is an upper tier's value for
+   * that item, taken from `settable`, not the dimmed value: a site's dimmed value stops at
+   * global, while an account may be setting it, and cancelling that colour on one site is
+   * the whole reason this switch exists (`settable`, resolve.ts). Passed in beside the row's
+   * `inherited` so the two cannot diverge.
    */
   const clearing = (item: ClearableItem, above: string | number | null) => ({
     cleared: node.cleared.includes(item),
@@ -194,11 +175,9 @@ export const Appearance = ({
   });
 
   /**
-   * Writes one size, and takes the item off the cancelled list when a value goes in.
-   *
-   * Left on, the two would say opposite things about the same item. `inherit` reads the
-   * value first, so nothing would look wrong — until the box was emptied again, when the
-   * item would fall back to "as X shows it" rather than to what comes down from above.
+   * Writes one size, clearing the item's cancelled flag when a value goes in. Left on, the
+   * two would disagree silently — `inherit` reads the value first, until the box empties
+   * again and the item falls back to "as X shows it" instead of what is above.
    */
   const sizeChange =
     (item: ClearableItem, apply: (value: number | null) => Partial<AppearanceNode>) =>
@@ -206,8 +185,8 @@ export const Appearance = ({
       patch({ ...apply(value), ...(value === null ? {} : { cleared: without(item) }) });
 
   /*
-   * The column-only items. Built here so the same row can stand in its usual place on X
-   * Pro's tab and in the group below on the shared tiers' tab, without being written twice
+   * The column-only items, built here so one row serves both X Pro's tab and the shared
+   * tiers' group
    */
   const columnWidthRow = (
     <label class="row">
@@ -223,12 +202,9 @@ export const Appearance = ({
   );
 
   /**
-   * Whether that color is offered on this page at all.
-   *
-   * Two are not always: the form a post is written in belongs to no column and no view, so
-   * set on one it would never be read; the page around the timeline is x.com's alone.
-   * Left out rather than shown dead — a field that cannot do anything is worse than a
-   * field that is not there, and the note under the name says where it does work.
+   * Whether that color is offered here at all. Two are not always: the compose form belongs
+   * to no column or view, so set on one it'd never be read; the outside-timeline page is
+   * x.com's alone. Left out, not shown dead — the note under the name says where it works.
    */
   const shownColor = (key: ColorKey): boolean =>
     isPlainColor(key) &&
@@ -238,7 +214,7 @@ export const Appearance = ({
   const colorRow = (key: ColorKey) => {
     const label = m.appearance.colors[key];
     const note = colorNote(key, m);
-    // Tied to the box below, which has a name of its own and would otherwise shut the note out
+    // Tied to the box below, which has its own name and would otherwise shut the note out
     const noteId = note !== null ? `xpro-color-note-${key}` : undefined;
     return (
       <label class="row" key={key}>
@@ -256,9 +232,10 @@ export const Appearance = ({
             })
           }
           {...clearing(colorItem(key), settable.colors[key])}
-          // When an upper tier sets it, that color appears in the swatch and the dimmed text
+          // When an upper tier sets it, that color appears in the swatch and dimmed text
           fallback={above.colors[key]}
-          // Not a default color but one that came down from above. It can be traced and changed, so it is worded differently
+          // Not a default but a color from above: traceable and changeable, so worded
+          // differently
           fallbackInherited
           label={label}
           describedBy={noteId}
@@ -270,57 +247,55 @@ export const Appearance = ({
   return (
     <>
       {/*
-        The only description always shown on this tab is this one.
-        "Empty keeps X Pro's own" applies to sizes and colors alike, so it sits at the top of the tab rather than inside a group
+        The only description always shown here: "empty keeps X Pro's own" applies to sizes
+        and colors alike
       */}
       <p class="hint">{site === 'x' ? m.appearance.hintX : m.appearance.hint}</p>
 
       {/*
-        Switches the appearance off entirely. Placed at the top of the tab, in the same shape as the filter's toggle.
-        Switched off, nothing applies to that column, the upper tiers' settings included
+        Switches the appearance off entirely, like the filter's toggle. Off, nothing
+        applies, upper tiers included
       */}
       <label class="row appearance-toggle">
         <span>{m.appearanceToggle.label}</span>
         <BoolSelect
           value={node.enabled}
-          // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+          // Nothing set yet: show the value that actually applies
+          // (`appearanceApplies`, schema.ts)
           effective={appearanceApplies(inherited.enabled)}
           onChange={(enabled) => patch({ enabled })}
           label={m.appearanceToggle.label}
           on={m.appearanceToggle.on}
           off={m.appearanceToggle.off}
-          // The switch itself, not a change to how X Pro shows things: "apply" belongs on top
+          // The switch itself, not a display change: "apply" belongs on top
           onFirst
         />
       </label>
 
       {/*
-        While it is switched off, say so.
-        The fields below show the values coming down from above in dimmed text, so without this
-        they would look as though they were in effect
+        While off, say so — the fields below dim values from above, which would else look in
+        effect
       */}
       {!applying && (
         <p class="hint">{m.appearanceToggle.stoppedHint}</p>
       )}
 
       {/*
-        The group of settings that are not colors: sizes (width, text, lines, thumbnails) and
-        how things are shown (photos and videos, time). Its name brackets the contents rather
-        than enumerating them, so no heading has to be bolted on each time something is added
+        Non-color settings: sizes and how things are shown. Named by bracketing the contents,
+        not enumerating them, so no heading has to be added each time something is added
       */}
       <fieldset>
         <legend>{m.appearance.legend}</legend>
 
         {/*
-          Packs the posts: the padding around them, the avatar, and the row of reply and
-          repost buttons. First of the items that are about the timeline as a whole
-          (on X Pro's tab the width stands above it, being the same kind of thing)
+          Packs the posts: padding, avatar, reply/repost row. First of the timeline-wide
+          items (the width stands above it on X Pro's tab, being the same kind of thing)
         */}
         <label class="row">
           <span>{m.appearance.compact}</span>
           <BoolSelect
             value={node.compact}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            // Unset: the value that actually applies (`isCompact`, schema.ts)
             effective={isCompact(above.compact)}
             onChange={(compact) => patch({ compact })}
             label={m.appearance.compact}
@@ -353,9 +328,9 @@ export const Appearance = ({
         </label>
 
         {/*
-          How much of what the extension writes into a post goes on screen: a picture's
-          description, a quoted post, a card's headline. Placed beside the body's own line
-          limit, the two being the same kind of question about how much a post takes up
+          How much of what the extension writes into a post shows: a picture's description,
+          a quoted post, a card's headline. Beside the body's own line limit — the same
+          question about how much a post takes up
         */}
         <label class="row">
           <span>{m.appearance.wordsShown}</span>
@@ -370,14 +345,14 @@ export const Appearance = ({
         </label>
 
         {/*
-          Folds the line breaks written into a post into a single space each.
-          Placed under the line limit: both are about how much room the body takes
+          Folds line breaks into a single space each. Under the line limit — both about how
+          much room the body takes
         */}
         <label class="row">
           <span>{m.appearance.collapseNewlines}</span>
           <BoolSelect
             value={node.collapseNewlines}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            // Unset: the value that actually applies (schema.ts)
             effective={collapsesNewlines(above.collapseNewlines)}
             onChange={(collapseNewlines) => patch({ collapseNewlines })}
             label={m.appearance.collapseNewlines}
@@ -387,8 +362,8 @@ export const Appearance = ({
         </label>
 
         {/*
-          The counts under a post, written out rather than rounded. Placed after the body's
-          own items: it is the last thing about the post's own text
+          The counts under a post, written out rather than rounded — last of the
+          post's-own-text items
         */}
         <label class="row">
           <span>{m.appearance.rawCounts}</span>
@@ -403,14 +378,14 @@ export const Appearance = ({
         </label>
 
         {/*
-          What hangs off a post, from here down: the photos and videos, the cards, the
-          quotes. They all answer "how much of it is worth showing on a timeline"
+          What hangs off a post from here down: photos/videos, cards, quotes — how much is
+          worth showing
         */}
         <label class="row">
           <span>{m.appearance.media.style}</span>
           <ChoiceSelect
             value={node.media.style}
-            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            // Unset keeps X Pro's own display (schema.ts)
             effective={mediaStyleOf(above.media.style)}
             options={MEDIA_STYLES}
             labels={m.appearance.media.styles}
@@ -419,7 +394,10 @@ export const Appearance = ({
           />
         </label>
 
-        {/* How tall they are once shown, so it follows the setting that decides whether they are */}
+        {/*
+          How tall they are once shown, so it follows the setting that decides whether
+          they are
+        */}
         <label class="row">
           <span>{m.appearance.media.maxThumbHeight}</span>
           <SizeField
@@ -437,7 +415,7 @@ export const Appearance = ({
           <span>{m.appearance.cardStyle}</span>
           <ChoiceSelect
             value={node.cardStyle}
-            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            // Unset keeps X Pro's own display (schema.ts)
             effective={cardStyleOf(above.cardStyle)}
             options={ATTACHMENT_STYLES}
             labels={m.appearance.attachmentStyles}
@@ -446,12 +424,14 @@ export const Appearance = ({
           />
         </label>
 
-        {/* A quoted post. Its own setting: a quote is somebody's words, not a preview of a link */}
+        {/*
+          A quoted post. Its own setting: a quote is somebody's words, not a preview of a link
+        */}
         <label class="row">
           <span>{m.appearance.quoteStyle}</span>
           <ChoiceSelect
             value={node.quoteStyle}
-            // Consults the same function as the applying side (schema.ts). Unset keeps X Pro's own display
+            // Unset keeps X Pro's own display (schema.ts)
             effective={quoteStyleOf(above.quoteStyle)}
             options={ATTACHMENT_STYLES}
             labels={m.appearance.attachmentStyles}
@@ -464,7 +444,7 @@ export const Appearance = ({
           <span>{m.appearance.timeFormat}</span>
           <ChoiceSelect
             value={node.timeFormat}
-            // Consults the same function as the applying side (schema.ts). Unset keeps X's own display
+            // Unset keeps X's own display (schema.ts)
             effective={timeFormatOf(above.timeFormat)}
             options={TIME_FORMATS}
             labels={m.appearance.timeFormats}
@@ -477,18 +457,22 @@ export const Appearance = ({
 
       <fieldset>
         <legend>{m.appearance.colors.legend}</legend>
-        {/* Every one keeps X Pro's own when unset. The extension does not know the color used instead (fallback is null) */}
+        {/*
+          Keeps X Pro's own when unset; the extension does not know the color used instead
+          (fallback is null)
+        */}
         {COLOR_ORDER.filter(shownColor).map(colorRow)}
 
         {/*
-          Shifts the text color only when a highlight or emphasis makes it unreadable.
-          Placed in the colors group: it applies to a rule's color rather than the tier's palette, but to the user it is the same subject
+          Shifts text color only when a highlight or emphasis makes it unreadable. In the
+          colors group since it is the same subject to the user, though it is a rule's color,
+          not the tier's palette
         */}
         <label class="row">
           <span>{m.appearance.autoContrast}</span>
           <BoolSelect
             value={node.autoContrast}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            // Unset shows the value that actually applies, looking up to the top (schema.ts)
             effective={adjustsContrast(above.autoContrast)}
             onChange={(autoContrast) => onChange({ ...node, autoContrast })}
             label={m.appearance.autoContrast}
@@ -498,9 +482,9 @@ export const Appearance = ({
         </label>
 
         {/*
-          What a translucent highlight color is laid over.
-          With a column background set, the default blends the two and ruins the hue, so this allows skipping it.
-          Placed after the column background field, since it only starts to matter once that is set
+          What a translucent highlight color is laid over. With a column background set, the
+          default blends the two and ruins the hue, so this allows skipping it — placed after
+          that field, since it only matters once it is set
         */}
         <label class="row">
           <span>
@@ -508,7 +492,7 @@ export const Appearance = ({
           </span>
           <ChoiceSelect
             value={node.highlightBase}
-            // With nothing set yet, show the value that actually applies, looking up to the top (the same function the applying side uses, in schema.ts)
+            // Unset shows the value that actually applies, looking up to the top (schema.ts)
             effective={highlightBaseOf(above.highlightBase)}
             options={HIGHLIGHT_BASES}
             // The same name the color field above uses, so the two read as the one thing
@@ -520,11 +504,10 @@ export const Appearance = ({
       </fieldset>
 
       {/*
-        What a column of X Pro is: its width and the two colors of its name. Kept in a
-        group of its own on X Pro's own pages as well, although nothing there needs telling
-        which site it is. Folded into the groups above, these three would sit in one place
-        on X Pro's pages and in another everywhere else.
-        x.com has no columns, so the group is left out rather than shown dead.
+        A column of X Pro: its width and its name's two colors. Kept in its own group even on
+        X Pro's own pages, since folded into the groups above these three would sit in one
+        place on X Pro's pages and another everywhere else. x.com has no columns, so left
+        out, not shown dead
       */}
       {site !== 'x' && (
         <fieldset>

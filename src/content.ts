@@ -69,26 +69,23 @@ const logStyled = (message: string, style: string) =>
   console.log(`%c[X Tweaks]%c ${message}`, PREFIX_STYLE, style);
 
 /**
- * The settings applied while paused. Applying empty settings stops the filter and the
- * appearance at once without adding a branch on either the judging or the appearance
- * side, and posts already affected are restored by the re-application.
- * Only `language` is kept, so that resuming does not drop the language to "automatic"
- * for a moment.
+ * The settings applied while paused. Empty ones stop the filter and the appearance at once
+ * without a branch in either, and re-applying them restores what was affected. `language`
+ * is kept so resuming does not drop it to "automatic" for a moment.
  */
 const effectiveSettings = (settings: Settings, paused: boolean): Settings =>
   paused ? { ...emptySettings(), language: settings.language } : settings;
 
 /**
- * Logs are written in English regardless of the user's language setting.
- * They are diagnostic output for narrowing down problems, and the wording is better
- * left steady when reports are compared against each other.
+ * Logs are written in English whatever the language setting: they are for narrowing down
+ * problems, and the wording is better left steady across reports.
  */
 const summarize = (settings: Settings) => ({
   rules: settings.global.filter.rules.length,
   filterEnabled: settings.global.filter.enabled,
   accountSettings: Object.keys(settings.accounts).length,
-  // Counted apart from the accounts: settings can sit here and nowhere else, and a report
-  // saying "no account settings" while a colour is being cancelled would send a reader astray
+  // Counted apart: settings can sit here and nowhere else, and "no account settings" while
+  // a colour is being cancelled would send a reader astray
   siteAccountSettings:
     Object.keys(settings.surfaceAccounts.pro).length +
     Object.keys(settings.surfaceAccounts.x).length,
@@ -96,9 +93,9 @@ const summarize = (settings: Settings) => ({
 });
 
 /**
- * Logs that something could not be saved. This script has no screen of its own.
- * The same save is reported only once: the record of detected columns is rewritten on
- * every settling of the DOM, so a persistent failure would bury the log.
+ * Logs that something could not be saved; this script has no screen of its own. Said once
+ * per kind: the record of detected columns is rewritten on every settling, so a failure
+ * that persists would bury the log.
  */
 const warned = new Set<string>();
 const warnSaveFailed =
@@ -113,10 +110,8 @@ const warnSaveFailed =
   };
 
 const main = async (): Promise<void> => {
-  /*
-   * Which site this is, decided once and never again. Everything that resolves a scope or
-   * paints goes through it, so it is installed before anything else runs.
-   */
+  // Which site this is, decided once. Everything that resolves a scope or paints goes
+  // through it, so it is installed first
   const surface = surfaceFor(location.hostname);
   if (surface === null) {
     logStyled(`✗ Not a site this extension knows: ${location.hostname}`, 'color:#ef4444');
@@ -152,41 +147,32 @@ const main = async (): Promise<void> => {
   // Clicks on the inserted items are received on document, so they arrive even if X stops them further in
   surface.watchEntryPoints({ toggle: togglePanel, openAt: openPanel });
 
-  /*
-   * The compose form is watched from the start, whether or not anything is switched on.
-   * What it does is decided when a post goes out, so a change to the settings takes
-   * effect on the next post with nothing to restart.
-   */
+  // Watched from the start, switched on or not: what it does is decided when a post goes
+  // out, so a change to the settings takes effect on the next one with nothing to restart
   startCompose(effectiveSettings(current, paused).compose, { log });
   startNewPosts({ log });
   // The same question the taking side asks (`onSettle` below). Without it X Pro says it
   // is watching for posts it will never go after, this being a setting x.com alone reads
   updateNewPosts(surface.id === 'x' && effectiveSettings(current, paused).xChrome.autoNewPosts);
 
-  /*
-   * The words X puts on a picture nobody described, as known so far. Handed over before
-   * anything is read, so that a page opened with them already written down neither learns
-   * them again nor writes over what was corrected by hand. `reapply` keeps them current.
-   */
+  // X's words for a picture nobody described, as known so far. Handed over before anything
+  // is read, so a page opened with them written down neither learns them again nor writes
+  // over what was corrected by hand. `reapply` keeps them current
   useGenericAlts(current.genericAlts);
 
   /*
-   * The same two settings, reachable from the compose form itself.
-   * A change made there is saved from here, and comes back to every surface (this one
-   * included) through `subscribe`, so there is one copy of the values and one way in.
-   * What is saved is the stored settings, not the paused ones: pausing must not erase
+   * The same two settings, reachable from the compose form itself. A change made there is
+   * saved from here and comes back through `subscribe`, so there is one copy and one way
+   * in. What is saved is the stored settings, not the paused ones: pausing must not erase
    * what was chosen.
    */
   injectComposeStyles();
   // x.com alone: X Pro has no rail for the form to stand in
   if (surface.id === 'x') {
     injectSearchStyles();
-    /*
-     * What the reader types into X's own search box goes into the form, so a search begun
-     * there can be narrowed down here. Started once and left running whether or not the
-     * form is switched on: it only writes to this feature's own values, which nobody reads
-     * while the form is off.
-     */
+    // What the reader types into X's own search box goes into the form, so a search begun
+    // there can be narrowed here. Left running with the form off: it writes only to this
+    // feature's own values, which nobody reads then
     watchSearchBox((query) => adoptFromSearchBox(parseQuery(query)));
   }
   startComposeSwitches(effectiveSettings(current, paused).compose, (compose) => {
@@ -194,24 +180,19 @@ const main = async (): Promise<void> => {
   });
 
   /**
-   * Applies a change to the settings. Nothing is applied until startup finishes.
-   * Applying during `start()` would judge without the column tier, since the columns
-   * are not resolved yet, and would be discarded anyway by the re-application at the
-   * end of `start()`. All that is remembered is that something could not be applied,
-   * so the latest values can be applied once after startup finishes.
+   * Nothing is applied until startup finishes: applying during `start()` would judge
+   * without the column tier, the columns not being resolved yet, and be discarded by the
+   * re-application at the end of it. Only the fact that something was missed is kept, so
+   * the latest values go in once afterwards.
    */
   let started = false;
   let missed = false;
   /**
-   * Applying the settings, no faster than `applyIn` allows.
+   * Applying the settings, no faster than `applyIn` allows: the first change of a burst
+   * goes in at once and the rest are gathered up. The screen saves on every keystroke and
+   * every save is judged against every post, which was a stall per character.
    *
-   * The first change of a burst goes in at once, and the ones that follow are gathered up
-   * and applied as one. The screen saves on every keystroke, and every save is judged
-   * against every post on the page — typed at speed in a settings panel standing in the
-   * page itself, that was a stall per character.
-   *
-   * The values are read at the moment of applying rather than captured, so what goes in
-   * is always the latest.
+   * The values are read at the moment of applying, so what goes in is the latest.
    */
   let applyTimer: ReturnType<typeof setTimeout> | null = null;
   // Never, rather than the moment the page loaded: the clock starts at nothing, so a
@@ -234,11 +215,8 @@ const main = async (): Promise<void> => {
   /** The group whose records were rebuilt on this page. Starts empty per page */
   let rebuiltGroup: string | null = null;
   const reapply = (): boolean => {
-    /*
-     * The compose form is told first and unconditionally. What holds the rest back is
-     * that the columns are not resolved yet, and the compose form does not depend on
-     * them, so there is no reason to make it wait.
-     */
+    // Told first and unconditionally: what holds the rest back is the columns not being
+    // resolved, which this does not depend on
     updateCompose(effectiveSettings(current, paused).compose);
     updateComposeSwitches(effectiveSettings(current, paused).compose);
     // Told with the compose form and for the same reason: it depends on no column being
@@ -280,16 +258,11 @@ const main = async (): Promise<void> => {
   /**
    * Sets the mark saying which account a compose form posts as, once the page is quiet.
    *
-   * Which of the boxes inside a form X paints is a question about how they are drawn, so
-   * working it out reads their sizes back (`appearance/compose-mark.ts`). A settling is
-   * the worst moment to ask: it is the first reading since X wrote to the page, so the
-   * whole page's layout is worked out inside the round — measured on a saved x.com page
-   * of nine posts at 0.3ms with the page settled against 14ms with something written to
-   * it since, and on a real timeline it was the largest part of a settling. Asked once
-   * the page has been drawn there is nothing outstanding to pay for (`quiet.ts`).
-   *
-   * A frame or two late is not something a reader can see: the mark decides a colour,
-   * and the form it colours has just appeared.
+   * Which boxes X paints is a question about how they are drawn, so working it out reads
+   * their sizes back (`appearance/compose-mark.ts`). A settling is the worst moment to
+   * ask — the first reading since X wrote to the page works out the whole page's layout
+   * inside the round — and once the page is drawn there is nothing outstanding to pay
+   * for (`quiet.ts`). A frame or two late is not something a reader can see.
    */
   const markComposeFormsSoon = (): void => {
     if (markingComposeSoon) return;
@@ -311,19 +284,15 @@ const main = async (): Promise<void> => {
       if (found.groupId === null) return;
       const scopes = recordable(found.columns);
       /*
-       * A group not yet rebuilt on this page gets rebuilt. The memory is per page, so a
-       * reload rebuilds just as a switch does.
-       * Nothing is remembered while no scope is visible: a deck switch goes
-       * "10 columns → 0 → 4", and remembering at the 0 point would lose the chance to
-       * rebuild by the time they appear.
+       * A group not yet rebuilt on this page gets rebuilt; the memory is per page, so a
+       * reload rebuilds as a switch does. Nothing is remembered while no scope is visible:
+       * a deck switch goes "10 columns → 0 → 4", and remembering at the 0 would lose the
+       * chance to rebuild by the time they appear.
        */
       const reopened = rebuiltGroup !== found.groupId;
       if (scopes.length > 0) rebuiltGroup = found.groupId;
-      /*
-       * What being off the page means here. X Pro waits for the group to be reopened
-       * before touching anything, and marks what it keeps; x.com drops at once and marks
-       * nothing (see `Pruning`).
-       */
+      // X Pro waits for the group to be reopened before touching anything and marks what
+      // it keeps; x.com drops at once and marks nothing (see `Pruning`)
       const prune =
         surface.pruning === 'at-once'
           ? { drop: true, mark: false }
@@ -336,20 +305,18 @@ const main = async (): Promise<void> => {
     },
     onSettle: () => {
       const messages = currentMessages();
-      // Timed one by one: this hook carries half a dozen jobs of different kinds, and a
-      // round that ran long says nothing useful while they are added up as one
+      // Timed one by one: added up as one, a long round says nothing about which job it was
       timed('· entry points', () => surface.insertEntryPoints(messages));
-      // While paused nothing the extension does applies, so the switches are taken out
-      // rather than left showing values that would not take effect
+      // Nothing applies while paused, so the switches come out rather than show values
+      // that would not take effect
       if (paused) {
         removeComposeSwitches();
-        // Takes X's own search filters back with it, `/search` being left short of a part
-        // of X's page otherwise. The posts it put away come back for the same reason
+        // X's own search filters come back with it, `/search` being left short of a part
+        // of X's page otherwise, and so do the posts it put away
         removeSearchForm();
         clearSearchExclusions();
-        // Reading a picture's description is no setting of anyone's, so applying the empty
-        // settings does not stop it the way it stops the rest. It is stopped here instead,
-        // this being where the pause is known
+        // No setting of anyone's, so the empty settings do not stop it the way they stop
+        // the rest. Stopped here, where the pause is known
         clearAltTitles();
         // The rules the marks answer go away with the empty settings, so a mark left on
         // would paint nothing. It is taken off anyway: nothing the extension wrote should
@@ -367,20 +334,15 @@ const main = async (): Promise<void> => {
       if (surface.id === 'x') {
         if (effectiveSettings(current, paused).search.form) {
           timed('· search form', () => insertSearchForm(messages));
-          /*
-           * The four the form ticks that X has no operator for. Asked on every settling
-           * because the results arrive as the reader scrolls, and the answer changes as
-           * the boxes are ticked. Nothing ticked means nothing to do — and the marks are
-           * let go of, so a post put away under an older answer comes back.
-           */
+          // What the form ticks that X has no operator for. Asked every settling: results
+          // arrive as the reader scrolls, and the answer changes as the boxes are ticked
           const exclusions = currentExclusions();
           if (onSearchResults() && excludesAnything(exclusions)) {
             timed('· search exclusions', () =>
               applySearchExclusions(exclusions, termsOf(currentForm()))
             );
           } else {
-            // Off the results, and with nothing ticked, every mark is let go of — so the
-            // posts put away on a search come back the moment the reader leaves it
+            // Off the results, or nothing ticked: the posts put away come back
             clearSearchExclusions();
           }
         } else {
@@ -389,29 +351,26 @@ const main = async (): Promise<void> => {
         }
       }
       /*
-       * Bringing new posts in. Asked on every settling, since what it goes by is X's own
-       * button appearing rather than anything the extension does. x.com only: X Pro keeps
-       * its columns current on its own, and writes the same mark on the button it uses
-       * for a column, so the site has to be asked here rather than left to the selector
+       * Bringing new posts in, asked every settling: what it goes by is X's own button
+       * appearing. x.com only — X Pro keeps its columns current itself and writes the same
+       * mark on a button of its own, so the site is asked here rather than in the selector
        */
       if (surface.id === 'x') timed('· new posts', takeNewPosts);
       /*
-       * Which account the form on screen will post as. Asked on every settling because X
-       * opens and closes the form as it is used, and on X Pro the account inside it can
-       * be changed while it stands open. The rules it answers are already written
-       * (`appearance/apply.ts`), so marking is all that is left to do here — but not in
-       * this round: it reads the page back, which is not something a settling should do
-       * (see `markComposeFormsSoon`)
+       * Which account the form on screen will post as. Asked every settling: X opens and
+       * closes the form as it is used, and on X Pro the account in it can change while it
+       * stands open. The rules it answers are already written (`appearance/apply.ts`), so
+       * only the marking is left — and not in this round, it reading the page back, which a
+       * settling must not do (`markComposeFormsSoon`)
        */
       markComposeFormsSoon();
       /*
        * The tooltip carrying what a picture is of. Set here rather than with the markers
-       * driven by the settings, for the same reason it is cleared above.
+       * the settings drive, for the reason it is cleared above.
        *
-       * X's own word for a picture with no description comes back where this round was
-       * the one to work it out, and is written down so that the next page starts knowing
-       * it — and so that it can be read and corrected on the settings screen. Nothing
-       * comes back once it is known, so this saves once and then never again.
+       * X's own word for an undescribed picture comes back where this round worked it out,
+       * and is written down so the next page starts knowing it and the settings screen can
+       * correct it. Nothing comes back once it is known, so this saves once.
        */
       const learned = timed('· picture tooltips', stampAltTitles);
       if (learned) {
@@ -419,8 +378,7 @@ const main = async (): Promise<void> => {
           warnSaveFailed("X's own word for a picture")
         );
       }
-      // The compose form is written down while it is open: once a post goes out it is
-      // gone, and nothing about it can be read any more
+      // Written down while the form is open: once a post goes out it is gone
       noticeComposeForm();
       // Tags kept from the last post go into the form the moment one is opened by hand
       restoreKeptHashtags();
@@ -428,8 +386,7 @@ const main = async (): Promise<void> => {
   });
   started = true;
   log('Filter started', summarize(current));
-  // Changes that arrived during startup are applied here. However many arrived,
-  // applying the latest values once is enough
+  // Changes that arrived during startup: applying the latest values once is enough
   if (missed) {
     updateSettings(effectiveSettings(current, paused));
     log('Applied settings that changed while starting', summarize(current));

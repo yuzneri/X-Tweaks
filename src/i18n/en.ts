@@ -1,8 +1,7 @@
 /**
- * The English messages. This dictionary is the reference for the type, and `ja.ts` is
- * annotated with it.
- * Messages embedding a number are functions: concatenating on the caller's side cannot
- * be translated into languages with a different word order.
+ * The English messages. This dictionary is the reference for the type, and `ja.ts` is annotated with it.
+ * Messages embedding a number are functions: concatenating on the caller's side cannot be translated
+ * into languages with a different word order.
  */
 
 /** The sentences pluralize with the number, so they are built separately from the option names */
@@ -21,10 +20,7 @@ export const en = {
     en: 'English',
   },
 
-  /**
-   * X's own words for a picture nobody described. Kept beside the language: both are
-   * about what X shows rather than what the extension does
-   */
+  /** X's own words for a picture nobody described. Kept beside the language: both are about what X shows, not what the extension does */
   genericAlts: {
     label: "X's word for a picture with no description",
     note:
@@ -33,9 +29,8 @@ export const en = {
   },
 
   /**
-   * The post traits usable as conditions. They are the option names and also appear in
-   * a condition's description.
-   * The negated form is not held here, since conditions.trait attaches it.
+   * The post traits usable as conditions. They are the option names and also appear in a condition's
+   * description. The negated form is not held here, since conditions.trait attaches it.
    */
   traits: {
     repost: 'Repost',
@@ -71,11 +66,9 @@ export const en = {
   },
 
   /**
-   * How one condition is phrased. It appears both in rule names and as the note in the list.
-   *
-   * The assembly lives in the dictionary: how negation attaches and what the word order
-   * is both change with the language, and concatenating on the caller's side cannot be
-   * translated fully.
+   * How one condition is phrased, in rule names and as the note in the list. The assembly lives in the
+   * dictionary: how negation attaches and what the word order is both change with the language, and
+   * concatenating on the caller's side cannot be translated fully.
    */
   conditions: {
     text: (target: string, pattern: string, mode: string, negate: boolean) => {
@@ -202,9 +195,8 @@ export const en = {
     filter: 'Filter',
     appearance: 'Appearance',
     /**
-     * The posting settings. No longer a tab of its own — they live under the X Pro
-     * whole-site entry — but the word still names the group of switches put beside the
-     * compose form (`compose/switches.ts`)
+     * The posting settings. No longer a tab of its own — they live under the X Pro whole-site entry —
+     * but the word still names the group of switches put beside the compose form (`compose/switches.ts`)
      */
     compose: 'Posting',
     /** The result of merging the tiers. Shown only while a column or a view is selected */
@@ -243,10 +235,7 @@ export const en = {
     },
   },
 
-  /**
-   * The page x.com draws around the timeline. The names of the items are X's own, so they
-   * are decided here and follow the language, the way `tiers.viewNames` are.
-   */
+  /** The page x.com draws around the timeline. The item names are X's own, so they are decided here and follow the language, as `tiers.viewNames` do */
   xChrome: {
     /**
      * What stands around the timeline, as one word. Used as a tab name, so it is kept
@@ -312,10 +301,9 @@ export const en = {
   },
 
   /**
-   * The detailed search form. It stands in its own box beside the items on the right
-   * rather than among them: those are things x.com draws and this is a thing put there,
-   * and a switch reading "add this" among switches reading "keep this" would be read as
-   * one of them.
+   * The detailed search form. It stands in its own box beside the items on the right rather than among
+   * them: those are things x.com draws and this is a thing put there, and a switch reading "add this"
+   * among switches reading "keep this" would be read as one of them.
    */
   search: {
     label: 'Search',
@@ -329,11 +317,9 @@ export const en = {
     },
 
     /**
-     * The form's own fields, as they read in the rail.
-     *
-     * Worded as what the reader wants rather than as X's operator names. Somebody who
-     * knows `min_faves:` can write it into the first field and have it reach X untouched;
-     * the point of the rest is to be usable without knowing any of them.
+     * The form's own fields, as they read in the rail. Worded as what the reader wants rather than as
+     * X's operator names: somebody who knows `min_faves:` can write it into the first field and have it
+     * reach X untouched, and the point of the rest is to be usable without knowing any of them.
      */
     fields: {
       all: 'All of these keywords',
@@ -367,10 +353,7 @@ export const en = {
       minFaves: 'Likes, at least',
       minRetweets: 'Reposts, at least',
 
-      /**
-       * Each names both of the controls beside it, the day and the time within it: the
-       * time carries no label of its own (`Span`).
-       */
+      /** Each names both of the controls beside it, the day and the time within it: the time carries no label of its own (`Span`) */
       since: 'From',
       until: 'Until',
 
@@ -532,10 +515,9 @@ export const en = {
     legend: 'Rules',
     hint: 'The rule applies to posts that meet everything set here.',
     /**
-     * The description of the selected action. Only the selected one is shown, next to
-     * where the action is chosen.
-     * All five listed at the top of the screen would be out of sight at the moment of
-     * choosing. Hiding cannot be undone, so it has to be clear before the choice is made.
+     * The description of the selected action, shown next to where the action is chosen. All five listed
+     * at the top of the screen would be out of sight at the moment of choosing, and hiding cannot be
+     * undone, so it has to be clear before the choice is made.
      */
     actionHints: {
       collapse: 'Folds the post into a single line; press “Show” to bring it back.',
@@ -546,9 +528,8 @@ export const en = {
     },
     empty: 'No rule yet',
     /**
-     * The order in the list is the order rules are judged in.
-     * This is the one description always shown on the filter tab, so the order across
-     * tiers is gathered here as well.
+     * The order in the list is the order rules are judged in. This is the one description always shown
+     * on the filter tab, so the order across tiers is gathered here as well.
      */
     /** The innermost tier's name, as it reads inside the sentence below */
     orderScopes: { pro: 'column', x: 'view', both: 'column or view' },
@@ -644,10 +625,9 @@ export const en = {
   color: {
     label: 'Color',
     /**
-     * The short dimmed text inside the box (only 116px wide). It says no more than
-     * where the color came from.
-     * The color itself is shown by the swatch beside it, and longer explanations go to
-     * `title` and the accessible name.
+     * The short dimmed text inside the box (only 116px wide). It says no more than where the color came
+     * from: the color itself is shown by the swatch beside it, and longer explanations go to `title` and
+     * the accessible name.
      */
     unsetShort: 'Not set',
     fallbackShort: 'default',
@@ -683,11 +663,10 @@ export const en = {
     hintX: 'Anything left empty or unset keeps the way x.com shows it.',
     columnWidth: 'Column width',
     /**
-     * The three groups below are named after what they are about, not after where they
-     * work. Named for the range ("X Pro only"), a group has nothing left to say on that
-     * site's own page, and its contents move into the groups above — so the same item
-     * would sit in a different place depending on the page it is read on.
-     * The range is said in the hint instead, which is the same sentence on every page.
+     * The three groups below are named after what they are about, not after where they work. Named for
+     * the range ("X Pro only"), a group has nothing left to say on that site's own page, and its
+     * contents move into the groups above — so the same item would sit in a different place depending on
+     * the page it is read on. The range is said in the hint instead, the same sentence on every page.
      */
     columnGroup: {
       legend: 'Columns',
@@ -716,9 +695,8 @@ export const en = {
       legend: 'Colors',
       columnHeader: 'Behind the column name',
       /**
-       * One name for both sites. X Pro's columns each hold a timeline, so the word is true
-       * on either, and it saves the same setting from being called two different things
-       * depending on the page it is read on.
+       * One name for both sites. X Pro's columns each hold a timeline, so the word is true on either,
+       * and it saves the same setting from being called two different things depending on the page.
        */
       background: 'Background inside the timeline',
       /** Said on every page, so that the name above does not have to change per site */
@@ -752,9 +730,8 @@ export const en = {
       both: 'Both',
     } as { relative: string; absolute: string; both: string },
     /**
-     * How a post's time is written. The order of the date parts changes with the
-     * language, so it lives in the dictionary.
-     * `year` is null for the current year (omitted)
+     * How a post's time is written. The order of the date parts changes with the language, so it lives
+     * in the dictionary. `year` is null for the current year (omitted)
      */
     timeAbsolute: (
       year: number | null,
@@ -770,10 +747,9 @@ export const en = {
     /** Today's posts show the clock time alone (under "both", the relative time in parentheses fills in the date) */
     timeClock: (hour: string, minute: string): string => `${hour}:${minute}`,
     /**
-     * The characters wrapping X's relative time under "both". Halfwidth in both
-     * languages, with a space in front.
-     * The values are identical for now, but how parentheses are used can differ by
-     * language, so they stay in the dictionary
+     * The characters wrapping X's relative time under "both". Halfwidth in both languages, with a space
+     * in front. The values are identical for now, but how parentheses are used can differ by language,
+     * so they stay in the dictionary
      */
     timeParens: { open: ' (', close: ')' } as { open: string; close: string },
     media: {
@@ -799,9 +775,8 @@ export const en = {
       captionNth: (nth: number, description: string): string => `Picture ${nth}: ${description}`,
     },
     /**
-     * How the things that hang off a post are shown: a link card, an article, a quoted
-     * post. The middle one runs what X already writes as text into the post, following
-     * the body
+     * How the things that hang off a post are shown: a link card, an article, a quoted post. The middle
+     * one runs what X already writes as text into the post, following the body
      */
     cardStyle: 'Link cards and articles',
     /** A quoted post. Its own setting, with the same four ways of showing it */
@@ -828,9 +803,8 @@ export const en = {
     unit: 'px',
     unset: 'Not set',
     /**
-     * The value coming down from a wider scope when the box is empty.
-     * The box is narrow, so the dimmed text shows only the number; the explanation for
-     * screen readers lives in `inheritedLabel`.
+     * The value coming down from a wider scope when the box is empty. The box is narrow, so the dimmed
+     * text shows only the number; the explanation for screen readers lives in `inheritedLabel`.
      */
     inheritedLabel: (label: string, value: string, unit: string) =>
       `${label} (not set; inherits ${value} ${unit} from a wider scope)`,
@@ -888,9 +862,8 @@ export const en = {
     'Too many posts looked like ads, so the ad rules were turned off for now.',
 
   /**
-   * The notice shown on the settings screen while the extension is paused.
-   * Being paused is shown only in the popup, so without this there is nothing on screen
-   * to say why the settings have no effect
+   * The notice shown on the settings screen while the extension is paused. Being paused is shown only
+   * in the popup, so without this there is nothing on screen to say why the settings have no effect
    */
   pausedNotice: 'The extension is paused for now. Resume it from the toolbar icon.',
 

@@ -1,12 +1,9 @@
 /**
- * The detailed search form, as it stands in x.com's rail.
- *
- * Drawn with Preact rather than assembled by hand the way `compose/switches.ts` is. That
- * one has two checkboxes; this has twenty-odd fields whose values have to be read back
- * together, and hand-built DOM at that size turns into a second, worse framework.
- *
- * The values live outside the component (`state.ts`). x.com redraws its rail as the reader
- * moves about, and a query half typed should survive that.
+ * The detailed search form, as it stands in x.com's rail. Drawn with Preact rather than
+ * assembled by hand the way `compose/switches.ts` is: that one has two checkboxes, this has
+ * twenty-odd fields whose values must be read back together. The values live outside the
+ * component (`state.ts`) — x.com redraws its rail as the reader moves about, and a query
+ * half typed has to survive that.
  */
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -76,18 +73,16 @@ const Field = ({
 /**
  * A group that starts folded, and unfolds itself once it holds something.
  *
- * Folded by default because the rail is 350px wide and the whole form open runs past the
- * height of a window. The five word fields are what a search usually needs; these are what
- * it sometimes needs.
+ * Folded by default: the rail is 350px wide, and the whole form open runs past the height of
+ * a window — the five word fields are what a search usually needs, these what it sometimes
+ * needs. Built on `<details>` rather than a button and hidden div, which gives the opening,
+ * the keyboard handling and the "this is collapsed" announcement for free.
  *
- * Built on `<details>` rather than a button and a hidden div: the browser gives the
- * opening, the keyboard handling and the "this is collapsed" announcement for nothing.
- *
- * Whether it stands open is held here rather than left to the element, because a query can
- * be filled in from outside the fields — a search's address, X's own search box — and a
- * group holding values nobody can see is a search nobody can check. **It is only ever
- * opened, never shut**: a group that has been emptied is left as it is, since folding it
- * away as somebody clears a field would take the field they are working in with it.
+ * Whether it stands open is held here, not left to the element, because a query can be
+ * filled in from outside the fields — a search's address, X's own search box — and a group
+ * holding values nobody can see is a search nobody can check. **It is only ever opened,
+ * never shut**: folding it away as somebody clears a field would take the field they're
+ * working in with it.
  */
 const Group = ({
   label,
@@ -122,12 +117,11 @@ const Group = ({
 
 /**
  * One account field: the names, and whether they are being excluded rather than asked for.
- *
- * Hands back only the part that changed, never a whole `AccountField` built from the prop.
- * The prop holds the values as they stood when this render was made, so a component
- * building `{ ...field, exclude }` would carry the names back to what they were — typing a
- * name and then ticking the box would lose the name. Merging is the caller's, against the
- * values as they stand now.
+ * Hands back only the part that changed, never a whole `AccountField` built from the prop:
+ * the prop holds the values as they stood when this render was made, so building
+ * `{ ...field, exclude }` would carry the names back to what they were, and typing a name
+ * then ticking the box would lose it. Merging is the caller's, against the values as they
+ * stand now.
  */
 const Accounts = ({
   label,
@@ -142,10 +136,9 @@ const Accounts = ({
 }) => (
   <div class="xpro-search-field">
     {/*
-      The box is wrapped in its label rather than pointed at by an id, the way every other
-      field here is. An id built from the label would be built from a translated string —
-      it changes with the language, carries whatever spaces that language puts in it, and
-      leans on no two labels ever reading alike.
+      The box is wrapped in its label rather than pointed at by an id, as every other field
+      here is: an id built from the label would come from a translated string — changing with
+      the language, carrying whatever spaces it puts in, no two labels guaranteed alike.
     */}
     <label class="xpro-search-field">
       <span class="xpro-search-label">{label}</span>
@@ -167,13 +160,11 @@ const Accounts = ({
   </div>
 );
 
-/** A number field. Empty is "not asked", which is why the value stays a string */
 /**
- * A box for a whole number, with a button either side to step it.
- *
- * The look is this form's own (`search/styles.css`) while the stepping is the settings
- * screen's (`ui/step.ts`): the two are drawn by different stylesheets, so what they share
- * is the arithmetic rather than the markup.
+ * A box for a whole number, with a button either side to step it. The look is this form's
+ * own (`search/styles.css`) while the stepping is the settings screen's (`ui/step.ts`): the
+ * two are drawn by different stylesheets, so what they share is the arithmetic rather than
+ * the markup.
  */
 const Number_ = ({
   label,
@@ -220,16 +211,13 @@ const Number_ = ({
 };
 
 /**
- * One end of the span: a day, and a time of day within it.
- *
- * Two controls rather than one `datetime-local`. That one holds nothing at all until every
- * part of it has been filled, so a reader naming two dates and no times got a search with
- * no span in it and no sign of why (`Moment`).
- *
- * Only the day is labelled on screen. The time sits beside it in a control that says what
- * it is by its own shape, and a second word above it was one word more than the rail can
- * spare. It is still named for anybody who cannot see that shape: the same word, since the
- * two controls are two halves of one answer.
+ * One end of the span: a day, and a time of day within it. Two controls rather than one
+ * `datetime-local`, which holds nothing at all until every part of it has been filled: a
+ * reader naming two dates and no times got a search with no span in it and no sign of why
+ * (`Moment`). Only the day is labelled on screen — the time sits beside it in a control that
+ * says what it is by its own shape, and a second word above it was one word more than the
+ * rail can spare. It is still named for anybody who cannot see that shape: the same word,
+ * the two controls being two halves of one answer.
  */
 const Span = ({
   label,
@@ -264,13 +252,11 @@ const Span = ({
 
 export const SearchFormView = ({ messages }: Props) => {
   /*
-   * The component holds a copy so that typing redraws. The module is the one that outlives
-   * the component, and it is the one every change is built from.
-   *
-   * Built from `currentForm()` rather than from the `form` this render closed over. A
-   * handler holds the values as they stood when it was made, and two fields changing
-   * before the next redraw would each build on that same stale copy — the second write
-   * would carry the first field back to what it was and quietly undo it.
+   * The component holds a copy so that typing redraws; the module outlives the component and
+   * is what every change is built from. Built from `currentForm()` rather than the `form`
+   * this render closed over: a handler holds the values as they stood when it was made, so
+   * two fields changing before the next redraw would build on the same stale copy and the
+   * second write would carry the first field back to what it was.
    */
   const [form, setForm] = useState<SearchForm>(currentForm);
   const patch = (part: Partial<SearchForm>): void => {
@@ -298,12 +284,10 @@ export const SearchFormView = ({ messages }: Props) => {
     setExclusions(next);
   };
   /**
-   * What is in the number boxes, as it was typed.
-   *
-   * What is carried between pages is the numbers alone, so the boxes cannot be drawn from
-   * that: a `0` on the way to `05` is not a number this asks for, and drawing it back would
-   * take the character off the screen as it was typed. What was typed lives here, and only
-   * what can be read out of it reaches the exclusions.
+   * What is in the number boxes, as it was typed. What is carried between pages is the
+   * numbers alone, so the boxes cannot be drawn from that: a `0` on the way to `05` is not a
+   * number this asks for, and drawing it back would take the character off the screen as it
+   * was typed. Only what can be read out of what was typed reaches the exclusions.
    */
   const [atLeastText, setAtLeastText] = useState<Record<Threshold, string>>(() => {
     const { atLeast } = currentExclusions();
@@ -329,13 +313,10 @@ export const SearchFormView = ({ messages }: Props) => {
 
   /*
    * Where this form would take the reader, worked out afresh on every redraw so the link
-   * always carries what the fields say now.
-   *
-   * The search is a plain link, not a script that navigates. x.com writes its own trend
-   * links the same way, so X's router picks this up as it picks those up and moves without
-   * reloading. Where it does not, the browser follows the link itself and the reader still
-   * lands on the right page — slower, but never wrong. That is why there is no fallback
-   * here to write: an anchor already has one.
+   * always carries what the fields say now. A plain link, not a script that navigates: x.com
+   * writes its own trend links the same way, so X's router picks this up as it picks those
+   * up and moves without reloading, and where it does not the browser follows the link
+   * itself — slower, but the reader still lands on the right page.
    */
   const query = buildQuery(form);
   const path = searchPath(query, scopes);
@@ -369,10 +350,10 @@ export const SearchFormView = ({ messages }: Props) => {
     <form
       class="xpro-search-form"
       /*
-       * Enter is caught here rather than left to the form's own submission. A form with no
+       * Enter is caught here rather than left to the form's own submission: a form with no
        * submit button submits on Enter only where it holds exactly one field that blocks
-       * implicit submission, and this one holds thirteen — left to the browser, Enter would
-       * do nothing at all (measured).
+       * implicit submission, and this one holds thirteen, so Enter would do nothing at all
+       * (measured).
        */
       onKeyDown={(event) => {
         if (event.key !== 'Enter') return;
@@ -388,10 +369,9 @@ export const SearchFormView = ({ messages }: Props) => {
     >
       {/*
         Which of X's own tabs to land on. Not part of the query — it rides in the address
-        (`searchPath`) — but it stands at the head of the form all the same: it is the one
-        control here that changes what a search is for rather than what it matches, and a
-        reader looking for accounts rather than posts should not have to unfold anything to
-        say so.
+        (`searchPath`) — but at the head of the form all the same: it is the one control here
+        that changes what a search is for rather than what it matches, and a reader looking
+        for accounts rather than posts should not have to unfold anything to say so.
       */}
       <select
         class="xpro-search-input"
@@ -515,10 +495,9 @@ export const SearchFormView = ({ messages }: Props) => {
           </select>
         </label>
         {/*
-          These two ride in the address rather than in the query (`searchPath`), which is
-          why they are read from `scopes`. They sit here all the same: to a reader they
-          narrow the results by the same kind of question as the fields above, and which
-          half of the address a narrowing travels in is not the reader's concern.
+          These two ride in the address rather than in the query (`searchPath`), which is why
+          they are read from `scopes`. They sit here all the same: to a reader they narrow
+          the results by the same kind of question as the fields above.
         */}
         <label class="xpro-search-check">
           <input
@@ -537,11 +516,11 @@ export const SearchFormView = ({ messages }: Props) => {
           <span>{m.nearbyOnly}</span>
         </label>
         {/*
-          What X has no operator for. They ask the same kind of question as the rest of
-          this group, which is why they stand in it, but they are answered here rather than
-          by X — so they are marked off by the note, and by being the only part of the form
-          that comes and goes: off a search's results there is nothing for them to act on,
-          and the stylesheet takes the whole block away (`styles.css`).
+          What X has no operator for. They ask the same kind of question as the rest of this
+          group, but are answered here rather than by X — so they are marked off by the note,
+          and by being the only part of the form that comes and goes: off a search's results
+          there is nothing for them to act on, and the stylesheet takes the whole block away
+          (`styles.css`).
         */}
         <div class="xpro-search-leave-out">
           <p class="xpro-search-note">{m.leaveOutNote}</p>

@@ -1,7 +1,7 @@
 /**
- * Editing rules. On screen there is one "what the post is" plus a text box per target,
- * and only the boxes filled in become conditions. The stored form is a list of conditions,
- * so it is converted on the way in and out (`toDraft` / `toConditions`). The order in the list is the order rules are judged in.
+ * Editing rules. On screen: one "what the post is" plus a text box per target, and only
+ * filled boxes become conditions. The stored form is a list of conditions, converted on the
+ * way in and out (`toDraft` / `toConditions`). List order is judging order.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
@@ -40,7 +40,7 @@ import type { Messages } from '../i18n/index.ts';
 
 type Props = {
   rules: Rule[];
-  /** The order judging follows. The list is shown in this order */
+  /** The order judging follows; the list is shown in this order too */
   order: string[];
   onChange: (rules: Rule[], order: string[]) => void;
 };
@@ -48,36 +48,32 @@ type Props = {
 type TextCondition = Extract<Condition, { kind: 'text' }>;
 type TraitCondition = Extract<Condition, { kind: 'trait' }>;
 
-/** One target's input. Which target it is comes from where the box sits, so it is not held here */
+/** One target's input; which target comes from where the box sits, so it is not held here */
 type TextInput = Omit<TextCondition, 'kind' | 'target'>;
 
 /**
- * The input for a post's age. The number is held as a string to keep a half-typed value.
- * An empty box makes no condition (the same rule as the other boxes).
- * There is nothing but the span to hold: the age has one side (see `Condition`)
+ * The input for a post's age. The number is a string, to keep a half-typed value; empty
+ * makes no condition, as with other boxes. Only the span is held: age has one side (`Condition`)
  */
 type AgeInput = { value: string; unit: AgeUnit };
 
-/**
- * One count's input. Which count it is comes from where the box sits, as with `TextInput`.
- * The number is held as a string for the same reason the age is: to keep a half-typed value
- */
+/** One count's input; which count comes from where the box sits, as with `TextInput` */
 type CountInput = {
   value: string;
   direction: CountDirection;
 };
 
 /**
- * The rule being edited, held as boxes per target (unlike the stored form).
- * The trait is null when none is picked ("Any" on screen), and text makes no condition when the pattern is empty.
+ * The rule being edited, held as boxes per target (unlike the stored form). Trait is `null`
+ * when none is picked ("Any" on screen); text makes no condition when the pattern is empty.
  */
 type Draft = {
   trait: TraitCondition | null;
   texts: Partial<Record<MatchTarget, TextInput>>;
   age: AgeInput;
   /**
-   * One box per kind of count. A rule can hold several ("100 likes or more and 5 reposts
-   * or fewer"), the conditions being an AND
+   * One box per count kind; a rule can hold several ("100 likes or more and 5 reposts or
+   * fewer"), as an AND
    */
   counts: Partial<Record<CountMetric, CountInput>>;
   action: Action;
@@ -109,8 +105,8 @@ const emptyDraft = (): Draft => ({
 });
 
 /**
- * Splits a stored rule into the boxes.
- * For a rule with several conditions on the same target (not creatable on this screen), only the first is taken.
+ * Splits a stored rule into the boxes; with several conditions on one target (not creatable
+ * here), only the first is taken
  */
 const toDraft = (rule: Rule): Draft => {
   const texts: Partial<Record<MatchTarget, TextInput>> = {};
@@ -123,7 +119,6 @@ const toDraft = (rule: Rule): Draft => {
       negate: c.negate,
     };
   }
-  // As with the text boxes, only the first condition on a count is taken
   const counts: Partial<Record<CountMetric, CountInput>> = {};
   for (const c of rule.conditions) {
     if (c.kind !== 'count' || counts[c.metric]) continue;
@@ -147,15 +142,15 @@ const toDraft = (rule: Rule): Draft => {
   };
 };
 
-/** The targets shown on screen. Picking a trait adds the ones that exist by virtue of it */
+/** The targets shown on screen; picking a trait adds the ones it implies */
 const shownTargets = (draft: Draft): readonly MatchTarget[] =>
   targetsFor(draft.trait?.trait ?? null);
 
-/** A user ID may be written with or without a leading @. It is normalized to without on save */
+/** A user ID may be written with or without a leading @; normalized to without on save */
 const patternOf = (target: MatchTarget, raw: string): string =>
   isScreenNameTarget(target) ? raw.trim().replace(/^@/, '') : raw.trim();
 
-/** Turns the age input into a condition. Empty, zero or below, and non-integers make no condition */
+/** Turns the age input into a condition; empty, zero or below, and non-integers make none */
 const ageConditionOf = (age: AgeInput): Condition[] => {
   const raw = age.value.trim();
   if (raw === '') return [];
@@ -164,13 +159,13 @@ const ageConditionOf = (age: AgeInput): Condition[] => {
   return [{ kind: 'age', minutes: minutesOf(value, age.unit) }];
 };
 
-/** Whether what was typed fails as an age condition (an empty box passes: it simply does not filter) */
+/** Whether what was typed fails as an age condition (empty passes: it simply does not filter) */
 const badAge = (age: AgeInput): boolean =>
   age.value.trim() !== '' && ageConditionOf(age).length === 0;
 
 /**
- * Turns one count box into a condition. Empty, below zero and non-integers make none.
- * Zero is kept, unlike the age: "0 or fewer likes" is a rule worth writing
+ * Turns one count box into a condition; empty, below zero and non-integers make none. Zero is
+ * kept, unlike age: "0 or fewer likes" is a rule worth writing
  */
 const countConditionOf = (metric: CountMetric, input: CountInput): Condition[] => {
   const raw = input.value.trim();
@@ -180,7 +175,7 @@ const countConditionOf = (metric: CountMetric, input: CountInput): Condition[] =
   return [{ kind: 'count', metric, direction: input.direction, count }];
 };
 
-/** Whether any count box holds something unreadable as a count. An empty box passes, as above */
+/** Whether any count box holds something unreadable as a count (empty passes, as above) */
 const badCount = (counts: Draft['counts']): boolean =>
   COUNT_METRICS.some((metric) => {
     const input = counts[metric];
@@ -188,9 +183,9 @@ const badCount = (counts: Draft['counts']): boolean =>
   });
 
 /**
- * Turns the boxes back into a list of conditions, trait first and then targets, matching the screen.
- * Targets not on screen are ignored, so input in a box hidden by changing the trait does not
- * take effect as a condition while out of sight.
+ * Turns the boxes back into a list of conditions, trait first then targets, matching the
+ * screen. Targets not on screen are ignored, so a box hidden by changing the trait has no
+ * effect while out of sight.
  */
 const toConditions = (draft: Draft): Condition[] => [
   ...(draft.trait ? [draft.trait] : []),
@@ -212,7 +207,7 @@ const toConditions = (draft: Draft): Condition[] => [
         target,
         mode: input.mode,
         pattern,
-        // X does not distinguish case in user IDs, so the setting is dropped even if it is still there
+        // X does not distinguish case in user IDs, so the setting is dropped even if still there
         caseSensitive: !isScreenNameTarget(target) && input.caseSensitive,
         negate: input.negate,
       },
@@ -225,7 +220,7 @@ const toConditions = (draft: Draft): Condition[] => [
   }),
 ];
 
-/** The key for deciding whether two rules are the same. The same list of conditions means the same rule */
+/** The key deciding whether two rules are the same: same conditions means same rule */
 const conditionsKey = (conditions: Condition[]): string =>
   JSON.stringify(
     conditions.map((c) =>
@@ -239,7 +234,7 @@ const conditionsKey = (conditions: Condition[]): string =>
     )
   );
 
-/** Validates the input and shapes it into something saveable. `existing` is the other rules, for the duplicate check */
+/** Validates the input into something saveable; `existing` is for the duplicate check */
 const validate = (
   draft: Draft,
   existing: Rule[],
@@ -247,7 +242,8 @@ const validate = (
 ): { rule: Omit<Rule, 'id'> } | { error: string } => {
   const conditions = toConditions(draft);
 
-  // Something unreadable as a number is not silently discarded: no state where it was typed but has no effect
+  // Something unreadable as a number is not silently discarded: no state where it was typed
+  // but has no effect
   if (badAge(draft.age)) return { error: m.rules.ageError };
   if (badCount(draft.counts)) return { error: m.rules.countError };
 
@@ -256,7 +252,7 @@ const validate = (
 
   for (const c of conditions) {
     if (c.kind !== 'text' || c.mode !== 'regex') continue;
-    // An invalid regular expression is not saved, so no state exists that throws at run time
+    // An invalid regular expression is not saved, so nothing throws at run time
     try {
       new RegExp(c.pattern);
     } catch (e) {
@@ -264,8 +260,8 @@ const validate = (
     }
   }
 
-  // Emphasis paints the matched characters, so it needs a condition that determines where to paint.
-  // Negated conditions ("does not contain ●●") and targets with nothing to paint cannot be chosen
+  // Emphasis paints the matched characters, needing a condition saying where; negated
+  // conditions ("does not contain ●●") and targets with nothing to paint cannot be chosen
   if (
     draft.action === ACTIONS.EMPHASIZE &&
     !conditions.some(canEmphasizeWith)
@@ -273,7 +269,8 @@ const validate = (
     return { error: m.rules.errors.noEmphasisTarget };
   }
 
-  // A rule with exactly the same conditions cannot be created: with only the action differing, only the earlier one applies
+  // Exactly the same conditions cannot be created twice: with only the action differing,
+  // only the earlier one applies
   const key = conditionsKey(conditions);
   if (existing.some((rule) => conditionsKey(rule.conditions) === key)) {
     return { error: m.rules.errors.duplicate };
@@ -291,7 +288,7 @@ const validate = (
 };
 
 type NumberBoxProps = {
-  /** What is being counted. It names the box and both buttons */
+  /** What is being counted; names the box and both buttons */
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -301,11 +298,10 @@ type NumberBoxProps = {
 /**
  * A box for a whole number, with a button either side to step it.
  *
- * The box itself stays `type="text"`: a `number` box answers with an empty value when what
- * was typed is not a number, and an empty box here means "do not filter on this", so a
- * mistyped one would quietly stop filtering rather than say so (`ui/fields.tsx` keeps the
- * sizes as text for the same reason). The buttons give what a number box is wanted for
- * without giving that up.
+ * Stays `type="text"`: a `number` box answers with an empty value for what is not a number,
+ * and empty here means "do not filter on this", so a typo would quietly stop filtering rather
+ * than say so (`ui/fields.tsx` keeps sizes as text for the same reason). The buttons give what
+ * a number box is wanted for, without that risk.
  */
 const NumberBox = ({ label, value, onChange, onSubmit }: NumberBoxProps) => {
   const m = useMessages();
@@ -331,7 +327,7 @@ const NumberBox = ({ label, value, onChange, onSubmit }: NumberBoxProps) => {
   );
 };
 
-/** Shown in the same shape for traits and for text */
+/** Shown in the same shape for traits and text */
 const NegateBox = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => {
   const m = useMessages();
   return (
@@ -349,7 +345,7 @@ type TextRowProps = {
   onSubmit: () => void;
 };
 
-/** One target's row. Left empty, that target does not filter */
+/** One target's row; left empty, that target does not filter */
 const TextRow = ({ target, input, onChange, onSubmit }: TextRowProps) => {
   const m = useMessages();
   return (
@@ -366,14 +362,14 @@ const TextRow = ({ target, input, onChange, onSubmit }: TextRowProps) => {
           onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
         />
       )}
-      {/* The match mode and the negation are always shown for every target.
-          Rows all having the same shape reads better than a box sprouting the moment typing starts */}
+      {/* Match mode and negation are always shown: rows sharing one shape reads better than
+          a box sprouting the moment typing starts */}
       <select
         aria-label={m.rules.modeLabel}
         value={input.mode}
         onChange={(e) => onChange({ ...input, mode: e.currentTarget.value as MatchMode })}
       >
-        {/* "Is the author" alone means something only for targets where a counterpart is determined */}
+        {/* "Is the author" only means something for targets with a determined counterpart */}
         {Object.entries(m.rules.modes)
           .filter(([value]) => value !== 'self' || canCompareToSelf(target))
           .map(([value, label]) => (
@@ -402,7 +398,7 @@ type CountRowProps = {
   onSubmit: () => void;
 };
 
-/** One count's row, shaped like `TextRow`. Left empty, that count does not filter */
+/** One count's row, shaped like `TextRow`; left empty, that count does not filter */
 const CountRow = ({ metric, input, onChange, onSubmit }: CountRowProps) => {
   const m = useMessages();
   const label = m.countMetrics[metric];
@@ -415,7 +411,7 @@ const CountRow = ({ metric, input, onChange, onSubmit }: CountRowProps) => {
         onChange={(value) => onChange({ ...input, value })}
         onSubmit={onSubmit}
       />
-      {/* No "Not" box here: "or more" and "or fewer" already say both sides of a number */}
+      {/* No "Not" box: "or more"/"or fewer" already say both sides of a number */}
       <select
         aria-label={label}
         value={input.direction}
@@ -435,19 +431,19 @@ type FormProps = {
   draft: Draft;
   onDraftChange: (draft: Draft) => void;
   onSubmit: () => void;
-  /** Whether a new rule is being created or an existing one opened. The description and the wording of closing change */
+  /** Whether creating a rule or opening an existing one; changes description and closing wording */
   mode: 'add' | 'edit';
   onClose: () => void;
   /**
-   * An input error, shown inside the form. Placed below the list it would end up off screen
-   * while a row near the top is being edited, making it look as though the press did nothing.
+   * An input error, shown inside the form. Below the list it would end up off screen while a
+   * row near the top is being edited, looking as though the press did nothing.
    */
   error: string | null;
-  /** Deletes this rule. In the list row it would get pressed while reordering, so it is here, during editing, only */
+  /** Deletes this rule; in the list row it would get pressed while reordering, so editing-only */
   onDelete?: () => void;
 };
 
-/** The same component for adding and editing, so the meaning of the input and its validation live in one place */
+/** The same component for adding and editing, so input meaning and validation live in one place */
 const RuleForm = ({
   draft,
   onDraftChange,
@@ -463,18 +459,18 @@ const RuleForm = ({
   // Deleting cannot be undone, so it is confirmed once after being pressed
   const [confirming, setConfirming] = useState(false);
 
-  // Right after opening, the button that was pressed ("Add a rule" or "Edit") is gone and focus has nowhere to be.
-  // Moving it to the first box allows typing on with the keyboard alone
+  // Right after opening, the pressed button ("Add a rule" or "Edit") is gone and focus has
+  // nowhere to be; moving it to the first box lets typing continue via keyboard alone
   useEffect(() => {
     firstField.current?.focus();
   }, []);
 
   return (
     <>
-      {/* How to fill the boxes in. Someone opening an existing rule knows how, so it is shown when adding only */}
+      {/* How to fill the boxes in; adding only, since an existing rule needs no hint */}
       {mode === 'add' && <p class="hint">{m.rules.hint}</p>}
 
-      {/* The name goes at the top of the form, so "what rule is this" can be written before the conditions */}
+      {/* The name goes at the top, so "what rule is this" can be written before the conditions */}
       <div class="row add">
         <input
           ref={firstField}
@@ -495,7 +491,7 @@ const RuleForm = ({
             const value = e.currentTarget.value;
             onDraftChange({
               ...draft,
-              // Back to "Any" drops the negation too, so no invisible setting is left behind
+              // Back to "Any" drops the negation too, so no invisible setting stays
               trait: value
                 ? { kind: 'trait', trait: value as TraitKey, negate: trait?.negate ?? false }
                 : null,
@@ -541,7 +537,7 @@ const RuleForm = ({
         </select>
       </div>
 
-      {/* How many reactions the post carries. Beside the age, both being numbers read off the post */}
+      {/* How many reactions the post carries; beside the age, both numbers read off the post */}
       {COUNT_METRICS.map((metric) => (
         <CountRow
           key={metric}
@@ -575,10 +571,8 @@ const RuleForm = ({
         />
         <ColorField
           hidden={!usesColor(draft.action)}
-          /*
-           * Emphasis paints a few characters, highlight a whole post, so the two want
-           * colours of different strength — the defaults differ for the same reason
-           */
+          /* Emphasis paints a few characters, highlight a whole post: colours of different
+             strength, as are their defaults */
           kind={draft.action === ACTIONS.EMPHASIZE ? 'strong' : 'tint'}
           fallback={defaultColorFor(draft.action)}
           value={draft.color}
@@ -592,11 +586,11 @@ const RuleForm = ({
         </button>
       </div>
 
-      {/* The description of the selected action. It is needed at the moment of choosing, so it sits next to the choice */}
+      {/* The selected action's description, needed when choosing, so it sits beside it */}
       <p class="hint action-hint">{m.rules.actionHints[draft.action]}</p>
 
-      {/* Delete is kept away from the save row. Side by side, the buttons crowd and get mispressed.
-          Pressing turns that same row into the confirmation, so it can be answered without moving one's eyes */}
+      {/* Delete is kept from the save row: side by side, buttons crowd and get mispressed.
+          Pressing turns that row into the confirmation, answerable without moving one's eyes */}
       {onDelete && (
         <div class={confirming ? 'row add remove-row confirm' : 'row add remove-row'}>
           {confirming ? (
@@ -631,20 +625,19 @@ export const Rules = ({ rules, order, onChange }: Props) => {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; draft: Draft } | null>(null);
-  // The add form opens only when pressed.
-  // Always open, the input boxes would stand out more than the list and take up vertical space
+  // The add form opens only when pressed; always open, the boxes would outsize the list
   const [adding, setAdding] = useState(false);
   const openButton = useRef<HTMLButtonElement>(null);
-  // Focus is not moved right after the screen opens. It moves only when the presser's own place disappears
+  // Focus is not moved right after opening, only once the presser's own place disappears
   const firstRender = useRef(true);
 
   // If the rule being edited is deleted in another tab, the edit is abandoned
   const current = editing && rules.some((rule) => rule.id === editing.id) ? editing : null;
-  // Used to decide where focus returns. `current` itself is rebuilt on every keystroke, so the id is what is watched
+  // Decides where focus returns; `current` is rebuilt every keystroke, so id is watched instead
   const editingId = current?.id ?? null;
 
-  // Closing the form takes its buttons with it, so the presser is returned to "Add a rule".
-  // When it closed through a delete, the row itself is gone and this is the only place to return to
+  // Closing the form takes its buttons with it, returning the presser to "Add a rule". When
+  // closed through a delete, the row itself is gone and this is the only place to return to
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
@@ -661,10 +654,10 @@ export const Rules = ({ rules, order, onChange }: Props) => {
     }
     setError(null);
     const added = { id: newRuleId(), ...result.rule };
-    // An added rule goes at the end of the order. Not in the order, it takes no part in judging
+    // Goes at the end of the order; not in the order, it takes no part in judging
     onChange([...rules, added], [...order, added.id]);
-    // Only the pattern and the name are cleared; the trait, the match mode, the action and the color stay.
-    // Rules with similar conditions are often added one after another
+    // Only pattern and name are cleared; trait, match mode, action and color stay, since
+    // similar rules are often added one after another
     setDraft({
       ...draft,
       label: '',
@@ -687,7 +680,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
       return;
     }
     setError(null);
-    // The id is kept. The order points at rules by this id, and changing it would lose the position
+    // The id is kept: the order points at rules by id, and changing it would lose the position
     onChange(
       rules.map((rule) => (rule.id === current.id ? { id: rule.id, ...result.rule } : rule)),
       order
@@ -700,7 +693,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
     setEditing({ id: rule.id, draft: toDraft(rule) });
   };
 
-  /** Called from within the edit. The deleted row is gone, so the edit closes too */
+  /** Called from within the edit; the deleted row is gone, so the edit closes too */
   const remove = (id: string) => {
     onChange(rules.filter((rule) => rule.id !== id), order.filter((x) => x !== id));
     setEditing(null);
@@ -710,7 +703,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
   const toggle = (id: string, enabled: boolean) =>
     onChange(rules.map((rule) => (rule.id === id ? { ...rule, enabled } : rule)), order);
 
-  /** Moves one entry within the order, leaving the rules themselves alone. Called from both ↑↓ and dragging */
+  /** Moves one entry within the order, leaving the rules alone; called from both ↑↓ and dragging */
   const move = (from: number, to: number) => {
     const next = [...order];
     const [moved] = next.splice(from, 1);
@@ -718,11 +711,11 @@ export const Rules = ({ rules, order, onChange }: Props) => {
     onChange(rules, next);
   };
 
-  // Reordering by dragging. The keyboard is served by the ↑↓ on each row
+  // Reordering by dragging; the keyboard is served by the ↑↓ on each row
   const reorder = useReorder(move);
 
-  // The list follows the order. Normalization keeps the order matched to the rules that exist, but
-  // they can disagree for a moment, right after a save for instance, so anything unresolvable is skipped
+  // The list follows the order; normalization keeps it matched to the rules that exist, but
+  // they can disagree for a moment (right after a save, say), so anything unresolvable is skipped
   const byId = new Map(rules.map((rule) => [rule.id, rule]));
   const listed = order.map((id) => byId.get(id)).filter((rule): rule is Rule => rule !== undefined);
 
@@ -767,10 +760,9 @@ export const Rules = ({ rules, order, onChange }: Props) => {
                 .filter(Boolean)
                 .join(' ')}
             >
-              {/* The drag handle. Keyboard reordering is served by the ↑↓ on each row, so
-                  this is a marker for fingers and mice alone */}
+              {/* The drag handle; the ↑↓ serve the keyboard, this is for fingers and mice alone */}
               <span class="grip" aria-hidden="true" {...reorder.gripProps(index)} />
-              {/* The switch for stopping a rule temporarily rather than deleting it. Kept apart from the action choices */}
+              {/* Stops a rule temporarily rather than deleting; kept apart from the action choices */}
               <label class="inline">
                 <input
                   type="checkbox"
@@ -779,15 +771,15 @@ export const Rules = ({ rules, order, onChange }: Props) => {
                   onChange={(e) => toggle(rule.id, e.currentTarget.checked)}
                 />
               </label>
-              {/* What is read (name, conditions, action) is gathered into one. The controls go on the row below */}
+              {/* Name, conditions, action gathered into one; controls go on the row below */}
               <div class="rule-body">
                 <span class="rule-name">{ruleName(rule, m)}</span>
-                {/* Only a rule given a name has anything here. It is left out when empty, to avoid an empty row */}
+                {/* Only a named rule has anything here; left out when empty */}
                 {detailOf(rule, m) && <span class="rule-meta">{detailOf(rule, m)}</span>}
                 <ActionBadge action={rule.action} color={rule.color} />
               </div>
-              {/* The controls are gathered into one. If they do not fit the row's width,
-                  the whole group wraps to the right end of the next line (`flex-wrap` in panel.css) */}
+              {/* The controls are gathered into one; if they do not fit the row's width, the
+                  whole group wraps to the next line's right end (`flex-wrap` in panel.css) */}
               <span class="rule-actions">
                 <button
                   type="button"
@@ -809,7 +801,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
                 </button>
                 <button
                   type="button"
-                  // Pressed while another row is being edited, the values being typed would be silently discarded
+                  // Pressed mid-edit elsewhere, typed values would be silently discarded
                   disabled={current !== null}
                   onClick={() => startEditing(rule)}
                 >
@@ -821,7 +813,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
         )}
       </ul>
 
-      {/* Neither the add form nor the button to open it is shown while editing: which one is being typed into would become unclear */}
+      {/* Neither the add form nor its open button shows while editing: unclear which is typed into */}
       {!current &&
         (adding ? (
           <RuleForm

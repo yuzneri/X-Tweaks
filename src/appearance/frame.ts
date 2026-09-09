@@ -2,9 +2,8 @@
 import { mediaHidden, type AppearanceNode } from '../settings/schema.ts';
 
 /**
- * How much larger than the box the frame is allowed to be, covering its padding
- * and borders. Larger media carries larger padding, so take whichever is bigger:
- * the ratio or the floor.
+ * How much larger than the box the frame may be, covering its padding and borders. Larger
+ * media carries larger padding, so take whichever is bigger: the ratio or the floor.
  */
 export const slack = (height: number): number => Math.max(10, height * 0.05);
 
@@ -19,11 +18,10 @@ export const wrapsBox = (boxHeight: number, rectHeight: number): boolean =>
 /**
  * The percentage a length is built from, if it is built from one at all.
  *
- * X writes a frame's shape as a plain `56.25%` or as a `calc(79.8223% - 3.193px)` — the
- * second where the frame is a row of pictures with gaps between them, which is most of the
- * frames that hold more than one. Both are a height that follows the width, which is what
- * anything deciding about a frame has to know; the few pixels the `calc` takes off do not
- * change that answer.
+ * X writes a frame's shape as a plain `56.25%` or as a `calc(79.8223% - 3.193px)`, the
+ * second where the frame is a row of pictures with gaps between them — most of the frames
+ * holding more than one. Both are a height that follows the width, which is all anything
+ * deciding about a frame has to know; the few pixels the `calc` takes off do not change it.
  */
 export const percentageIn = (value: string): number | null => {
   const found = /(-?[0-9.]+)%/.exec(value);
@@ -33,12 +31,10 @@ export const percentageIn = (value: string): number | null => {
 
 /**
  * How to write a frame's own padding so that it stops at the limit, or null where there is
- * nothing there to stop.
- *
- * What X asked for is kept whole inside the `min()`, so the browser goes on resolving the
- * percentage against the width as it always did, and takes the smaller of the two — which
- * leaves a picture already shorter than the limit exactly as it was. A padding written as
- * a length is a height already settled, and the stylesheet's own `max-height` holds that.
+ * nothing to stop. What X asked for is kept whole inside the `min()`, so the browser goes
+ * on resolving the percentage against the width and takes the smaller of the two, leaving a
+ * picture already shorter than the limit exactly as it was. A padding written as a length
+ * is a height already settled, which the stylesheet's own `max-height` holds.
  */
 export const cappedPadding = (asked: string, limit: number): string | null =>
   percentageIn(asked) === null ? null : `min(${asked}, ${limit}px)`;
@@ -55,15 +51,13 @@ export const setsHeight = (
 ): boolean => aspectRatio !== 'auto' || parseFloat(paddingBottom) >= boxHeight * 0.5;
 
 /**
- * Whether this column's frames want the marker.
+ * Whether this column's frames want the marker. Either of two things is enough: media taken
+ * off the timeline, because hiding the box alone leaves the frame holding the space, and
+ * media held to a height, because the frame is what the height belongs to.
  *
- * Two things ask for it, and either is enough. Media taken off the timeline needs it
- * because hiding the box alone leaves the frame holding the space. Media held to a height
- * needs it because the frame is what the height belongs to.
- *
- * It says nothing about how tall the picture may be drawn: a frame is marked whether the
- * picture is over the limit or under it, and the limit is applied to the marked frame as a
- * cap, which a shorter picture never reaches (`appearance/apply.ts`).
+ * It says nothing about how tall the picture may be drawn — a frame is marked whether the
+ * picture is over the limit or under it, the limit being applied to the marked frame as a
+ * cap that a shorter picture never reaches (`appearance/apply.ts`).
  */
 export const marksFrames = (appearance: AppearanceNode): boolean =>
   mediaHidden(appearance.media.style) || appearance.media.maxThumbHeight !== null;

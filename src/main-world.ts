@@ -1,10 +1,8 @@
 /**
- * The script running in the page's context (the MAIN world).
- * It walks React's internal state from a column element to read the columnId, and
- * writes it onto the element as a marker.
- *
- * Nothing else is given to it, and it imports no other module. It sits where X's own
- * scripts can see it and is the most exposed to their implementation changing, so its
+ * The script running in the page's context (the MAIN world). It walks React's internal
+ * state from a column element to read the columnId and writes it onto the element as a
+ * marker. Nothing else is given to it and it imports no other module: it sits where X's
+ * own scripts can see it, the most exposed to their implementation changing, so its
  * surface is kept as small as possible.
  */
 const REQUEST = 'xpro-tweaks:request-columns';
@@ -30,9 +28,8 @@ const fiberOf = (el: Element): Fiber | null => {
 };
 
 /**
- * Gets the columnId from a column element.
- * It sits in the props two levels above the column element, but that depth can move as
- * X's implementation changes, so instead of hard-coding it the walk goes up several levels.
+ * Gets the columnId from a column element. It sits in the props two levels above, but that
+ * depth can move as X's implementation changes, so the walk goes up several levels instead.
  */
 const columnIdOf = (el: Element): { columnId: string | null; depth: number | null } => {
   let fiber = fiberOf(el);
@@ -45,11 +42,9 @@ const columnIdOf = (el: Element): { columnId: string | null; depth: number | nul
 };
 
 /**
- * Looks for a columnId by walking downward (children and siblings) from an element.
- *
- * A drawer sometimes ties to no column however far up the walk goes, because it hangs
- * off the deck as a whole. In that case it holds one on the content side, so the search
- * goes there with a cap on how many nodes it visits.
+ * Looks for a columnId by walking downward (children and siblings) from an element. A
+ * drawer that hangs off the deck as a whole ties to no column however far up the walk
+ * goes, but holds one on the content side, so the search goes there under a node cap.
  */
 const columnIdBelow = (el: Element, limit = 400): string | null => {
   const root = fiberOf(el);
@@ -66,10 +61,9 @@ const columnIdBelow = (el: Element, limit = 400): string | null => {
 };
 
 /**
- * Returns which column each open column-options drawer belongs to.
- * The DOM holds no marker tying a drawer to a column, and the extension's own approach
- * of remembering what was clicked does not work for a drawer that was already open when
- * the page was loaded.
+ * Returns which column each open column-options drawer belongs to. The DOM holds no marker
+ * tying the two, and the extension's own approach of remembering what was clicked does not
+ * work for a drawer already open when the page was loaded.
  */
 const collectDrawers = () =>
   Array.from(document.querySelectorAll(DRAWER_SELECTOR)).map((el, index) => ({
@@ -78,11 +72,10 @@ const collectDrawers = () =>
   }));
 
 /**
- * Reads the columns, stamps the markers onto the elements, and returns the list. Only
- * a single attribute is stamped, and removing it restores the original.
- * An identical value is not rewritten (nothing competes with X's re-rendering).
- * Elements that could not be read have their marker dropped: a stale marker would apply
- * another column's settings.
+ * Reads the columns, stamps the markers onto the elements and returns the list. Only one
+ * attribute is stamped and removing it restores the original; an identical value is not
+ * rewritten, so nothing competes with X's re-rendering. Elements that could not be read
+ * have their marker dropped, since a stale one would apply another column's settings.
  */
 const collect = () =>
   Array.from(document.querySelectorAll(COLUMN_SELECTOR)).map((el, index) => {
@@ -105,9 +98,8 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   try {
     payload = { columns: collect(), drawers: collectDrawers(), error: null };
   } catch (e) {
-    // A failed read is reported as a failure rather than swallowed.
-    // The extension side needs to tell "the MAIN world ran but no columnId could be
-    // obtained" apart from the rest
+    // A failed read is reported rather than swallowed: the extension side needs to tell
+    // "the MAIN world ran but no columnId could be obtained" apart from the rest
     payload = { columns: [], drawers: [], error: e instanceof Error ? e.message : String(e) };
   }
 
@@ -115,10 +107,9 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
 });
 
 // A marker is left in the DOM so the extension side can tell whether the MAIN world is
-// running. It is not announced by postMessage because this runs at document_start while
-// the extension side runs at document_idle: at the moment of sending there is no
-// listener on the other end and the message is lost.
-// The DOM is visible from both worlds, so it does not depend on the order of execution.
+// running. postMessage would not do: this runs at document_start and the extension side at
+// document_idle, so nothing is listening yet and the message is lost. The DOM is visible
+// from both worlds, whatever the order of execution.
 document.documentElement.dataset.xproMainWorld = '1';
 
 // Importing no other module leaves nothing at the top level, and TypeScript would treat

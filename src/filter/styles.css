@@ -1,12 +1,10 @@
 /*
- * How the filter looks.
+ * How the filter looks. X's elements are never rewritten; these rules apply only to the classes the
+ * extension adds, so disabling the extension takes the classes and this stylesheet with it, returning
+ * the display to how it was before installation.
  *
- * X's elements are never rewritten; these rules apply only to the classes the
- * extension adds. Disabling the extension takes the classes and this stylesheet with
- * it, returning the display to how it was before installation.
- *
- * !important is there to reliably beat X's own high-specificity rules.
- * The targets are confined below the extension's classes, so nothing else is affected.
+ * !important is there to reliably beat X's own high-specificity rules. The targets are confined below
+ * the extension's classes, so nothing else is affected.
  */
 
 /* A collapsed cell keeps only the placeholder the extension added */
@@ -14,10 +12,7 @@
   display: none !important;
 }
 
-/*
- * A hidden cell is taken out of the display entirely.
- * The nodes stay in place, so dropping the rule brings it back on the next judgement.
- */
+/* A hidden cell is taken out of the display entirely. The nodes stay in place, so dropping the rule brings it back on the next judgement */
 .xpro-hidden {
   display: none !important;
 }
@@ -68,13 +63,10 @@
 }
 
 /*
- * A highlight paints the background of the whole cell.
- * The post proper carries a background of its own that would hide it, so that range
- * alone is put back to transparent.
- *
- * The strength comes from the opacity in the color (settable on the settings screen).
- * Every default color is 15%, and letting the background show through keeps the body
- * readable under both light and dark palettes.
+ * A highlight paints the background of the whole cell; the post proper carries a background of its own
+ * that would hide it, so that range alone is put back to transparent. The strength comes from the
+ * opacity in the color (settable on the settings screen): every default color is 15%, and letting the
+ * background show through keeps the body readable under both light and dark palettes.
  */
 .xpro-highlighted {
   background-color: var(--xpro-highlight) !important;
@@ -85,11 +77,9 @@
 }
 
 /*
- * When a highlight color is strong enough to make text unreadable, that text alone is
- * shifted toward a readable color.
- *
- * The marker is set by `readable.ts`, and only on text that falls short.
- * The colors live here so that removing the marker restores the original color.
+ * When a highlight color is strong enough to make text unreadable, that text alone is shifted toward a
+ * readable color. The marker is set by `readable.ts`, and only on text that falls short; the colors
+ * live here so that removing the marker restores the original color.
  */
 .xpro-highlighted [data-xpro-fg='dark'] {
   color: #000000 !important;
@@ -100,19 +90,16 @@
 }
 
 /*
- * The line put into a post in place of a card, an article, a photo or a video.
+ * The line put into a post in place of a card, an article, a photo or a video. The ones carrying a link
+ * are `a`, which the browser underlines on its own; X writes its own links without one, and this line
+ * stands among the body text, so the underline is taken off to keep it reading as part of the post. The
+ * color is written on the element by `appearance/apply.ts`, so nothing about it here.
  *
- * The ones carrying a link are `a`, which the browser underlines on its own. X writes
- * its own links without one, and this line stands among the body text, so the underline
- * is taken off to keep it reading as part of the post.
- * The color is written on the element by `appearance/apply.ts`, so nothing about it here.
- *
- * Standing outside the post's body — because the cut would otherwise reach it, or because
- * the post has no body at all — it is a block of its own. Left inline, two of them (a
- * card's line and a photo's mark, say) would run together on one line, and the "Show more"
- * that follows would sit beside them rather than under.
- * Inside the body it stays inline: there it is part of the text, parted from the last word
- * by the line break written into it.
+ * Standing outside the post's body — because the cut would otherwise reach it, or because the post has
+ * no body at all — it is a block of its own: left inline, two of them (a card's line and a photo's mark,
+ * say) would run together on one line, and the "Show more" that follows would sit beside them rather
+ * than under. Inside the body it stays inline, being part of the text, parted from the last word by the
+ * line break written into it.
  */
 .xpro-attachment {
   display: block;
@@ -124,30 +111,24 @@
 }
 
 /*
- * The words a line carries for a picture's description or a quoted post.
- *
- * Dim, the way X draws what is about a post rather than part of it: they are somebody
- * else's words standing inside this post's body, and at the body's own color they read as
- * though the author had written them. A card's headline is left out — it is a link, and is
- * painted as one.
- *
- * The rule sits on the words themselves rather than on the line around them, so the mark
- * keeps the body's color and the tooltip stays where it is.
+ * The words a line carries for a picture's description or a quoted post. Dim, the way X draws what is
+ * about a post rather than part of it: they are somebody else's words standing inside this post's body,
+ * and at the body's own color they read as though the author had written them. A card's headline is
+ * left out — it is a link, and is painted as one. The rule sits on the words themselves rather than on
+ * the line around them, so the mark keeps the body's color and the tooltip stays where it is.
  */
 .xpro-attachment-words {
   color: rgb(113, 118, 123);
 }
 
 /*
- * A line that came out as the mark alone is one character across, and everything it has
- * to say — the description written for a picture, a card's headline — is in the tooltip.
- * Aiming at 16 pixels to read it is more than it is worth, so the box the pointer has to
- * land on is grown.
+ * A line that came out as the mark alone is one character across, and everything it has to say — the
+ * description written for a picture, a card's headline — is in the tooltip. Aiming at 16 pixels to read
+ * it is more than it is worth, so the box the pointer has to land on is grown.
  *
- * The margin takes back exactly what the padding adds, so nothing on the line moves: the
- * mark stays where it was and only what counts as "on it" gets bigger. Padding on an
- * inline box does not raise the line it sits on either, so the height of the post is
- * untouched.
+ * The margin takes back exactly what the padding adds, so nothing on the line moves: the mark stays
+ * where it was and only what counts as "on it" gets bigger. Padding on an inline box does not raise the
+ * line it sits on either, so the height of the post is untouched.
  */
 .xpro-attachment.xpro-mark {
   padding: 5px;
@@ -155,12 +136,9 @@
 }
 
 /*
- * The description its author wrote for a picture, put under the picture itself.
- *
- * The same words the tooltip carries, in the one place a touch screen can read them.
- * Dim and a size below the body, the way a caption reads: it is about the picture rather
- * than part of what the post says.
- *
+ * The description its author wrote for a picture, put under the picture itself: the same words the
+ * tooltip carries, in the one place a touch screen can read them. Dim and a size below the body, the
+ * way a caption reads — it is about the picture rather than part of what the post says.
  */
 .xpro-caption {
   margin-top: 4px;
@@ -170,16 +148,14 @@
 }
 
 /*
- * The words themselves.
+ * The words themselves. How much of a description goes in is decided when it is written, by the same
+ * cut the line put into a post is given (`appearance/card.ts`), so the two ways of showing one show the
+ * same amount. Nothing is folded here, and so nothing has to be measured to know whether the button is
+ * wanted.
  *
- * How much of a description goes in is decided when it is written, by the same cut the
- * line put into a post is given (`appearance/card.ts`), so the two ways of showing one
- * show the same amount. Nothing is folded here, and so nothing has to be measured to know
- * whether the button is wanted.
- *
- * The line breaks are kept, because they part one picture's description from the next.
- * A description is somebody's free text and may hold an address with no space in it, so it
- * is allowed to break anywhere rather than run out past the column.
+ * The line breaks are kept, because they part one picture's description from the next. A description is
+ * somebody's free text and may hold an address with no space in it, so it is allowed to break anywhere
+ * rather than run out past the column.
  */
 .xpro-caption-text {
   white-space: pre-wrap;
@@ -187,13 +163,11 @@
 }
 
 /*
- * The "Show more" shown under body text cut off by the line limit.
- * It follows X's button for the same purpose: text only, in the link color.
- *
- * The color here is the fallback. X writes the color it was told to use on each of its
- * own links inline, and `appearance/apply.ts` reads one and copies it onto this button,
- * so the two match whichever of the six the user picked. This value is what shows where
- * there is no link of X's to read.
+ * The "Show more" shown under body text cut off by the line limit. It follows X's button for the same
+ * purpose: text only, in the link color. That color is the fallback — X writes the color it was told to
+ * use on each of its own links inline, and `appearance/apply.ts` reads one and copies it onto this
+ * button, so the two match whichever of the six the user picked. This value shows where there is no
+ * link of X's to read.
  */
 .xpro-more,
 .xpro-caption-more {
@@ -213,15 +187,10 @@
 }
 
 /*
- * A reaction count written out in full stands in place of X's own, rounded one
- * ("22万" → "221,250"). X's element is hidden rather than removed, so dropping the
- * marker brings it straight back.
- *
- * It lives here rather than in the appearance's stylesheet because it follows the
- * marker rather than the setting. That stylesheet is rewritten the moment the settings
- * change, while the number this hides in favour of is taken out on the next settling —
- * tied to the setting, a post would show both numbers at once in between, and on a page
- * where nothing is happening it would show them until something did.
+ * A reaction count written out in full stands in place of X's own, rounded one. X's element is hidden
+ * rather than removed, so dropping the marker brings it straight back. It follows the marker rather than
+ * the setting, which is why it lives here: the appearance's stylesheet is rewritten the moment the
+ * settings change, while our number is taken out on the next settling, and in between a post would show both.
  */
 [data-xpro-count] > *:not(.xpro-count) {
   display: none !important;

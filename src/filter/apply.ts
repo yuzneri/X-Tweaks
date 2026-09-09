@@ -1,7 +1,6 @@
 /**
- * Reflects the judgement in the DOM. All it adds are classes and, when collapsing, a
- * single placeholder. Nodes are neither removed nor stashed away, so nothing competes
- * with X's own re-rendering.
+ * Reflects the judgement in the DOM: classes, and a single placeholder when collapsing. Nodes
+ * are neither removed nor stashed away, so nothing competes with X's re-rendering.
  */
 import { ACTIONS, type HighlightBase } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
@@ -21,14 +20,11 @@ const PLACEHOLDER = 'xpro-placeholder';
 const COLOR_VAR = '--xpro-highlight';
 
 /**
- * What the colour now on a post was worked out from: the colour the rule asked for, what
- * it was laid over, and the colours the scope paints (`paintKey`).
- *
- * Compositing means measuring what is behind the post, which is a walk up to the root
- * asking each ancestor what it is painted in — about a millisecond a post on the real
- * site, and a change to the rules asks it of every highlighted post on the page. What is
- * behind a post does not change while it sits there, so the answer is kept here and used
- * again until something repaints the page.
+ * What the colour now on a post was worked out from: the rule's colour, what it was laid
+ * over, and the colours the scope paints (`paintKey`). Compositing means walking up to the
+ * root asking each ancestor what it is painted in — costly, and a rule change asks it of every
+ * highlighted post. What is behind a post does not change while it sits there, so the answer is
+ * kept until something repaints the page.
  */
 const COLOR_FROM = 'data-xpro-highlight-from';
 
@@ -39,20 +35,18 @@ const composing = new Map<Element, { rule: string; from: string; look: Look }>()
 export const coloursWaiting = (): boolean => composing.size > 0;
 
 /**
- * Works out the colour every post that was waiting is to be highlighted in, and lays it
- * on. Answers how many there were.
- *
- * Called once at the end of a round of judging (`filter/engine.ts`), for the reason the
- * words are (`filter/readable.ts`): every post is read before any of them is written to,
- * so the round costs the browser one pass over the page's styles rather than one a post.
+ * Works out the colour every waiting post is highlighted in and lays it on, returning how
+ * many there were. Called once at the end of a round of judging (`filter/engine.ts`), for
+ * the same reason the words are (`filter/readable.ts`): every post is read before any is
+ * written to, costing one styles pass per round rather than one per post.
  */
 export const composeWaiting = (): number => {
   if (composing.size === 0) return 0;
   /*
-   * Only the posts still asking for it. A round of judging can come and go between the
-   * queueing and this — the settings screen saves on every keystroke — and a post folded
-   * away in the meantime would otherwise be stamped as coloured, and have its words read
-   * against a highlight it no longer carries (`filter/readable.ts` remembers that reading).
+   * Only the posts still asking for it: a round of judging can come and go between queueing
+   * and this (the settings screen saves on every keystroke), and a post folded away meanwhile
+   * would be stamped as coloured against a highlight it no longer carries
+   * (`filter/readable.ts` remembers that reading).
    */
   const posts = [...composing].filter(([cell]) => cell.classList.contains(HIGHLIGHTED));
   composing.clear();
@@ -83,9 +77,8 @@ export const composeWaiting = (): number => {
 };
 
 /**
- * Cells opened with the "Show" button, remembered so a re-judgement does not collapse
- * them again. They are held in a WeakSet rather than as a DOM class so the decision
- * survives X redrawing the same cell and wiping the class.
+ * Cells opened with the "Show" button, so a re-judgement does not collapse them again. A WeakSet,
+ * not a DOM class, so the decision survives X redrawing the cell and wiping it.
  */
 const expanded = new WeakSet<Element>();
 
@@ -98,20 +91,18 @@ export type Look = {
 };
 
 /**
- * An opaque color: the highlight color composited with the column background skipped.
- * null when it cannot be measured.
- *
- * CSS alone cannot ignore exactly one ancestor's background, so the backdrop with that
- * one skipped is measured here and composited. X's theme colors are not hard-coded:
- * measuring by walking up handles dark, dim and light with the same code.
+ * An opaque colour: the highlight colour composited with the column background skipped, null
+ * when it cannot be measured. CSS cannot ignore exactly one ancestor's background, so the
+ * backdrop with that one skipped is measured and composited here — walking up handles dark,
+ * dim and light with the same code, X's theme colours never hard-coded.
  */
 const overThemeColor = (
   cell: Element,
   color: string,
   /**
-   * What is behind a scope, with the scope's own background left out. Handed in rather
-   * than measured here so that a round of posts in the same scope measures it once: the
-   * walk above a scope is the same walk for every post in it, and it is the long part.
+   * What is behind a scope, its own background left out. Handed in rather than measured here
+   * so a round of same-scope posts measures it once — the walk above a scope is identical for
+   * every post in it, and it is the expensive part.
    */
   behindScope: (column: Element) => Rgb | null
 ): string | null => {
@@ -132,16 +123,12 @@ const overThemeColor = (
 };
 
 /**
- * The placeholder standing in for a folded-away post, if it has one.
- *
- * Looked for among the post's own children rather than searched for through it: a post
- * holds hundreds of elements as X builds one, but only a couple of them directly, so this
- * is a step or two either way.
- *
- * Neither the class that should accompany it nor the position it was put in is trusted.
- * X redraws a post and takes our classes with it while leaving what we put inside, and it
- * is free to put something of its own in front. Miss the placeholder either way and it is
- * never taken out, and a second one joins it the next time the post is folded.
+ * The placeholder standing in for a folded-away post, if it has one. Looked for among the
+ * post's own children, not searched for through it: a post holds hundreds of elements as X
+ * builds it, but only a couple directly. Neither its class nor its position is trusted — X
+ * redraws a post, taking our classes with it while leaving what we put inside, and may put
+ * something of its own in front. Miss it either way and it is never taken out, joined by a
+ * second the next time the post is folded.
  */
 const placeholderOf = (cell: Element): HTMLElement | null => {
   for (let el = cell.firstElementChild; el !== null; el = el.nextElementSibling) {
@@ -151,28 +138,23 @@ const placeholderOf = (cell: Element): HTMLElement | null => {
 };
 
 /**
- * Undoes only the display decisions (collapse, hide, highlight). Emphasis is not touched
- * here.
- *
- * The classes are looked at before they are taken off, because on a change to the rules
- * most of the page carries none of them and taking off what was never put on is work for
- * nothing. What we wrote into the post is not gated that way: X takes our classes off a
- * post it redraws and leaves the rest, so the placeholder and the colour are asked for
- * whatever the classes say.
+ * Undoes only the display decisions (collapse, hide, highlight); emphasis is not touched. The
+ * classes are checked before being removed, since on a rule change most of the page carries
+ * none, and removing what was never set is wasted work. What we wrote into the post is not
+ * gated that way — X strips our classes off a redrawn post but leaves the rest, so the
+ * placeholder and colour are checked regardless.
  */
 const resetDecision = (cell: Element): void => {
   // Whatever it was waiting to be given, it is not being given it now
   composing.delete(cell);
-  // Asked of every post, class or no class: one that X stripped still has ours inside it
   placeholderOf(cell)?.remove();
   const classes = cell.classList;
   if (classes.contains(COLLAPSED) || classes.contains(HIDDEN) || classes.contains(HIGHLIGHTED)) {
     classes.remove(COLLAPSED, HIDDEN, HIGHLIGHTED);
   }
   /*
-   * Asked of the attribute rather than of the class, for the reason the placeholder is
-   * (above): what X takes off a post it redraws is our classes, and what it leaves is what
-   * we wrote. The attribute is what says a colour was worked out, so it is what has to go.
+   * Checked via the attribute rather than the class, for the same reason as the placeholder
+   * above — the attribute is what says a colour was worked out, so it is what has to go.
    */
   if (cell.hasAttribute(COLOR_FROM)) {
     (cell as HTMLElement).style.removeProperty(COLOR_VAR);
@@ -222,8 +204,8 @@ const buildPlaceholder = (
 };
 
 /**
- * Reflects the judgement on a cell. A null `decision` returns it to having nothing applied.
- * A cell already in that state is not touched (nothing competes with X's re-rendering).
+ * Reflects the judgement on a cell. A null `decision` returns it to having nothing applied. A
+ * cell already in that state is not touched (nothing competes with X's re-rendering).
  */
 export const apply = (
   cell: Element,
@@ -240,11 +222,9 @@ export const apply = (
   spentOn('· deciding how to show', painted - started);
 
   /*
-   * Emphasis is an action that does not change how a post is shown, so it is applied
-   * separately from the others, collapsed posts included.
-   * It is painted after the display is decided because making text readable requires
-   * measuring the color behind it, and painting first would measure the background of
-   * the state one step back.
+   * Emphasis does not change how a post is shown, so it is applied separately, collapsed posts
+   * included, and after the display is decided — making text readable measures the colour
+   * behind it, and painting first would measure the previous state's background.
    */
   mark(cell, verdict.emphases, look.adjustContrast);
   spentOn('· emphasis', performance.now() - painted);
@@ -270,21 +250,19 @@ const showDecision = (
     cell.classList.remove(COLLAPSED, HIDDEN);
     cell.classList.add(HIGHLIGHTED);
     /*
-     * With "X's own backdrop" chosen as the base, the colour laid down is the rule's
-     * composited with the column background skipped, which means reading what is behind
-     * the post. That reading, and the one the words need, are both left to the end of the
-     * round (`composeWaiting`): the post has just been written to, and a colour read back
-     * from it now would make the browser work out the page's styles again — once per post
-     * rather than once per round.
+     * With "X's own backdrop" as the base, the colour laid down is the rule's composited with
+     * the column background skipped, meaning a read of what is behind the post. That reading,
+     * and the one the words need, are left to the end of the round (`composeWaiting`): the
+     * post was just written to, and reading a colour back now would make the browser rework
+     * the page's styles once per post rather than once per round.
      */
     const from = `${decision.color}|${look.highlightBase}|${look.paint}`;
     if (cell.getAttribute(COLOR_FROM) === from) {
       /*
-       * Worked out before, and nothing behind the post has moved since. Anything queued in
-       * the meantime is dropped: the rules can go from one colour to another and back
-       * again before a quiet moment comes round — a settings screen saves on every
-       * keystroke, and a tab in the background waits for a quiet moment indefinitely — and
-       * the colour left in the queue is the one from the middle of that, which would be
+       * Worked out before, and nothing behind the post has moved since. Anything queued
+       * meanwhile is dropped: the rules can go from one colour to another and back before a
+       * quiet moment comes round — a settings screen saves on every keystroke, and a
+       * background tab may wait indefinitely — leaving a mid-change colour queued, which is
        * painted on and stamped as current.
        */
       composing.delete(cell);
@@ -322,10 +300,9 @@ const showDecision = (
   const existing = placeholderOf(cell);
   if (existing) {
     /*
-     * Both halves are put right, not the reason alone. The post this stands in for is not
-     * necessarily the one it was built for: X hands a post's elements on to another post,
-     * taking our classes off and leaving what we put in, and a placeholder kept from
-     * before would go on naming whoever wrote the post that is gone.
+     * Both halves are put right, not the reason alone: the post this stands in for is not
+     * necessarily the one it was built for. X hands a post's elements on to another, taking
+     * our classes off and leaving what we put in, so a kept placeholder could name a gone author.
      */
     const summary = existing.querySelector('.xpro-placeholder-text');
     const named = author ? `@${author}` : messages.placeholder.post;
