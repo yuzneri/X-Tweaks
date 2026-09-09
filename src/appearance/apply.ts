@@ -411,6 +411,29 @@ let measureWait = MEASURE_MS;
 /** The posts with something still to measure. Looked at again on a later round */
 const toMeasure = new Set<Element>();
 
+/**
+ * How many posts make a round of measuring worth what it costs, and how long the ones
+ * waiting may be kept waiting for company.
+ *
+ * A round reads the page back, which makes the browser work out everything written since
+ * it was last drawn, and then writes its answers — which the browser has to work out again
+ * before it draws. That pair costs the same whether the round answers for twenty posts or
+ * for one: measured on a real timeline in Firefox, rounds that looked at one and at three
+ * posts cost 64ms and 110ms, all but a millisecond of it the page catching up. So a
+ * handful of posts waits for company rather than buying a whole round for itself.
+ *
+ * The patience is what keeps a quiet timeline from leaving a picture at its full height
+ * for ever: whatever has been waiting this long is measured, however few of them there are.
+ */
+const WORTH_A_ROUND = 6;
+const MEASURE_PATIENCE_MS = 2000;
+
+/**
+ * When the posts now waiting started waiting. Never, while none are: a round asked for by
+ * anything other than a post waiting (a picture that finished loading, say) is not held up
+ */
+let waitingSince = Number.POSITIVE_INFINITY;
+
 /** Whether a round of measuring is already booked for the next quiet moment */
 let booked = false;
 
@@ -448,6 +471,18 @@ const measureSoon = (): void => {
       waitingToBook = null;
       measureSoon();
     }, owed);
+    return;
+  }
+  /*
+   * Too few to be worth a round of their own: they wait for company, or for the patience
+   * above to run out — whichever comes first (`WORTH_A_ROUND`)
+   */
+  const patience = MEASURE_PATIENCE_MS - (performance.now() - waitingSince);
+  if (toMeasure.size < WORTH_A_ROUND && patience > 0) {
+    waitingToBook = setTimeout(() => {
+      waitingToBook = null;
+      measureSoon();
+    }, patience);
     return;
   }
   booked = true;
@@ -490,7 +525,9 @@ const mayMeasure = (): boolean => inTheBookedRound && performance.now() - lastMe
 /** Notes that a post has something still to be measured, and keeps it for a later round */
 const measureLater = (element: Element): void => {
   const cell = element.closest(CELL_SELECTOR);
-  if (cell) toMeasure.add(cell);
+  if (!cell) return;
+  if (toMeasure.size === 0) waitingSince = performance.now();
+  toMeasure.add(cell);
 };
 
 /** What was measured for one medium, and the state of the page it was measured in */
@@ -2241,6 +2278,7 @@ export const stampMediaFrames = (): void => {
     measured = true;
     lastMeasured = performance.now();
     toMeasure.clear();
+    waitingSince = Number.POSITIVE_INFINITY;
   } else if (toMeasure.size > 0) {
     measureSoon();
   }
