@@ -32,6 +32,7 @@ export const TRAIT_KEYS = [
   'linkCard',
   'space',
   'article',
+  'trend',
   'ad',
   'media',
   'mediaWithoutAlt',
@@ -184,6 +185,7 @@ export const MATCH_TARGETS = [
   'cardTitle',
   'spaceName',
   'articleText',
+  'trendText',
   'language',
   'altText',
 ] as const;
@@ -237,6 +239,7 @@ export const TARGETS_BY_TRAIT = {
   linkCard: ['cardDomain', 'cardTitle'],
   space: ['spaceName'],
   article: ['articleText'],
+  trend: ['trendText'],
   ad: [],
   media: ['altText'],
   // The pictures are there by definition, so their descriptions can be asked about

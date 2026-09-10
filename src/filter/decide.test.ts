@@ -64,6 +64,7 @@ const post = (patch: PostPatch = {}): Post => ({
     cardTitle: some(patch.cardTitle, []),
     spaceName: some(patch.spaceName, []),
     articleText: some(patch.articleText, []),
+    trendText: some(patch.trendText, []),
     language: some(patch.language, ['ja']),
     altText: some(patch.altText, []),
   },
@@ -75,6 +76,7 @@ const post = (patch: PostPatch = {}): Post => ({
   poll: patch.poll ?? null,
   hasSpace: patch.hasSpace ?? false,
   hasArticle: patch.hasArticle ?? false,
+  hasTrend: patch.hasTrend ?? false,
   hasLinkCard: patch.hasLinkCard ?? false,
   isAd: patch.isAd ?? false,
   isVerified: patch.isVerified ?? false,
@@ -498,6 +500,7 @@ test('性質の条件は、その性質を持つ投稿だけに一致する', ()
   assert.ok(verdictOf('pollClosed', { poll: 'closed' }));
   assert.ok(verdictOf('space', { hasSpace: true }));
   assert.ok(verdictOf('article', { hasArticle: true }));
+  assert.ok(verdictOf('trend', { hasTrend: true }));
   assert.ok(verdictOf('ad', { isAd: true }));
   assert.ok(verdictOf('media', { hasMedia: true }));
   assert.equal(verdictOf('media', { hasMedia: false }), null);
@@ -870,6 +873,13 @@ test('埋め込まれたものの文字でも絞れる', () => {
   assert.equal(matches('cardTitle', '発売', { cardTitle: ['新刊が発売されます'] }), true);
   assert.equal(matches('spaceName', 'フリートーク', { spaceName: ['#83 今夜フリートーク'] }), true);
   assert.equal(matches('articleText', '執筆', { articleText: ['書籍を執筆して思うこと'] }), true);
+  // The headline and the summary are two values, so either can be matched on its own
+  assert.equal(
+    matches('trendText', 'キーボード', {
+      trendText: ['エンジニアの「高い買い物LT会」が五反田で開催へ', 'キーボードがMacより高価、…'],
+    }),
+    true
+  );
 });
 
 test('埋め込みが無い投稿は、その対象では絞られない', () => {

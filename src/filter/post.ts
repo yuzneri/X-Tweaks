@@ -100,6 +100,28 @@ const SPACE = 'a[href*="/i/spaces/"]';
  */
 export const ARTICLE = '[data-testid="article-cover-image"]';
 
+/**
+ * The card X hangs off a post for a trend it has written up. Nothing on it carries a marker
+ * of X's own: it comes from another of X's renderers, which writes no `data-testid` and
+ * hashes its class names, so where its link goes is what tells it apart. The address is
+ * written two ways — x.com's own, and on X Pro an app link no browser can follow, which
+ * `timeline/trend-link.ts` puts right — and both are matched, so a card is found whether or
+ * not it has been put right yet.
+ *
+ * Held to that renderer's own root, so a post whose *text* names a trend page is not read as
+ * carrying a card.
+ */
+const TREND_HREF = 'a[href^="twitter://trending/"], a[href*="/i/trending/"]';
+export const TREND_CARD_LINK = `.jetfuel-style-root :is(${TREND_HREF})`;
+
+/**
+ * The words on a trend card: the headline, and the summary written under it. They are the
+ * only parts clamped to a number of lines — the time, the category and the count of posts
+ * beside them are not — so the clamp is what tells the words from the rest. How many lines
+ * each is clamped to is left out: that is a matter of the layout, and changes with it.
+ */
+const TREND_WORDS = 'p[class*="line-clamp"]';
+
 /** One account offered in a list, with a Follow button beside it */
 export const USER_CELL = '[data-testid="UserCell"]';
 
@@ -654,6 +676,7 @@ export const markTargets = (cell: Element, target: MatchTarget): MarkTarget[] =>
     case 'cardTitle':
     case 'spaceName':
     case 'articleText':
+    case 'trendText':
       return [];
   }
 };
@@ -722,6 +745,17 @@ const articleTextIn = (tweet: Element): string[] => {
   return text ? [text] : [];
 };
 
+/**
+ * What a trend card says, in the order it is written: the headline first, the summary after.
+ * They are kept apart rather than run together, so that "matches exactly" can be written
+ * against the headline — the summary is a couple of sentences, and nobody writes one out.
+ * The appearance reads the same two through here (`appearance/apply.ts`).
+ */
+export const trendWordsOf = (card: Element): string[] =>
+  Array.from(card.querySelectorAll(TREND_WORDS), (words) => words.textContent?.trim() ?? '').filter(
+    (text) => text !== ''
+  );
+
 /** When in doubt, fall back to "a note is attached" */
 const communityNoteOf = (tweet: Element): 'added' | 'rating' | null => {
   const note = tweet.querySelector(COMMUNITY_NOTE);
@@ -776,6 +810,8 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
   // Asked once as well: what hangs off the post answers both "is there a picture" and "was it described"
   const media = Array.from(tweet.querySelectorAll(MEDIA));
   const described = mediaDescriptionsIn(media, quote, generic);
+  // Asked once too: the card answers both whether there is a trend on the post and what it says
+  const trend = tweet.querySelector(TREND_CARD_LINK);
 
   return {
     values: {
@@ -792,6 +828,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
       cardTitle: cardTextsIn(tweet, (card) => card.title),
       spaceName: spaceNameIn(tweet),
       articleText: articleTextIn(tweet),
+      trendText: trend ? trendWordsOf(trend) : [],
       language: languageIn(bodies.own),
       altText: described.filter((text): text is string => text !== null),
     },
@@ -804,6 +841,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
     poll: pollOf(tweet),
     hasSpace: tweet.querySelector(SPACE) !== null,
     hasArticle: tweet.querySelector(ARTICLE) !== null,
+    hasTrend: trend !== null,
     hasLinkCard: linkCardsIn(tweet).length > 0,
     isAd: isAdIn(cell, tweet),
     isVerified: nameArea?.querySelector(VERIFIED_BADGE) != null,

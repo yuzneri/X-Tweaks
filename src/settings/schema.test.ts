@@ -793,6 +793,7 @@ test('性質を選ぶと、その性質だからこそ指定できる対象が�
   assert.ok(targetsFor('linkCard').includes('cardTitle'));
   assert.ok(targetsFor('space').includes('spaceName'));
   assert.ok(targetsFor('article').includes('articleText'));
+  assert.ok(targetsFor('trend').includes('trendText'));
 
   // They do not appear for another trait
   assert.equal(targetsFor('repost').includes('pollChoice'), false);

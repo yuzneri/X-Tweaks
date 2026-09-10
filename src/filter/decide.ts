@@ -40,6 +40,8 @@ export type Post = {
   poll: 'open' | 'closed' | null;
   hasSpace: boolean;
   hasArticle: boolean;
+  /** The card X hangs off a post for a trend of its own, which is not a preview of a pasted URL */
+  hasTrend: boolean;
   /** The preview shown for an ordinary pasted URL */
   hasLinkCard: boolean;
   isAd: boolean;
@@ -204,6 +206,7 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
   pollClosed: (post) => post.poll === 'closed',
   space: (post) => post.hasSpace,
   article: (post) => post.hasArticle,
+  trend: (post) => post.hasTrend,
   linkCard: (post) => post.hasLinkCard,
   ad: (post) => post.isAd,
   media: (post) => post.hasMedia,

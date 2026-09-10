@@ -43,6 +43,8 @@ export const en = {
     linkCard: 'Link card',
     space: 'Space',
     article: 'Article',
+    /** X's own write-up of a trend, which is a different thing from a preview of a pasted URL */
+    trend: 'Trend card',
     ad: 'Ad',
     media: 'Photo or video',
     mediaWithoutAlt: 'Photo or video nobody described',
@@ -554,6 +556,7 @@ export const en = {
       cardTitle: 'the card headline',
       spaceName: 'the Space name',
       articleText: 'the article headline and intro',
+      trendText: 'the trend headline and summary',
       /** X's own reading of what language a post is in, as a code ("en", "ja") */
       language: 'the language',
       /** What somebody wrote about a picture. X's own word for an undescribed one is not one */
