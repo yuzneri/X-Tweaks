@@ -20,6 +20,7 @@ import { install as installSurface } from './surface/index.ts';
 import { surfaceFor } from './surface/select.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
+import { fixTrendLinks } from './timeline/trend-link.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, start, updateSettings } from './filter/engine.ts';
 import { applyIn } from './filter/pace.ts';
@@ -356,6 +357,15 @@ const main = async (): Promise<void> => {
        * mark on a button of its own, so the site is asked here rather than in the selector
        */
       if (surface.id === 'x') timed('· new posts', takeNewPosts);
+      /*
+       * The links on the trend cards. X Pro writes them for the phone app, where a browser
+       * can do nothing with them, so they are put back to the page x.com opens
+       * (`timeline/trend-link.ts`). X Pro only: x.com writes the address itself. No setting
+       * of anyone's — a link that goes nowhere is nobody's choice — but it is done from here,
+       * after the pause has been answered: while the extension is stood down it writes
+       * nothing into the page, and what it put right before stays right.
+       */
+      if (surface.id === 'pro') timed('· trend links', fixTrendLinks);
       /*
        * Which account the form on screen will post as. Asked every settling: X opens and
        * closes the form as it is used, and on X Pro the account in it can change while it

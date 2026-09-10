@@ -83,6 +83,12 @@ One setting per site.
 - **Accounts X suggests following**: the block goes in one piece, and so does the one X stacks in the rail on x.com
 - **“Discover more” under a post**: the conversation itself stays
 
+## The trend links on X Pro
+
+A post can carry a card for a trend X has written up.
+On X Pro that card's address is written for the phone app (`twitter://…`), which no browser can follow, so pressing the card does nothing at all; it is put back to the page x.com opens.
+Always on, X Pro only, and nothing else about the card is touched.
+
 ## Posting
 
 Two things about the compose form for a new post (one setting for the whole of X Pro).
