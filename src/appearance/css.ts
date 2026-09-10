@@ -4,6 +4,7 @@ import {
   CELL_SELECTOR,
   LINK_CARD,
   PHOTO,
+  TREND_CARD,
   USER_CELL,
   VIDEO,
   WHO_TO_FOLLOW_MORE,
@@ -287,11 +288,12 @@ const TARGETS = {
   media: MEDIA_TARGETS,
   mediaFrame: [`[${MEDIA_FRAME_ATTR}]`],
   /**
-   * The frames a link card and an article are drawn in, each with its own border, so hiding
-   * these takes the frame with the contents. An article's frame has no marker and is found
-   * as the element its cover image hangs directly off.
+   * The frames a link card, an article and a trend card are drawn in, each with its own
+   * border, so hiding these takes the frame with the contents. An article's frame has no
+   * marker and is found as the element its cover image hangs directly off; a trend card's is
+   * found the same way, as the block its own renderer's root hangs off (`TREND_CARD`).
    */
-  cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`],
+  cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`, TREND_CARD],
   /** A card whose text is now in the post. What is left would only say it twice */
   movedCard: [`[${CARD_MOVED_ATTR}]`],
   /**

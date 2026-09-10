@@ -20,6 +20,9 @@ import {
   PHOTO,
   quoteFrameOf,
   showsOwnAltButton,
+  trendFrameOf,
+  TREND_CARD_LINK,
+  trendWordsOf,
   VIDEO,
   X_SHOW_MORE,
   COUNT_TARGETS,
@@ -62,6 +65,7 @@ import {
   type LinePart,
   type LineParts,
 } from './card.ts';
+import { fixedTrendHref } from '../timeline/trend-link.ts';
 import { timeTextFrom } from './time.ts';
 import { rawCountFor } from './counts.ts';
 import { cappedPadding, marksFrames, percentageIn, setsHeight, wrapsBox } from './frame.ts';
@@ -1045,10 +1049,11 @@ const bodyBefore = (el: Element, cell: Element): Element | null => {
  * The address to hand the line. Only `http(s)` is taken: the value comes out of the page, and
  * writing whatever it holds into an `href` of ours would carry a `javascript:` URL with it.
  */
-const linkTargetOf = (card: Element): string | null => {
-  const href = card.querySelector('a[href]')?.getAttribute('href') ?? null;
-  return href && /^https?:\/\//i.test(href) ? href : null;
-};
+const httpTarget = (href: string | null): string | null =>
+  href && /^https?:\/\//i.test(href) ? href : null;
+
+const linkTargetOf = (card: Element): string | null =>
+  httpTarget(card.querySelector('a[href]')?.getAttribute('href') ?? null);
 
 /**
  * One line to put into a post.
@@ -1093,6 +1098,8 @@ const movesMedia = (style: MediaStyle): boolean => style === 'text' || style ===
  */
 const linesIn = (
   cell: Element,
+  /** The post in that cell, or null where the cell holds something else. Found by the caller */
+  tweet: Element | null,
   quote: Element | null,
   appearance: AppearanceNode,
   messages: Messages,
@@ -1144,6 +1151,46 @@ const linesIn = (
         dim: false,
         terse: cardStyle === 'mark',
         href: null,
+      });
+    }
+
+    /*
+     * The cards X hangs off a post for a trend of its own. Under the cards' setting rather
+     * than one of their own: it is the same kind of box in the same place, and a reader
+     * folding the boxes away means these too. The line keeps the headline and hands the
+     * summary to the tooltip — the summary runs to a couple of sentences, which is a card's
+     * worth of room again.
+     *
+     * Asked of the post rather than the cell, unlike everything above: those go by markers X
+     * writes on posts alone, while a trend card is told apart by the renderer it comes from,
+     * and X draws trends in cells that are not posts as well (a column of them on X Pro). One
+     * of those is not a card hanging off anything, and folding it away would empty the column.
+     */
+    for (const card of tweet?.querySelectorAll(TREND_CARD_LINK) ?? []) {
+      const words = trendWordsOf(card);
+      const headline = words[0] ?? null;
+      const address = card.getAttribute('href');
+      lines.push({
+        anchor: card,
+        source: trendFrameOf(card),
+        parts: [
+          partFor(
+            'trend',
+            shown(
+              cardStyle,
+              shortLineFrom({ words: headline, source: null }, messages, appearance.wordsShown)
+            ),
+            // The whole card, the summary under the headline as the card had them
+            words.join('\n') || null
+          ),
+        ],
+        // A headline that goes somewhere, the same as a card's
+        dim: false,
+        terse: cardStyle === 'mark',
+        // Worked out rather than read off the card: on X Pro the address arrives written for
+        // the phone app, and a line built before `timeline/trend-link.ts` has been round
+        // would carry that dead link on
+        href: fixedTrendHref(address) ?? httpTarget(address),
       });
     }
   }
@@ -1457,7 +1504,7 @@ const restampAttachments = (
         live.add(quote);
       }
 
-      const lines = linesIn(cell, quote, appearance, messages, generic);
+      const lines = linesIn(cell, tweet, quote, appearance, messages, generic);
       if (lines.length === 0) continue;
 
       /** The lines that go into a body, gathered per body: a quoted card goes into the quoted body */

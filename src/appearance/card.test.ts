@@ -115,6 +115,23 @@ test('省略されているときは、マークだけを続けて並べる', ()
   assert.equal(lineFrom([partFor('video', null, null)], MARKS), '🎬');
 });
 
+test('トレンドは見出しだけを行に出し、要約はツールチップが持つ', () => {
+  // What `appearance/apply.ts` builds from a trend card: the headline for the line, the
+  // headline and the summary for the tooltip
+  const headline = 'エンジニアの「高い買い物LT会」が五反田で開催へ';
+  const summary = 'キーボードがMacより高価、ロボットlovotに4万円の目…';
+  const part = partFor(
+    'trend',
+    shortLineFrom({ words: headline, source: null }, ja),
+    [headline, summary].join('\n')
+  );
+  assert.equal(lineFrom([part], SHOWN), `\u{1F4C8} ${headline}`);
+  assert.equal(lineFrom([part], MARKS), '\u{1F4C8}');
+  // The summary is on the card and not in the line, so there is more to show than is shown
+  assert.equal(moreThanShown(part, SHOWN), true);
+  assert.equal(lineFrom([part], FULL), `\u{1F4C8} ${headline}\n${summary}`);
+});
+
 test('何も無ければ空になる', () => {
   assert.equal(lineFrom([], SHOWN), '');
   assert.equal(lineFrom([], MARKS), '');

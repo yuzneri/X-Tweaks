@@ -54,7 +54,7 @@ The same items can also be set in any wider scope.
 - **Reply, repost, like and view counts**: X rounds the big ones off (“221.3K”); this shows the number itself. The counts X already writes out are left alone
 - **Photos and videos**: as they are / as they are with a description / as their description / as a mark (📷 🎬) / not shown at all
 - **Largest thumbnail height**
-- **Link cards and articles**: as they are / as text (🔗 📄) / as a mark / not shown at all
+- **Link cards, articles and trend cards**: as they are / as text (🔗 📄 📈) / as a mark / not shown at all
 - **Quoted posts**: the same four ways (as text it reads “💬 what the quote says (name @id)”)
 - **Time display**: as it is / the date and time / both
 - **Colors**: behind the column name, the timeline background, everything outside the timeline (x.com only), the compose form background, the column name, the author name, the post text, secondary text, links, and the line between posts

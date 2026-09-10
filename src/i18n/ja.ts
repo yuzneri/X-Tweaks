@@ -611,7 +611,7 @@ export const ja: Messages = {
       },
       captionNth: (nth: number, description: string): string => `${nth}枚目：${description}`,
     },
-    cardStyle: 'リンクカードと記事の表示',
+    cardStyle: 'リンクカード・記事・トレンドの表示',
     quoteStyle: '引用ポストの表示',
     attachmentStyles: {
       show: 'そのまま',

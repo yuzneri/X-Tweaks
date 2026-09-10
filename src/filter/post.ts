@@ -111,8 +111,24 @@ export const ARTICLE = '[data-testid="article-cover-image"]';
  * Held to that renderer's own root, so a post whose *text* names a trend page is not read as
  * carrying a card.
  */
-const TREND_HREF = 'a[href^="twitter://trending/"], a[href*="/i/trending/"]';
-export const TREND_CARD_LINK = `.jetfuel-style-root :is(${TREND_HREF})`;
+const TREND_HREF = ':is(a[href^="twitter://trending/"], a[href*="/i/trending/"])';
+/** The renderer's own root. The card is drawn inside one, and X's own layout holds that */
+const TREND_ROOT = '.jetfuel-style-root';
+export const TREND_CARD_LINK = `${TREND_ROOT} ${TREND_HREF}`;
+
+/**
+ * The card as a whole: the block X's layout puts the renderer's root in. It is what the
+ * appearance hides, the root alone leaving the space the card stood in behind.
+ *
+ * Held to a post, as the other two things that setting hides are by markers of their own
+ * (`appearance/css.ts`): X writes trends elsewhere as well — a column of them on X Pro, the
+ * block beside the timeline on x.com — and those are nobody's card to fold away.
+ */
+export const TREND_CARD = `${TWEET} div:has(> ${TREND_ROOT} ${TREND_HREF})`;
+
+/** The same block, from the link inside it. Falls back to the link, so something is always marked */
+export const trendFrameOf = (link: Element): Element =>
+  link.closest(TREND_ROOT)?.parentElement ?? link;
 
 /**
  * The words on a trend card: the headline, and the summary written under it. They are the
@@ -810,7 +826,9 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
   // Asked once as well: what hangs off the post answers both "is there a picture" and "was it described"
   const media = Array.from(tweet.querySelectorAll(MEDIA));
   const described = mediaDescriptionsIn(media, quote, generic);
-  // Asked once too: the card answers both whether there is a trend on the post and what it says
+  // Asked once too: the card answers both whether there is a trend on the post and what it
+  // says. The first of them, X hanging one card at most off a post — and a search that stops
+  // at the first is a search that need not walk the rest of the post
   const trend = tweet.querySelector(TREND_CARD_LINK);
 
   return {

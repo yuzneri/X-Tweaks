@@ -781,7 +781,7 @@ export const en = {
      * How the things that hang off a post are shown: a link card, an article, a quoted post. The middle
      * one runs what X already writes as text into the post, following the body
      */
-    cardStyle: 'Link cards and articles',
+    cardStyle: 'Link cards, articles and trends',
     /** A quoted post. Its own setting, with the same four ways of showing it */
     quoteStyle: 'Quoted posts',
     attachmentStyles: {

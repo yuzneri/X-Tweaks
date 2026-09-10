@@ -54,6 +54,9 @@ export const ATTACHMENT_CUT_CLASS = 'xpro-attachment-cut';
 export const ATTACHMENT_MARKS = {
   link: '🔗',
   article: '📄',
+  // X's write-up of a trend, told apart from a link card: the two are drawn alike and go
+  // under one setting, but which of them a post carried is worth reading off the line
+  trend: '📈',
   quote: '💬',
   photo: '📷',
   video: '🎬',

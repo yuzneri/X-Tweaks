@@ -551,11 +551,20 @@ test('「X の表示のまま」なら、カードの規則を出さない', () 
   const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'show')) }]);
   assert.equal(out.includes('card.wrapper'), false);
   assert.equal(out.includes('article-cover-image'), false);
+  assert.equal(out.includes('trending'), false);
 });
 
-test('「表示しない」は、カードと記事を枠ごと消す', () => {
+test('「表示しない」は、カードと記事とトレンドを枠ごと消す', () => {
   const out = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.cardStyle = 'hidden')) }]);
-  assert.match(out, /\[data-testid="card\.wrapper"\][^{]*, [^{]*div:has\(> \[data-testid="article-cover-image"\]\) \{ display: none/);
+  assert.match(out, /\[data-testid="card\.wrapper"\][^{]*, [^{]*div:has\(> \[data-testid="article-cover-image"\]\)/);
+  // The trend card goes by where its link points: X writes it one way on X Pro and another
+  // on x.com, and the extension puts the first of those right (`timeline/trend-link.ts`)
+  // Held to a post: X draws trends in a column and beside the timeline as well, and this
+  // setting is about what hangs off a post
+  assert.match(
+    out,
+    /\[data-testid="tweet"\] div:has\(> \.jetfuel-style-root :is\(a\[href\^="twitter:\/\/trending\/"\], a\[href\*="\/i\/trending\/"\]\)\) \{ display: none/
+  );
 });
 
 test('画像と動画の「マークだけ」は、マークを入れた投稿のぶんだけ隠す', () => {
