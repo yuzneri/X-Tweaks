@@ -26,6 +26,15 @@ const EDITOR = '[data-testid^="tweetTextarea_"][contenteditable="true"]';
  * box. Its presence says this is not the plain "new post" form, and nothing here applies.
  */
 const SHOWN_POST = '[data-testid="tweet"]';
+/**
+ * One line of what was written. The box is a Draft.js editor, which puts every line in a
+ * block of its own and holds the break between them in that structure rather than in any
+ * text — so `textContent` over the whole box runs the lines together. Read that way,
+ * `新刊できました\n#コミケ` arrives as `新刊できました#コミケ`, where the character in front
+ * of the `#` stops it from reading as a tag at all, and tags written one per line take each
+ * other down as well. The blocks are read one by one and joined with the break back in.
+ */
+const LINE = '[data-block="true"]';
 
 /** How often the states below are looked at while waiting for one of them */
 const POLL_MS = 50;
@@ -77,14 +86,22 @@ let hooks: Hooks = { log: () => {} };
  */
 let opener: Element | null = null;
 
+/** What was in a compose form, as read at one moment */
+type Draft = { drawer: Element; text: string; at: number };
+
 /**
  * What was written, kept live while typing, since the box may be empty by the time a post is
  * sent. Held against the form it was written in: a form abandoned unposted leaves its text
  * behind here, and a post made without typing anything (a photo alone needs no words) would
  * otherwise be handed that draft's tags. Each opening of the form is a new element, so the
  * old one stops matching on its own.
+ *
+ * Typing alone, and this misses what is put in any other way: the box is a Draft.js editor,
+ * which takes a paste by stopping the browser's own and inserting the text itself, so no
+ * `input` event is raised for it. The same goes for a tag finished from the suggestions and
+ * for the emoji picker. `lastSeen` below reads the box rather than listening, and covers them.
  */
-let written: { drawer: Element; text: string } | null = null;
+let written: Draft | null = null;
 /**
  * The compose form as it was last seen, with what was in it.
  *
@@ -93,7 +110,7 @@ let written: { drawer: Element; text: string } | null = null;
  * then finds nothing and the feature falls silent. It is written down on every settling of
  * the DOM instead, while the form is still open, and the post is followed using that.
  */
-let lastSeen: { drawer: Element; text: string; at: number } | null = null;
+let lastSeen: Draft | null = null;
 /**
  * The tags from the last post, waiting for a form to go into. Only filled while the form is
  * left to close: where it is opened again they go straight back in and nothing has to wait.
@@ -123,11 +140,20 @@ export const composeDrawer = (): Element | null => {
  */
 const watching = (): boolean => settings.reopen || restoresHashtags(settings);
 
+/**
+ * What one box holds, line breaks and all. Where no blocks are found the box is read whole:
+ * X changing editors should cost the tags on their own lines, not every tag there is.
+ */
+const linesIn = (editor: Element): string => {
+  const lines = editor.querySelectorAll(LINE);
+  return lines.length === 0
+    ? (editor.textContent ?? '')
+    : Array.from(lines, (line) => line.textContent ?? '').join('\n');
+};
+
 /** Everything written in the form. A thread's parts are joined so tags in any of them are found */
 const textIn = (drawer: Element): string =>
-  Array.from(drawer.querySelectorAll(EDITOR))
-    .map((editor) => editor.textContent ?? '')
-    .join('\n');
+  Array.from(drawer.querySelectorAll(EDITOR), linesIn).join('\n');
 
 /** Waits for something to turn up, giving up after `within`. Resolves to null on giving up */
 const waitFor = <T>(look: () => T | null, within: number): Promise<T | null> =>
@@ -287,8 +313,11 @@ const restore = async (drawer: Element, text: string): Promise<boolean> => {
  * and without that condition every reply would open the compose form and drop its own tags
  * into it. That form is usually gone by now, so the one written down while it was open
  * (`noticeComposeForm`) decides.
+ *
+ * `sentAt` is when the post's request started, which is what tells the box as it was written
+ * from the box as X left it.
  */
-const followPost = async (): Promise<void> => {
+const followPost = async (sentAt: number): Promise<void> => {
   if (!watching() || acting) return;
   const drawer = formForPost();
   if (!drawer) return;
@@ -298,13 +327,18 @@ const followPost = async (): Promise<void> => {
     /*
      * What was written, taken from whichever record still has it. The box is emptied and
      * the form taken away before this runs, so nothing can be read from the page itself.
+     *
+     * The newest reading from before the post was sent. Both records are read from the same
+     * box and each covers what the other misses (see `written`), so neither is the more
+     * truthful of the two — only the more recent. Anything read after the request began is
+     * X emptying the box, not someone changing their mind, and says nothing about what went
+     * out. Told apart by when they were taken rather than by being empty: a box someone
+     * cleared before posting is empty for a reason, and its tags are not wanted back.
      */
     const text =
-      written?.drawer === drawer
-        ? written.text
-        : lastSeen?.drawer === drawer
-          ? lastSeen.text
-          : textIn(drawer);
+      [written, lastSeen]
+        .filter((draft): draft is Draft => draft?.drawer === drawer && draft.at <= sentAt)
+        .sort((a, b) => b.at - a.at)[0]?.text ?? textIn(drawer);
     /*
      * One remembered form serves one post. Left in place, the next post from anywhere —
      * a reply typed a moment later — would be followed as if it had come from this form.
@@ -463,7 +497,7 @@ const watchTyping = (): void => {
       const drawer = target.closest(DRAWER);
       // Only the compose form. The text of a reply is none of this module's business
       if (!drawer || drawer !== composeDrawer()) return;
-      written = { drawer, text: textIn(drawer) };
+      written = { drawer, text: textIn(drawer), at: performance.now() };
     },
     true
   );
@@ -492,7 +526,7 @@ const watchPosts = (): void => {
         composeForm: composeDrawer() !== null ? 'open' : formForPost() !== null ? 'just gone' : 'none',
         knowsHowToReopen: opener !== null,
       });
-      followPost().catch((error) => {
+      followPost(entry.startTime).catch((error) => {
         console.log(
           '%c[X Tweaks]%c Failed to follow the post through',
           PREFIX_STYLE,
