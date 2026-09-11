@@ -76,7 +76,8 @@ export const noted = (what: string): void => {
  * 240ms". Asked for here it stands on its own line, and what is left is the round's own.
  *
  * It adds no work: the reading that follows forces the same pass, and the drawing after that
- * would have forced it anyway.
+ * would have forced it anyway. That holds for a round that reads sizes back, and only there: a
+ * round reading colours needs the styles alone, and this would lay the page out for it.
  */
 export const pageCaughtUp = (): void => {
   const started = performance.now();

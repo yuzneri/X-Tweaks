@@ -86,9 +86,6 @@ export const markReadableLater = (cell: Element, color: string): void => {
   waiting.set(cell, color);
 };
 
-/** Whether any post is waiting for its words, asked before a round decides to read the page */
-export const wordsWaiting = (): boolean => waiting.size > 0;
-
 /**
  * Looks at every post that was waiting, and answers how many had to be worked out. Called
  * once at the end of a round of judging (`filter/engine.ts`): every post is read before any

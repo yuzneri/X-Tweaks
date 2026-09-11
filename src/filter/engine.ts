@@ -13,8 +13,8 @@ import {
   type Marker,
   type Tally,
 } from './health.ts';
-import { apply, coloursWaiting, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
-import { clearReadable, markReadableWaiting, wordsWaiting } from './readable.ts';
+import { apply, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
+import { clearReadable, markReadableWaiting } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
 import { sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
@@ -33,7 +33,7 @@ import {
   stopWatching,
 } from '../appearance/changed.ts';
 import { atAQuietMoment, sayWhatFellOver } from '../quiet.ts';
-import { counted, feltAsSlow, pageCaughtUp, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
+import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
@@ -308,10 +308,10 @@ const keepWordsReadable = (): void => {
   atAQuietMoment(() => {
     const started = performance.now();
     try {
-      // Both passes read the page back; the first pays for whatever was written since it
-      // last drew. Timed here to tell that cost apart from the passes themselves
-      // (`diagnostics.ts`); nothing is forced on a round with nothing to read
-      if (coloursWaiting() || wordsWaiting()) pageCaughtUp();
+      // No `pageCaughtUp` here, unlike the round that measures (`appearance/apply.ts`): both
+      // passes read colours, which wants the styles worked out and not the page laid out, and
+      // asking for it would lay the page out inside this round for nothing it reads — X's own
+      // outstanding layout, shown as this round's
       const ours = performance.now();
       const coloured = composeWaiting();
       const words = performance.now();

@@ -31,9 +31,6 @@ const COLOR_FROM = 'data-xpro-highlight-from';
 /** The posts whose highlight colour still has to be composited, and what from */
 const composing = new Map<Element, { rule: string; from: string; look: Look }>();
 
-/** Whether any post is waiting for its colour, asked before a round decides to read the page */
-export const coloursWaiting = (): boolean => composing.size > 0;
-
 /**
  * Works out the colour every waiting post is highlighted in and lays it on, returning how
  * many there were. Called once at the end of a round of judging (`filter/engine.ts`), for
