@@ -486,6 +486,50 @@ const frames = new WeakMap<Element, { frame: Element | null }>();
 const overflows = new WeakMap<Element, { key: string; over: boolean }>();
 
 /**
+ * What the round of measuring now running has read back, kept until it ends.
+ *
+ * The two passes that measure run after passes that write — the times, the counts, the
+ * frames' own caps, the lines — and a reading taken after a write makes the browser lay the
+ * whole page out again before it answers: on a real deck, a second layout of 25–50ms in every
+ * such round, for a round that had already paid for one. So the round reads everything it will
+ * need before any pass writes (`readFirst`), and the passes find the answers here. For the
+ * round alone: what is not remembered for longer — a picture not drawn yet, a body at no
+ * height — has to be read afresh the next time.
+ */
+const readThisRound = {
+  frames: new Map<Element, { frame: Element | null; drawn: boolean }>(),
+  bodies: new Map<Element, { length: number; height: number; scroll: number; line: number }>(),
+};
+
+const frameThisRound = (media: Element): { frame: Element | null; drawn: boolean } => {
+  const known = readThisRound.frames.get(media);
+  if (known) return known;
+  const read = frameAround(media);
+  readThisRound.frames.set(media, read);
+  return read;
+};
+
+/**
+ * One body's height, how much it holds and its line height. Read again if its words changed
+ * since — a line of ours put inside the body is one of the writes between the reading and the
+ * pass that uses it.
+ */
+const bodyThisRound = (text: Element, length: number) => {
+  const known = readThisRound.bodies.get(text);
+  if (known && known.length === length) return known;
+  counted('bodies measured', 1);
+  const height = text.clientHeight;
+  // A body at no height is not on screen (a post folded away, mostly), and asking the rest of
+  // one is dear: its styles are worked out afresh on every asking
+  const read =
+    height === 0
+      ? { length, height, scroll: 0, line: 0 }
+      : { length, height, scroll: text.scrollHeight, line: lineHeightOf(text) };
+  readThisRound.bodies.set(text, read);
+  return read;
+};
+
+/**
  * Which round of measurements is current. Everything measured under an earlier one is
  * measured again the next time it is asked for.
  */
@@ -848,7 +892,7 @@ const restampMediaFrames = (
           if (marked) wanted.set(marked, limit);
           return;
         }
-        const { frame, drawn } = frameAround(media);
+        const { frame, drawn } = frameThisRound(media);
         if (frame) {
           frames.set(media, { frame });
           wanted.set(frame, limit);
@@ -1883,7 +1927,8 @@ const overflowsLimit = (
   maxLines: number,
   measuring: boolean
 ): boolean | null => {
-  const key = `${measuredUnder(appearance)}|${text.textContent?.length ?? 0}`;
+  const length = text.textContent?.length ?? 0;
+  const key = `${measuredUnder(appearance)}|${length}`;
   const known = overflows.get(text);
   if (known && known.key === key) return known.over;
   // Nothing to say yet: the caller leaves this body as it found it (see `MEASURE_MS`)
@@ -1892,11 +1937,10 @@ const overflowsLimit = (
     return null;
   }
 
-  counted('bodies measured', 1);
-  const height = text.clientHeight;
+  const { height, scroll, line } = bodyThisRound(text, length);
   if (height === 0) return false;
-  const reachesLimit = height >= (maxLines - 0.5) * lineHeightOf(text);
-  const over = reachesLimit && text.scrollHeight > height + 2;
+  const reachesLimit = height >= (maxLines - 0.5) * line;
+  const over = reachesLimit && scroll > height + 2;
   overflows.set(text, { key, over });
   return over;
 };
@@ -2022,6 +2066,36 @@ const listenToXShowMore = (): void => {
 };
 
 /**
+ * Everything a round of measuring will read, read before any pass writes (`readThisRound`).
+ * Asks the same questions the two passes ask, over the same posts, and throws the answers
+ * away: they are kept where the passes will look for them, so what the passes decide is what
+ * they would have decided without this — only when the page is read changes.
+ */
+const readFirst = (columns: MarkedColumn[], changed: Set<Element> | null): void => {
+  readThisRound.frames.clear();
+  readThisRound.bodies.clear();
+  for (const { element, appearance } of columns) {
+    const roots = rootsToMeasure(element, changed);
+    if (marksFrames(appearance)) {
+      for (const root of roots) {
+        root.querySelectorAll(MEDIA_ANYWHERE).forEach((media) => {
+          if (!frames.has(media)) frameThisRound(media);
+        });
+      }
+    }
+    // Only a line limit has a body measured; with none, `wantsShowMore` reads nothing back
+    if (appearance.maxLines === null) continue;
+    // The same two questions `addShowMore` asks before it asks about a body
+    if (element.hasAttribute(OPENED_ATTR) || isCompact(appearance.compact)) continue;
+    for (const root of roots) {
+      root.querySelectorAll(TWEET_TEXT_SELECTOR).forEach((text) => {
+        wantsShowMore(text, appearance, true);
+      });
+    }
+  }
+};
+
+/**
  * Where to say something about a slow round of measuring. Handed over at startup, because
  * this side has no screen and no logger of its own (`filter/engine.ts` has both).
  */
@@ -2067,6 +2141,8 @@ export const stampMediaFrames = (): void => {
    * on the first pass that wants it, so a round with every pass switched off pays nothing
    */
   const onScreen = columnsThisRound(lastColumns);
+  // Before any pass below writes: a reading after a write costs the page another layout
+  if (measuring) timed('· reading first', () => readFirst(onScreen(), changed));
   // The time markers are set again on the same occasion. When every tier says "as X shows it"
   // they are stripped, so no marker of ours is left in X's DOM though no rule targets them
   if (
@@ -2163,6 +2239,9 @@ export const stampMediaFrames = (): void => {
     lastMeasured = performance.now();
     toMeasure.clear();
     waitingSince = Number.POSITIVE_INFINITY;
+    // Said about this round's page and no other, and holding on to posts X may drop
+    readThisRound.frames.clear();
+    readThisRound.bodies.clear();
   } else if (toMeasure.size > 0) {
     measureSoon();
   }
