@@ -191,7 +191,7 @@ export const ja: Messages = {
     whoToFollow: {
       label: 'おすすめユーザー',
       note:
-        '外すと、タイムライン横のものも一緒に消えます。',
+        '外すと、タイムライン横のものと、x.comの検索結果に出る「関連性の高いユーザー」も一緒に消えます。',
     },
     discoverMore: {
       label: 'もっと見つける',

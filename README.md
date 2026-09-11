@@ -80,7 +80,7 @@ Setting it per account tells you at a glance which account you are about to post
 Blocks X puts into a timeline that are not posts can be taken away.
 One setting per site.
 
-- **Accounts X suggests following**: the block goes in one piece, and so does the one X stacks in the rail on x.com
+- **Accounts X suggests following**: the block goes in one piece, and so do the one X stacks in the rail on x.com and the accounts it calls relevant on a search page
 - **“Discover more” under a post**: the conversation itself stays
 
 ## The trend links on X Pro

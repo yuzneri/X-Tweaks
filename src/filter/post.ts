@@ -143,11 +143,12 @@ export const USER_CELL = '[data-testid="UserCell"]';
 
 /**
  * The link closing the "who to follow" block ("Show more"), leading to the full list. The
- * block is a heading, a run of `USER_CELL`s, and this link, each in its own cell. The
- * appearance goes by this link for want of anything marking the block as a whole: the
- * heading's wording is X's own, translated in one column and left in English in another, and
- * a run of accounts is itself the content on pages listing who follows whom — going by
- * `USER_CELL` alone would empty those.
+ * block is a heading, a run of `USER_CELL`s, and this link, each in its own cell — though X
+ * no longer draws the link everywhere, so the appearance goes by the heading as well
+ * (`appearance/css.ts`). Nothing marks the block as a whole: its heading's wording is X's
+ * own, translated in one column and left in English in another, and a run of accounts is
+ * itself the content on pages listing who follows whom — going by `USER_CELL` alone would
+ * empty those.
  */
 export const WHO_TO_FOLLOW_MORE = 'a[href*="/i/connect_people"]';
 

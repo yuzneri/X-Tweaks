@@ -229,7 +229,8 @@ export const en = {
     hint: 'What X slips into a timeline that is not a post.',
     whoToFollow: {
       label: 'Accounts X suggests following',
-      note: 'Clearing it takes the one beside the timeline too.',
+      note:
+        'Clearing it takes the one beside the timeline, and the accounts x.com calls relevant on a search page, too.',
     },
     discoverMore: {
       label: '“Discover more”',

@@ -818,19 +818,41 @@ test('何も指定していなければ、差し込みの規則は1行も出な�
   assert.equal(injectedCss({ whoToFollow: true, discoverMore: true }), '');
 });
 
-test('おすすめユーザーは、タイムラインのセルと横の欄の両方を消す', () => {
+/*
+ * X stopped drawing the "Show more" that closed the block on a home timeline — on x.com by
+ * 2026-09-03, on X Pro by 09-11 — leaving the cell behind, empty. Tied to that link alone,
+ * every selector missed the block.
+ */
+test('おすすめユーザーは、「さらに表示」が無くても見出しから消す', () => {
   const css = injectedOf((i) => (i.whoToFollow = false));
   const lines = css.split('\n');
   assert.equal(lines.length, 2);
-  // The three cells the block is made of, each tied to the link that closes it, so a run
-  // of accounts standing for anything else is left alone
   const cells = lines[0]!.split(' { ')[0]!.split(', ');
   assert.equal(cells.length, 3);
-  for (const cell of cells) assert.match(cell, /a\[href\*="\/i\/connect_people"\]/);
+  const head =
+    '[data-testid="cellInnerDiv"]:has(h2):has(+ [data-testid="cellInnerDiv"] [data-testid="UserCell"])';
+  // The heading, then the accounts under it, neither asking for the link
+  assert.equal(cells[0], head);
+  assert.equal(cells[1], `${head} ~ [data-testid="cellInnerDiv"]:has([data-testid="UserCell"])`);
+  // The link still closes the block in X Pro's Explore column, so its cell is still named
+  assert.match(cells[2]!, /a\[href\*="\/i\/connect_people"\]/);
   // The same block as x.com stacks it in the rail beside the timeline
   assert.ok(lines[1]!.includes('[data-testid="sidebarColumn"]'));
   // Nothing is confined to a column: the setting is held per site, not per scope
   assert.equal(css.includes('data-xpro-column'), false);
+});
+
+/*
+ * A run of accounts is itself the content of a page listing who follows whom, so the run
+ * alone must never answer: the heading above it is what makes it a block X slipped in.
+ */
+test('おすすめユーザーは、見出しの無いアカウントの並びには当たらない', () => {
+  const css = injectedOf((i) => (i.whoToFollow = false));
+  const cells = css.split('\n')[0]!.split(' { ')[0]!.split(', ');
+  for (const cell of cells) {
+    const named = cell.includes(':has(h2)') || cell.includes('/i/connect_people');
+    assert.ok(named, cell);
+  }
 });
 
 test('「もっと見つける」は、会話でだけ、見出しから下を消す', () => {

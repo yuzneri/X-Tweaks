@@ -296,18 +296,6 @@ const TARGETS = {
   cardFrame: [LINK_CARD, `div:has(> ${ARTICLE})`, TREND_CARD],
   /** A card whose text is now in the post. What is left would only say it twice */
   movedCard: [`[${CARD_MOVED_ATTR}]`],
-  /**
-   * The block of accounts X suggests following, cell by cell: the "Show more" that closes it
-   * (`WHO_TO_FOLLOW_MORE`), the accounts above it, and the heading above those — each tied to
-   * the link, so a run of accounts for anything else (search results for people) is left
-   * alone. The empty cell before the heading stays: it carries no mark of what follows and
-   * holds only a few pixels of height.
-   */
-  whoToFollow: [
-    `${CELL_SELECTOR}:has(${WHO_TO_FOLLOW_MORE})`,
-    `${CELL_SELECTOR}:has(${USER_CELL}):has(~ ${CELL_SELECTOR} ${WHO_TO_FOLLOW_MORE})`,
-    `${CELL_SELECTOR}:has(+ ${CELL_SELECTOR} ${USER_CELL}):has(~ ${CELL_SELECTOR} ${WHO_TO_FOLLOW_MORE})`,
-  ],
   /** The photos and videos of a post that carries their marks */
   markedMedia: [...MEDIA_TARGETS, `[${MEDIA_FRAME_ATTR}]`].map(
     (target) => `[${MEDIA_MARKED_ATTR}] ${target}`
@@ -315,7 +303,7 @@ const TARGETS = {
 };
 
 /**
- * The same block of accounts as `TARGETS.whoToFollow`, as x.com draws it in the rail beside
+ * The same block of accounts as `WHO_TO_FOLLOW_CELLS`, as x.com draws it in the rail beside
  * the timeline: an `aside` of its own, not timeline cells. Not confined to a scope — the
  * rail belongs to no view (`surface/x.ts`) and carries no marker; x.com shows one view at a
  * time, so that view decides. X Pro has no such rail, so this matches nothing there.
@@ -680,6 +668,38 @@ const DISCOVER_HEAD =
 const DISCOVER_MORE = `${DISCOVER_HEAD}, ${DISCOVER_HEAD} ~ ${CELL_SELECTOR}`;
 
 /**
+ * The heading of the block of accounts X suggests following, named as the one thing standing
+ * over a run of accounts: a cell with an `h2` whose next cell holds a `USER_CELL`.
+ *
+ * The block used to be named by the "Show more" closing it (`WHO_TO_FOLLOW_MORE`), but X
+ * stopped drawing that link on a home timeline — on x.com by 2026-09-03, on X Pro by
+ * 2026-09-11 — leaving the cell behind, empty. Where it is still drawn (X Pro's Explore
+ * column) its own cell is still named below; the heading is what finds the block itself.
+ *
+ * The wording is no use: X translates it in one column and leaves it in English in another.
+ * The other headings X writes into a timeline — "Today's News", "Recommended posts",
+ * "Discover more" — are followed by posts, not accounts, and a page listing who follows whom
+ * is a run of accounts with no heading cell above it, so both are left alone.
+ *
+ * What this does take besides the block: the accounts x.com calls relevant on a search page,
+ * drawn as the same heading over one account. Nothing tells the two apart — same shape, same
+ * markers, only the wording differs — so they answer to this setting together, which its note
+ * says (`i18n/ja.ts`). The rail's own relevant-people switch keeps the rail's copy.
+ */
+const WHO_TO_FOLLOW_HEAD = `${CELL_SELECTOR}:has(h2):has(+ ${CELL_SELECTOR} ${USER_CELL})`;
+
+/**
+ * The block cell by cell: the heading, the accounts under it, and the "Show more" where X
+ * still draws one. The empty cells around it stay, the one that held the link included: they
+ * carry no mark of what they belong to and hold only a few pixels of height.
+ */
+const WHO_TO_FOLLOW_CELLS = [
+  WHO_TO_FOLLOW_HEAD,
+  `${WHO_TO_FOLLOW_HEAD} ~ ${CELL_SELECTOR}:has(${USER_CELL})`,
+  `${CELL_SELECTOR}:has(${WHO_TO_FOLLOW_MORE})`,
+];
+
+/**
  * What X slips into a timeline, taken away for a whole site. Not confined to a scope: these
  * are X's own doing, not a column or view's, and the setting governing them is held per site
  * (`settings/schema.ts`) — `appearance/apply.ts` decides which site is drawn.
@@ -691,7 +711,7 @@ export const injectedCss = (injected: InjectedSettings): string => {
   const rules: string[] = [];
   // The settings say what is on the page, so a rule is written for what is not (`schema.ts`)
   if (!injected.whoToFollow) {
-    rules.push(rule(TARGETS.whoToFollow.join(', '), 'display: none !important;'));
+    rules.push(rule(WHO_TO_FOLLOW_CELLS.join(', '), 'display: none !important;'));
     rules.push(rule(WHO_TO_FOLLOW_RAIL, 'display: none !important;'));
   }
   if (!injected.discoverMore) {
