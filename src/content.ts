@@ -22,7 +22,7 @@ import { emptySettings, type Settings } from './settings/schema.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
 import { fixTrendLinks } from './timeline/trend-link.ts';
 import { recordable } from './settings/detected.ts';
-import { currentMessages, start, updateSettings } from './filter/engine.ts';
+import { currentMessages, standDown, standUp, start, updateSettings } from './filter/engine.ts';
 import { applyIn } from './filter/pace.ts';
 import { clearAltTitles, stampAltTitles, useGenericAlts } from './appearance/apply.ts';
 import { clearComposeMarks, markComposeForms } from './appearance/compose-mark.ts';
@@ -245,12 +245,43 @@ const main = async (): Promise<void> => {
     log(applied ? 'Applied updated settings' : 'Settings changed while starting', summarize(next));
   });
 
+  /**
+   * Stands the page's watching down while paused, and back up when resumed. The empty
+   * settings take the marks off; this is what stops the work — without it both watches and
+   * the rounds carry on, finding every time that there is nothing to do.
+   *
+   * What the settings do not reach is taken out here too, once, since no round comes along
+   * to do it while stood down. The ways into the settings in X Pro's menus go with it; the
+   * toolbar popup stays, and opens the settings and resumes.
+   */
+  const followPause = (): void => {
+    if (!paused) {
+      standUp();
+      return;
+    }
+    standDown();
+    // Nothing applies while paused, so the switches come out rather than show values
+    // that would not take effect
+    removeComposeSwitches();
+    // X's own search filters come back with it, `/search` being left short of a part of
+    // X's page otherwise, and so do the posts it put away
+    removeSearchForm();
+    clearSearchExclusions();
+    // No setting of anyone's, so the empty settings do not stop it the way they stop the rest
+    clearAltTitles();
+    // The rules the marks answer go away with the empty settings, so a mark left on would
+    // paint nothing. It is taken off anyway: nothing the extension wrote should stay in the
+    // page while it is stood down
+    clearComposeMarks();
+  };
+
   subscribePaused((next) => {
     paused = next;
     if (!reapply()) {
       log('Pause toggled while starting');
       return;
     }
+    followPause();
     log(paused ? 'Paused; nothing is applied' : 'Resumed', summarize(current));
   });
 
@@ -275,6 +306,8 @@ const main = async (): Promise<void> => {
     });
   };
 
+  // A page opened paused starts stood down, rather than doing rounds until starting is over
+  followPause();
   await start(effectiveSettings(current, paused), {
     log,
     logStyled,
@@ -304,27 +337,11 @@ const main = async (): Promise<void> => {
         warnSaveFailed('the scopes found on this page')
       );
     },
+    // Never called while paused: the engine is stood down and starts no round (`followPause`)
     onSettle: () => {
       const messages = currentMessages();
       // Timed one by one: added up as one, a long round says nothing about which job it was
       timed('· entry points', () => surface.insertEntryPoints(messages));
-      // Nothing applies while paused, so the switches come out rather than show values
-      // that would not take effect
-      if (paused) {
-        removeComposeSwitches();
-        // X's own search filters come back with it, `/search` being left short of a part
-        // of X's page otherwise, and so do the posts it put away
-        removeSearchForm();
-        clearSearchExclusions();
-        // No setting of anyone's, so the empty settings do not stop it the way they stop
-        // the rest. Stopped here, where the pause is known
-        clearAltTitles();
-        // The rules the marks answer go away with the empty settings, so a mark left on
-        // would paint nothing. It is taken off anyway: nothing the extension wrote should
-        // stay in the page while it is stood down
-        clearComposeMarks();
-        return;
-      }
       timed('· compose switches', () => insertComposeSwitches(messages));
       /*
        * The search form. Asked on every settling for the reason the compose switches are:
@@ -401,6 +418,8 @@ const main = async (): Promise<void> => {
     updateSettings(effectiveSettings(current, paused));
     log('Applied settings that changed while starting', summarize(current));
   }
+  // The pause may have been toggled while starting, which `subscribePaused` left for now
+  followPause();
   if (paused) logStyled('⏸ Paused from the toolbar; nothing is applied', 'color:#f59e0b');
 };
 
