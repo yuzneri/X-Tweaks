@@ -81,6 +81,9 @@ export const postsTouched = (): ReadonlySet<Element> => cells;
  * picture finishing loading, which changes how tall it is drawn without touching the page.
  */
 export const noticeChange = (node: Node): void => {
+  // Nothing runs to hand these to while stood down, and the set would hold on to posts X
+  // has long since thrown away; `resumeWatching` looks at everything anyway
+  if (standingDown) return;
   const from = node instanceof Element ? node : node.parentElement;
   const cell = from?.closest(CELL_SELECTOR);
   if (cell) cells.add(cell);
@@ -99,10 +102,15 @@ export const handledChanges = (): void => {
   cells.clear();
 };
 
-let watching = false;
+/** The watch itself, once started. Kept so standing down can let go of it */
+let watch: MutationObserver | null = null;
+
+/** Whether the extension is stood down (the toolbar's pause). Nothing is watched meanwhile */
+let standingDown = false;
 
 /**
- * Starts the watch. Called once, before the first pass runs.
+ * Starts the watch. Called before the first pass runs, and by every application of the
+ * settings — which is also what runs while stood down, so it leaves the watch off then.
  *
  * The attributes are named one by one rather than watched wholesale: X writes to `class` and
  * `style` constantly and watching either would cost more than it is worth, while the ones
@@ -122,10 +130,9 @@ let watching = false;
  * safety net below only decides which posts a round looks at, and does not reach that far.
  */
 export const watchChanges = (): void => {
-  if (watching) return;
-  watching = true;
+  if (watch !== null || standingDown) return;
 
-  new MutationObserver((records) => {
+  watch = new MutationObserver((records) => {
     for (const record of records) {
       noticeChange(record.target);
       // A post arriving is reported on the container it was put in, so the posts
@@ -136,10 +143,32 @@ export const watchChanges = (): void => {
         else node.querySelectorAll(CELL_SELECTOR).forEach((cell) => cells.add(cell));
       }
     }
-  }).observe(document.body, {
+  });
+  watch.observe(document.body, {
     subtree: true,
     childList: true,
     characterData: true,
     attributeFilter: ['alt', 'aria-label', 'datetime', 'src', 'data-testid', 'href', 'role'],
   });
+};
+
+/**
+ * Stops watching, for the toolbar's pause. `characterData` over the whole page hears every
+ * word X rewrites, which is not something to go on paying for while nothing is done with it.
+ */
+export const stopWatching = (): void => {
+  standingDown = true;
+  watch?.disconnect();
+  watch = null;
+  cells.clear();
+};
+
+/**
+ * Watches again after a pause. Whatever changed meanwhile went unheard, so the next round
+ * looks at everything rather than at what the watch reports.
+ */
+export const resumeWatching = (): void => {
+  standingDown = false;
+  watchChanges();
+  changeEverything();
 };

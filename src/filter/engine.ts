@@ -26,7 +26,12 @@ import {
   stampColumns,
   stampMediaFrames,
 } from '../appearance/apply.ts';
-import { handledChanges, postsTouched } from '../appearance/changed.ts';
+import {
+  handledChanges,
+  postsTouched,
+  resumeWatching,
+  stopWatching,
+} from '../appearance/changed.ts';
 import { atAQuietMoment, sayWhatFellOver } from '../quiet.ts';
 import { counted, feltAsSlow, pageCaughtUp, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
@@ -461,31 +466,60 @@ const settleWork = (): void => {
   guard('judge', () => judgeNew(document));
 };
 
+/*
+ * Rather than judging on every change, wait and pick up unjudged cells together — X inserts
+ * in bulk while scrolling, and handling them one at a time cannot keep up. How long to wait
+ * is `pace.ts`'s call, from what the last round cost.
+ */
+let timer: ReturnType<typeof setTimeout> | null = null;
+let wait = SETTLE_MS;
+
+/** Whether the extension is stood down (the toolbar's pause). No round is started meanwhile */
+let stoodDown = false;
+
+const soon = (): void => {
+  if (stoodDown || timer !== null) return;
+  timer = setTimeout(() => {
+    timer = null;
+    const started = performance.now();
+    settle();
+    wait = nextWait(performance.now() - started);
+  }, wait);
+};
+
 /** A single Observer for the whole deck: not being per column, it needs no re-attaching as columns come and go */
+let observer: MutationObserver | null = null;
+
+/** Starts watching, unless stood down: a page opened paused starts that way (`content.ts`) */
 const observe = (): void => {
-  // Rather than judging on every change, wait and pick up unjudged cells together — X
-  // inserts in bulk while scrolling, and handling them one at a time cannot keep up. How
-  // long to wait is `pace.ts`'s call, from what the last round cost.
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let wait = SETTLE_MS;
-
-  const soon = (): void => {
-    if (timer !== null) return;
-    timer = setTimeout(() => {
-      timer = null;
-      const started = performance.now();
-      settle();
-      wait = nextWait(performance.now() - started);
-    }, wait);
-  };
-
-  const observer = new MutationObserver(soon);
+  if (stoodDown) return;
+  observer ??= new MutationObserver(soon);
   observer.observe(document.body, { childList: true, subtree: true });
+};
 
-  // A scope changing width moves nothing in the page, so the Observer hears nothing of it,
-  // even though everything measured inside it was just thrown away (`appearance/apply.ts`).
-  // Without this the page would keep the old width's layout until a post happened to arrive.
-  askForASettling(soon);
+/**
+ * Stands the engine down for the toolbar's pause: both watches off and no round waiting.
+ * Handing the engine empty settings takes its marks off the page but leaves it doing a
+ * round on every change X makes, working out each time that there is nothing to do.
+ */
+export const standDown = (): void => {
+  stoodDown = true;
+  observer?.disconnect();
+  if (timer !== null) clearTimeout(timer);
+  timer = null;
+  stopWatching();
+};
+
+/**
+ * Back from a pause. What changed meanwhile went unheard, so a round is started now rather
+ * than when X next happens to change something.
+ */
+export const standUp = (): void => {
+  if (!stoodDown) return;
+  stoodDown = false;
+  observe();
+  resumeWatching();
+  soon();
 };
 
 export const updateSettings = (settings: Settings): void => {
@@ -523,6 +557,10 @@ export const start = async (settings: Settings, given: EngineHooks): Promise<voi
   );
   adopt(settings);
   hooks = given;
+  // A scope changing width moves nothing in the page, so the Observer hears nothing of it,
+  // even though everything measured inside it was just thrown away (`appearance/apply.ts`).
+  // Without this the page would keep the old width's layout until a post happened to arrive.
+  askForASettling(soon);
   // Posts appearing while the columns are being resolved are picked up and judged by the Observer
   observe();
 
