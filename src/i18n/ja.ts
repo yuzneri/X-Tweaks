@@ -12,6 +12,18 @@ export const ja: Messages = {
     en: 'English',
   },
 
+  experiments: {
+    note:
+      '必要なときだけ有効にしてください',
+    proLoopGuard: {
+      label: 'X Proの暴走を抑制する',
+      note:
+        'X Proは、同じ状態を何度も更新し続けて暴走することがあります。' +
+        '有効にすると、その暴走を抑制しようと試みます。' +
+        '次に pro.x.com を読み込んだときから効きます。',
+    },
+  },
+
   genericAlts: {
     label: '説明のない画像にXが入れる文言',
     note:
@@ -142,6 +154,7 @@ export const ja: Messages = {
 
   meta: {
     settings: '設定',
+    experiments: '実験的な機能',
     about: '情報',
     version: 'バージョン',
     source: 'ソースコード',

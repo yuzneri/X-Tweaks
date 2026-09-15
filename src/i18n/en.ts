@@ -21,6 +21,16 @@ export const en = {
   },
 
   /** X's own words for a picture nobody described. Kept beside the language: both are about what X shows, not what the extension does */
+  experiments: {
+    note: 'Turn these on only when you need them',
+    proLoopGuard: {
+      label: "Rein in X Pro's runaway",
+      note:
+        'X Pro sometimes runs away, updating the same state over and over. When this is on, ' +
+        'the extension tries to rein that in. Takes effect the next time pro.x.com is loaded.',
+    },
+  },
+
   genericAlts: {
     label: "X's word for a picture with no description",
     note:
@@ -180,6 +190,7 @@ export const en = {
 
   meta: {
     settings: 'Settings',
+    experiments: 'Experiments',
     about: 'About',
     version: 'Version',
     source: 'Source code',

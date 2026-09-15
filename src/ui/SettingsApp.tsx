@@ -53,6 +53,7 @@ import {
 import { Transfer } from './Transfer.tsx';
 import { About } from './About.tsx';
 import { Compose } from './Compose.tsx';
+import { Experiments } from './Experiments.tsx';
 import { Injected } from './Injected.tsx';
 import { XChrome, XTimeline } from './XChrome.tsx';
 import { Effective } from './Effective.tsx';
@@ -544,6 +545,9 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         {
           entries: [
             { scope: { tier: 'meta', key: 'settings' }, label: m.meta.settings, unassigned: false, configured: false },
+            // An entry of its own, not a box on the settings screen: what is here is to be
+            // left alone, and a reader looking for the language should not have to pass it
+            { scope: { tier: 'meta', key: 'experiments' }, label: m.meta.experiments, unassigned: false, configured: false },
             { scope: { tier: 'meta', key: 'about' }, label: m.meta.about, unassigned: false, configured: false },
           ],
         },
@@ -895,6 +899,12 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                 onForget={current.scope.tier === 'columns' ? forgetCurrent : undefined}
               />
               {current.scope.tier === 'meta' && current.scope.key === 'about' && <About />}
+              {current.scope.tier === 'meta' && current.scope.key === 'experiments' && (
+                <Experiments
+                  experiments={settings.experiments}
+                  onChange={(experiments) => update({ ...settings, experiments })}
+                />
+              )}
 
               {current.scope.tier === 'meta' && current.scope.key === 'settings' && (
                 <>

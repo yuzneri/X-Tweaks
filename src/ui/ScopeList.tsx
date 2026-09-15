@@ -30,7 +30,7 @@ export type Scope =
    */
   | { tier: 'surfaceAccount'; surface: SurfaceId; key: string }
   /** The extension itself: what it is set to, and what it is. Nothing to do with any site */
-  | { tier: 'meta'; key: 'settings' | 'about' };
+  | { tier: 'meta'; key: 'settings' | 'experiments' | 'about' };
 
 /**
  * The string used for identity and comparison. Global carries no key. The separator is written as an
