@@ -2,7 +2,7 @@
  * Assembles dist/.
  *
  * Each entry gets its own independent bundle. main-world in particular is kept a standalone
- * bundle, on the premise that it imports no other module.
+ * bundle, on the premise that it imports nothing beyond loop-guard.ts.
  *
  * Nothing is minified. Keeping dist/ readable as it is leaves no room for it to be taken as
  * obfuscation in a store review, and makes it simpler to explain.

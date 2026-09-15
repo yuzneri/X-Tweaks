@@ -1,10 +1,13 @@
 /**
  * The script running in the page's context (the MAIN world). It walks React's internal
  * state from a column element to read the columnId and writes it onto the element as a
- * marker. Nothing else is given to it and it imports no other module: it sits where X's
- * own scripts can see it, the most exposed to their implementation changing, so its
- * surface is kept as small as possible.
+ * marker, and — only when asked to through `localStorage` — puts a guard on X's Redux store
+ * (`loop-guard.ts`). Nothing else is given to it and it imports nothing beyond that one
+ * module, which itself imports nothing: it sits where X's own scripts can see it, the most
+ * exposed to their implementation changing, so its surface is kept as small as possible.
  */
+import { guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
+
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';
 const COLUMN_SELECTOR = '[data-testid="multi-column-layout-column-content"]';
@@ -106,12 +109,105 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   window.postMessage({ type: RESPONSE, requestId: data.requestId, ...payload }, window.location.origin);
 });
 
+/**
+ * Where the extension side says whether the loop guard is wanted: nothing, `tap` (count and
+ * record only) or `break` (refuse the dispatches of a runaway task), the latter with an
+ * optional threshold as `break:<n>`. localStorage rather than a message because this runs
+ * at document_start, before anything of the extension's is listening.
+ */
+const GUARD_KEY = 'xtweaks:loop-guard';
+/**
+ * Where the guard keeps its record, rewritten as it goes. In `tap` mode it also goes to the
+ * console: a write to localStorage only reaches the disk once the page's event loop comes
+ * round, which a loop never lets it do, so a tab killed in one loses everything written
+ * since; console messages leave the process at once.
+ */
+const TAP_KEY = 'xtweaks:loop-tap';
+/** Where the previous load's record is moved to, so the next load can read what a killed tab left */
+const TAP_PREV_KEY = 'xtweaks:loop-tap:prev';
+/** The chunk array X's scripts push onto. Made here, before webpack's runtime wraps its `push` */
+const CHUNKS = 'webpackChunk_twitter_responsive_web';
+/**
+ * Dispatches in one task past which `break` refuses the rest, unless the key says otherwise.
+ * Measured on X Pro (2026-09-16): the loop dispatches 37-75 times a second and nothing else
+ * exceeded 116 in a task (a video player starting up), so 300 is reached by the loop in
+ * 4-8 seconds and by nothing honest.
+ */
+const THRESHOLD = 300;
+
+const guardWanted = (): { mode: Mode; threshold: number } | null => {
+  let asked: string | null;
+  try {
+    asked = localStorage.getItem(GUARD_KEY);
+  } catch {
+    // Storage the page is not allowed to read means nobody could have asked for the guard
+    return null;
+  }
+  if (asked === 'tap') return { mode: 'tap', threshold: THRESHOLD };
+  if (asked === 'break') return { mode: 'break', threshold: THRESHOLD };
+  const custom = asked?.match(/^break:(\d+)$/);
+  if (!custom) return null;
+  // Below the point where a task gets a record, nothing could be learned about what was
+  // refused, so such a threshold is taken as a mistake and the default stands
+  const threshold = Number(custom[1]);
+  return { mode: 'break', threshold: threshold >= RECORD_AT ? threshold : THRESHOLD };
+};
+
+/** Where the hook reports how it went, for the extension side and anyone looking at the page */
+const status = (value: string) => {
+  document.documentElement.dataset.xproLoopGuard = value;
+};
+
+const guardTheStore = ({ mode, threshold }: { mode: Mode; threshold: number }) => {
+  const page = window as unknown as Record<string, unknown>;
+  const chunks = (page[CHUNKS] ??= []);
+  // Something else already got in front of webpack (or webpack itself has run): its `push`
+  // is not to be taken away
+  if (!Array.isArray(chunks) || chunks.push !== Array.prototype.push) {
+    status('taken');
+    return;
+  }
+  // Runs `fn` in a macrotask of its own. A message on a channel rather than `setTimeout`:
+  // both wait for the loop of microtasks to end, but a timer in a background tab is held
+  // back for a second or more, which would count several tasks' worth of dispatches as one
+  const channel = new MessageChannel();
+  const due: (() => void)[] = [];
+  channel.port1.onmessage = () => due.shift()?.();
+  const later = (fn: () => void) => {
+    due.push(fn);
+    channel.port2.postMessage(null);
+  };
+  const previous = localStorage.getItem(TAP_KEY);
+  if (previous !== null) localStorage.setItem(TAP_PREV_KEY, previous);
+  guardChunks(chunks, {
+    mode,
+    threshold,
+    later,
+    now: () => Date.now(),
+    record: (tap) => {
+      const json = JSON.stringify(tap);
+      localStorage.setItem(TAP_KEY, json);
+      if (mode === 'tap') console.info(TAP_KEY, json);
+    },
+    status,
+    warn: (message, detail) => console.warn(message, detail),
+  });
+};
+
+const wanted = guardWanted();
+if (wanted) {
+  try {
+    guardTheStore(wanted);
+  } catch (e) {
+    // An experiment that fails to start must not take the rest of this script with it; the
+    // reason is left where the extension side can see it
+    status(`error:${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 // A marker is left in the DOM so the extension side can tell whether the MAIN world is
 // running. postMessage would not do: this runs at document_start and the extension side at
 // document_idle, so nothing is listening yet and the message is lost. The DOM is visible
 // from both worlds, whatever the order of execution.
 document.documentElement.dataset.xproMainWorld = '1';
 
-// Importing no other module leaves nothing at the top level, and TypeScript would treat
-// this as a global script. An empty export closes it into a module
-export {};
