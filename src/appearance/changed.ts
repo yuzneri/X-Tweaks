@@ -44,13 +44,17 @@ let lastFull = Number.NEGATIVE_INFINITY;
 let answer: Set<Element> | null | undefined;
 
 /**
- * The posts to look at, or null for all of them. Every pass in a settling gets the same
- * answer, which is thrown away when the settling is done (`handledChanges`).
+ * The posts to look at, or null for all of them. Decided on the first asking and held until
+ * the settling is done (`handledChanges`), so every pass in it gets the same answer — the
+ * settling asks once at its start, before any pass, to make sure of that (`filter/engine.ts`).
+ * A call for everything is used up here: one that comes after the answer was given is kept
+ * for the next settling rather than changing this one halfway through.
  */
 export const changedCells = (): Set<Element> | null => {
   if (answer !== undefined) return answer;
   const full = everything || performance.now() - lastFull >= FULL_MS;
   if (full) lastFull = performance.now();
+  everything = false;
   answer = full ? null : cells;
   return answer;
 };
@@ -58,12 +62,13 @@ export const changedCells = (): Set<Element> | null => {
 /**
  * Everything is to be looked at again. Called where what a pass would decide changed without
  * the page changing: the settings, the arrangement of columns, or a scope coming to hold a
- * post opened to be read. The answer already given in this settling is dropped, so a pass
- * that has not run yet is told the new one.
+ * post opened to be read. It takes effect on the next settling to decide (`changedCells`):
+ * one already told what to look at goes on with that, or the passes before the call and the
+ * ones after it would disagree about the page. Whoever calls this from inside a settling has
+ * to ask for another (`appearance/apply.ts`), since nothing on the page says one is needed.
  */
 export const changeEverything = (): void => {
   everything = true;
-  answer = undefined;
 };
 
 /**
@@ -97,7 +102,6 @@ export const noticeChange = (node: Node): void => {
  * there too rather than being lost.
  */
 export const handledChanges = (): void => {
-  everything = false;
   answer = undefined;
   cells.clear();
 };

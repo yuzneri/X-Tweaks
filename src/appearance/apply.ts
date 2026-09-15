@@ -131,9 +131,12 @@ export const stampColumns = (): void => {
       else scope.removeAttribute(OPENED_ATTR);
       /*
        * Everything the passes decide inside this scope turns on it, and the scope is not
-       * a post, so nothing about this reaches the watch on the posts (`changed.ts`)
+       * a post, so nothing about this reaches the watch on the posts (`changed.ts`). The
+       * settling this runs in has already been told what to look at, so it is the next one
+       * that looks at everything — and it is asked for, as the watch would not ask by itself
        */
       changeEverything();
+      settleAgain?.();
     }
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);

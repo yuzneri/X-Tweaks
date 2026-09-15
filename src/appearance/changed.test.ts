@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   changedCells,
+  changeEverything,
   handledChanges,
   noticeChange,
   postsTouched,
@@ -90,4 +91,35 @@ test('再開すると見張りを張り直し、次の回は全件を見る', ()
   handledChanges();
   noticeChange(nodeIn(cell));
   assert.ok(postsTouched().has(cell as unknown as Element));
+});
+
+test('回の途中で全件を求められても、その回の答えは変わらず、次の回が全件になる', () => {
+  // The settling asks first; a pass working from that answer must not be contradicted by
+  // the next pass being told "all of them" (`appearance/apply.ts`, a post opened in a scope)
+  noticeChange(nodeIn(cell));
+  const told = changedCells();
+  assert.ok(told?.has(cell as unknown as Element));
+  changeEverything();
+  assert.equal(changedCells(), told);
+  handledChanges();
+  assert.equal(changedCells(), null);
+  handledChanges();
+});
+
+test('全件の回から時間が経てば、見張りが何も言わなくても全件を見る', () => {
+  const now = performance.now;
+  try {
+    let clock = now.call(performance);
+    Object.defineProperty(performance, 'now', { value: () => clock, configurable: true });
+    assert.notEqual(changedCells(), null);
+    handledChanges();
+    clock += 2000;
+    assert.equal(changedCells(), null);
+    handledChanges();
+    // Just after a full round, the watch is trusted again
+    assert.notEqual(changedCells(), null);
+    handledChanges();
+  } finally {
+    Object.defineProperty(performance, 'now', { value: now, configurable: true });
+  }
 });

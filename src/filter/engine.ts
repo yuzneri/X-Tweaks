@@ -27,6 +27,7 @@ import {
   stampMediaFrames,
 } from '../appearance/apply.ts';
 import {
+  changedCells,
   handledChanges,
   postsTouched,
   resumeWatching,
@@ -442,6 +443,9 @@ const settle = (): void => {
  * both markers and judging, and the extension would look dead.
  */
 const settleWork = (): void => {
+  // Decided before any pass asks, so every pass in this round is told the same thing, and a
+  // call for everything made by one of them lands on the next round (`appearance/changed.ts`)
+  changedCells();
   guard('onSettle', () => hooks?.onSettle?.());
   // Discard the emphasis ranges attached to posts that left the screen
   guard('sweep', sweep);
