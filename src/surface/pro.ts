@@ -7,8 +7,8 @@
  * which element to paint.
  */
 import {
+  columnElements,
   columnSignature,
-  COLUMN_SELECTOR,
   deckState,
   detect,
   refresh,
@@ -84,7 +84,7 @@ export const proSurface: Surface = {
   pruning: 'on-reopen',
 
   hasColumns: true,
-  scopeElements: () => Array.from(document.querySelectorAll(COLUMN_SELECTOR)),
+  scopeElements: columnElements,
   scopeOfElement: scopeOfColumn,
   rangeOf: scopeElementOf,
   bandOf,

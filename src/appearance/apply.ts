@@ -101,6 +101,14 @@ import {
 const STYLE_ID = 'xpro-tweaks-appearance-style';
 
 /**
+ * The bars marked. Held so that one marked for something that is no longer a scope can be
+ * found without searching the whole page for it every settling. Starts as "search once": an
+ * extension updated over an open tab is left with whatever bars the copy before it marked.
+ */
+const bands = new Set<Element>();
+let strays = true;
+
+/**
  * Marks each scope, the bar carrying its name, and whether it holds a post opened to be read.
  * The marker covers one whole scope; on the body alone it leaves the header stranded in black.
  * Its value is the target key, not the position in the order, which would carry the width and
@@ -140,18 +148,36 @@ export const stampColumns = (): void => {
     }
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
-    if (marked && on.bandStillValid(marked, scope)) return;
+    if (marked && on.bandStillValid(marked, scope)) {
+      // Kept, so it is ours to take off later whoever put it there
+      bands.add(marked);
+      return;
+    }
     // When searching again, clear every marker in this range before setting one.
     // Two of them left in place make a color with opacity darker further in
-    scope.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => el.removeAttribute(HEADER_ATTR));
-    on.bandOf(scope)?.setAttribute(HEADER_ATTR, '');
+    scope.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => {
+      el.removeAttribute(HEADER_ATTR);
+      bands.delete(el);
+    });
+    const band = on.bandOf(scope);
+    if (band) {
+      band.setAttribute(HEADER_ATTR, '');
+      bands.add(band);
+    }
   });
 
-  // Clear markers in ranges that are no longer scopes. The loop above only touches
-  // the ranges it enumerated, so a stranded marker would keep the bar painted
-  document.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => {
-    if (!live.some((scope) => scope.contains(el))) el.removeAttribute(HEADER_ATTR);
-  });
+  // Clear markers in ranges that are no longer scopes. The loop above only touches the
+  // ranges it enumerated, so a stranded marker would keep the bar painted. One X has taken
+  // off the page is inside no range either, and goes the same way rather than being held on to
+  if (strays) {
+    document.querySelectorAll(`[${HEADER_ATTR}]`).forEach((el) => bands.add(el));
+    strays = false;
+  }
+  for (const el of bands) {
+    if (live.some((scope) => scope.contains(el))) continue;
+    el.removeAttribute(HEADER_ATTR);
+    bands.delete(el);
+  }
 };
 
 /** The media anywhere on the page. What a picture says for itself is not a per-column matter */

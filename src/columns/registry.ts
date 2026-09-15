@@ -10,6 +10,7 @@ import type { ColumnScope } from '../settings/resolve.ts';
 import type { ScopeInfo } from '../surface/index.ts';
 import { deckIdOf, deckStateFrom, UNKNOWN_DECK, type DeckState } from './deck.ts';
 import { AVATAR_NAME, avatarNameOf } from '../filter/post.ts';
+import { heldForTheTask } from '../held.ts';
 
 
 
@@ -38,6 +39,34 @@ const EMPTY: ColumnScope = { account: null, surface: 'pro', columnId: null };
  * markers were stamped is never carried over.
  */
 let resolved = new WeakMap<Element, ColumnScope>();
+
+/**
+ * Column element → the range covering it, and the header the walk to it came across. Kept
+ * because finding a range means asking each ancestor in turn whether it holds the header
+ * (`columnScopeOf`), and every ancestor below the one that does is searched to the bottom for
+ * nothing — the whole column body, hundreds of posts, once per level, per column, twice a
+ * settling. Trusted only while cheap checks say it still describes the page (`rangeStillValid`),
+ * and thrown away with `resolved`.
+ */
+let ranges = new WeakMap<Element, ColumnRange>();
+
+type ColumnRange = {
+  range: Element;
+  /** The header found in the range, or null where the walk stopped for another reason */
+  title: Element | null;
+};
+
+/**
+ * Whether a remembered range still covers that column, holds the header it was found by, and
+ * no other column — the three things the walk decides. Each is a walk up from one element,
+ * never a search down through the column.
+ */
+const rangeStillValid = (known: ColumnRange, columnEl: Element, all: readonly Element[]): boolean =>
+  known.title !== null &&
+  known.title.isConnected &&
+  known.range.contains(known.title) &&
+  known.range.contains(columnEl) &&
+  !all.some((other) => other !== columnEl && known.range.contains(other));
 
 let sequence = 0;
 
@@ -89,18 +118,29 @@ const askMainWorld = (timeoutMs = 3000): Promise<ColumnResponse> =>
  * it is required rather than defaulted because a default would be worked out afresh on every
  * call, which is the cost this is getting away from.
  */
-const columnScopeOf = (columnEl: Element, all: readonly Element[], maxDepth = 10): Element => {
+const rangeOf = (columnEl: Element, all: readonly Element[], maxDepth = 10): ColumnRange => {
+  const known = ranges.get(columnEl);
+  if (known && rangeStillValid(known, columnEl, all)) return known;
   let scope = columnEl;
+  let title: Element | null = null;
   let parent = columnEl.parentElement;
   for (let depth = 0; parent && depth < maxDepth; depth++) {
     const above = parent;
     if (all.some((other) => other !== columnEl && above.contains(other))) break;
     scope = parent;
-    if (scope.querySelector(TITLE_SELECTOR)) break;
+    title = scope.querySelector(TITLE_SELECTOR);
+    if (title) break;
     parent = parent.parentElement;
   }
-  return scope;
+  const found = { range: scope, title };
+  // A range the walk stopped in for want of a header is not remembered: the header is what
+  // arrives a moment later, and it would then be found by no one
+  if (title) ranges.set(columnEl, found);
+  return found;
 };
+
+const columnScopeOf = (columnEl: Element, all: readonly Element[]): Element =>
+  rangeOf(columnEl, all).range;
 
 /**
  * The account a column belongs to. The screen name is embedded in the marker of the
@@ -122,18 +162,23 @@ const accountOf = (columnEl: Element, all: readonly Element[]): string | null =>
  * and null is returned so the recording side can treat it as "not known".
  */
 const titleOf = (columnEl: Element, all: readonly Element[]): string | null => {
-  const title = columnScopeOf(columnEl, all).querySelector(TITLE_SELECTOR);
-  const text = title?.textContent?.trim();
+  const { range, title } = rangeOf(columnEl, all);
+  // Searched for only where the walk did not come across it on the way
+  const text = (title ?? range.querySelector(TITLE_SELECTOR))?.textContent?.trim();
   return text ? text.slice(0, 40) : null;
 };
 
 /**
  * Every column body on the page. Exported because the questions below are asked *about*
  * this list — which range a column covers is a question about where the others are
- * (`columnScopeOf`) — so whoever asks holds it rather than having each question find it again
+ * (`columnScopeOf`) — so whoever asks holds it rather than having each question find it
+ * again. A settling asks several times over — marking the scopes, reading the signature,
+ * detecting the columns, resolving the scope of a post — so the list is found once a task
+ * (`held.ts`).
  */
-export const columnElements = (): Element[] =>
-  Array.from(document.querySelectorAll(COLUMN_SELECTOR));
+export const columnElements = heldForTheTask((): Element[] =>
+  Array.from(document.querySelectorAll(COLUMN_SELECTOR))
+);
 
 /** Links on the deck rail. `manage` and `new` are mixed in, so only readable ids are taken */
 const DECK_LINK = 'a[href*="/i/decks/"]';
@@ -234,6 +279,7 @@ export const detect = (): ScopeInfo[] => {
 export const refresh = async (): Promise<ScopeInfo[]> => {
   if (document.querySelector(COLUMN_SELECTOR)) await stampIds();
   resolved = new WeakMap();
+  ranges = new WeakMap();
   return detect();
 };
 
