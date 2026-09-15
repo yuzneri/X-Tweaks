@@ -11,9 +11,8 @@ import { hashtagsIn, restoredText } from './hashtags.ts';
 import { createsPost } from './signal.ts';
 import { restoresHashtags, type ComposeSettings } from '../settings/schema.ts';
 import { COLUMN_SELECTOR } from '../columns/registry.ts';
+import { DRAWER, drawers } from '../surface/drawers.ts';
 
-/** The drawer, as marked by X Pro. Shared with the column options (see `composeDrawer`) */
-const DRAWER = '[data-testid="drawerAnimatedDiv"]';
 /**
  * The boxes written in. A thread has one per part (`tweetTextarea_0`, `_1`, …). "Editable"
  * is not belt and braces: X Pro wraps each box in `tweetTextarea_0_label` and
@@ -126,7 +125,7 @@ let acting = false;
  * column options, so the box inside it identifies the form. A reply or a quote is left alone.
  */
 export const composeDrawer = (): Element | null => {
-  for (const drawer of document.querySelectorAll(DRAWER)) {
+  for (const drawer of drawers()) {
     if (!drawer.querySelector(EDITOR)) continue;
     if (drawer.querySelector(SHOWN_POST)) continue;
     return drawer;

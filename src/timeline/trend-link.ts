@@ -12,6 +12,8 @@
  * and an address guessed at would be no better than the dead one it replaced.
  */
 
+import { changedCells } from '../appearance/changed.ts';
+
 /**
  * The link X Pro writes, and nothing else: only digits are taken as the id, and anything
  * carried after them (a query, a fragment) leaves the link alone rather than being dropped
@@ -38,16 +40,20 @@ export const fixedTrendHref = (href: string | null | undefined): string | null =
  * Puts every one of them on the page right, and says how many it was.
  *
  * Called on every settling: the cards arrive as the columns fill, and one X redraws comes
- * back written the old way. Once they are all put right the selector answers nothing, so a
- * settling with no new card costs a single search of the page.
+ * back written the old way. A settling told which posts changed looks in those alone — a
+ * card arrives inside a post, and X redrawing one lands its post on that list too. Whatever
+ * stands outside any post is reached by the rounds that look at everything, which come
+ * every couple of seconds (`appearance/changed.ts`).
  */
 export const fixTrendLinks = (): number => {
   let fixed = 0;
-  for (const link of document.querySelectorAll(APP_LINK_SELECTOR)) {
-    const href = fixedTrendHref(link.getAttribute('href'));
-    if (href === null) continue;
-    link.setAttribute('href', href);
-    fixed += 1;
+  for (const root of changedCells() ?? [document]) {
+    for (const link of root.querySelectorAll(APP_LINK_SELECTOR)) {
+      const href = fixedTrendHref(link.getAttribute('href'));
+      if (href === null) continue;
+      link.setAttribute('href', href);
+      fixed += 1;
+    }
   }
   return fixed;
 };

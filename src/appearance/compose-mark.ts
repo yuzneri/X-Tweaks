@@ -122,6 +122,14 @@ const formsOnScreen = (): Element[] => {
 };
 
 /**
+ * The surfaces marked. Held so the ones no longer wanted can be found without searching the
+ * whole page for them on every settling. Starts as "search once": an extension updated over
+ * an open tab is left with whatever the copy before it marked.
+ */
+const marked = new Set<Element>();
+let strays = true;
+
+/**
  * Puts the mark on every form on screen, and takes it off one whose account cannot be read
  * any more. Called on every settling: X leaves a form in the page after it closes, so a mark
  * set once would go stale, while setting it again each time costs one lookup that finds
@@ -136,14 +144,22 @@ export const markComposeForms = (): void => {
   }
 
   // Anything marked last time that is no longer a surface loses the mark, so a form that
-  // changed shape — the window opening over the box, say — leaves nothing coloured behind
-  for (const marked of document.querySelectorAll(`[${COMPOSE_ATTR}]`)) {
-    if (!wanted.has(marked)) marked.removeAttribute(COMPOSE_ATTR);
+  // changed shape — the window opening over the box, say — leaves nothing coloured behind.
+  // A surface X has taken off the page is not wanted either, and goes the same way
+  if (strays) {
+    document.querySelectorAll(`[${COMPOSE_ATTR}]`).forEach((el) => marked.add(el));
+    strays = false;
+  }
+  for (const surface of marked) {
+    if (wanted.has(surface)) continue;
+    surface.removeAttribute(COMPOSE_ATTR);
+    marked.delete(surface);
   }
   for (const [surface, account] of wanted) {
     // Written only when it changes: setting an attribute to what it already holds still
     // counts as a change to anything watching the page, and this runs on every settling
     if (surface.getAttribute(COMPOSE_ATTR) !== account) surface.setAttribute(COMPOSE_ATTR, account);
+    marked.add(surface);
   }
 };
 
@@ -152,4 +168,5 @@ export const clearComposeMarks = (): void => {
   for (const form of document.querySelectorAll(`[${COMPOSE_ATTR}]`)) {
     form.removeAttribute(COMPOSE_ATTR);
   }
+  marked.clear();
 };

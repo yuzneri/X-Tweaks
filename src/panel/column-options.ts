@@ -10,10 +10,8 @@ import {
   scopeOfColumn,
 } from '../columns/registry.ts';
 import type { Messages } from '../i18n/index.ts';
+import { DRAWER, drawers as drawersOnScreen } from '../surface/drawers.ts';
 import type { Start } from './panel.tsx';
-
-/** The drawer, as marked by X Pro. Not exclusive to the column options (see `OPTION_ITEM`) */
-const DRAWER = '[data-testid="drawerAnimatedDiv"]';
 
 /**
  * The marker X Pro puts on one row of the column options ("Duplicate", "Remove column" and
@@ -176,7 +174,7 @@ const buildItem = (template: Element, label: string): HTMLElement => {
  * Safe to call on every settling of the DOM: double insertion is prevented here.
  */
 export const insertInto = (messages: Messages): number => {
-  const drawers = Array.from(document.querySelectorAll(DRAWER));
+  const drawers = drawersOnScreen();
   // Reads which drawer belongs to which column from React's internal state and remembers
   // it. Asking is only needed when drawers come and go, so it happens here, with insertion
   const unasked = drawers.filter((drawer) => !asked.has(drawer));
