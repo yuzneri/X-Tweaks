@@ -40,7 +40,9 @@ import { saveAdGuard, saveHealth } from '../settings/storage.ts';
 
 /**
  * Cells already judged. A WeakSet, so a detached cell drops out — needed because X's constant
- * attribute rewrites would otherwise repeat the judging.
+ * attribute rewrites would otherwise repeat the judging. A post X rewrites in place keeps its
+ * judgement until the rules change (`judgeAll`): judging the rewritten ones again on every
+ * settling was measured to read three times as many posts for no visible gain.
  */
 let judged = new WeakSet<Element>();
 
@@ -148,7 +150,9 @@ const warnSaveFailed =
 let lastFound: Marker[] = [];
 
 /**
- * Checks whether the markers are broken, after a full judging pass. Reports again only on a
+ * Checks whether the markers are broken, after a round that looked at every post: what is
+ * counted here is the page as a whole, which a round told which posts changed has not seen —
+ * so between those, the check stands as last made. Reports again only on a
  * change, and drops the body-reading rules and re-judges if the body-text marker breaks. A
  * verdict must come twice running: a deck switch empties and refills the columns, and in
  * between posts are present but unreadable — looking exactly like a renamed body-text marker
@@ -247,13 +251,17 @@ const judge = (cell: Element): boolean => {
 };
 
 /**
- * Looks only at cells not yet judged. One that could not be judged is not remembered — if
- * mid-render, it is picked up next change. `onlySettled` is for while columns rearrange: skips
- * cells whose scope may yet move, judging settled ones first.
+ * Looks only at cells not yet judged. `changed` is what this round was told to look at
+ * (`appearance/changed.ts`): the posts the page changed — where a post that just arrived is
+ * too — or null for every post there is, when the page is walked for them. One that could not
+ * be judged is not remembered — if mid-render, it is picked up next change, its finishing
+ * being a change. `onlySettled` is for while columns rearrange: skips cells whose scope may
+ * yet move, judging settled ones first.
  */
-const judgeNew = (root: ParentNode, onlySettled = false): void => {
+const judgeNew = (changed: ReadonlySet<Element> | null, onlySettled = false): void => {
   let fresh = 0;
-  for (const cell of root.querySelectorAll(CELL_SELECTOR)) {
+  const cells = changed ?? document.querySelectorAll(CELL_SELECTOR);
+  for (const cell of cells) {
     if (judged.has(cell)) continue;
     if (onlySettled && !surface().scopeSettled(cell)) continue;
     if (judge(cell)) {
@@ -264,8 +272,9 @@ const judgeNew = (root: ParentNode, onlySettled = false): void => {
   counted('posts judged', fresh);
   keepWordsReadable();
   // A partial round is not material for the watch: skipped cells are unlooked-at, not
-  // unreadable, and would wrongly report "cells, none readable"
-  if (!onlySettled) checkHealth();
+  // unreadable, and would wrongly report "cells, none readable". Nor is a round that looked
+  // at the changed posts alone, the watch counting the whole page (`checkHealth`)
+  if (!onlySettled && changed === null) checkHealth();
 };
 
 /**
@@ -445,7 +454,7 @@ const settle = (): void => {
 const settleWork = (): void => {
   // Decided before any pass asks, so every pass in this round is told the same thing, and a
   // call for everything made by one of them lands on the next round (`appearance/changed.ts`)
-  changedCells();
+  const changed = changedCells();
   guard('onSettle', () => hooks?.onSettle?.());
   // Discard the emphasis ranges attached to posts that left the screen
   guard('sweep', sweep);
@@ -460,14 +469,14 @@ const settleWork = (): void => {
     // posts untouched. Cells in a column with no marker yet are skipped — a result reached
     // without the column tier gets overturned later and flickers
     forgetTouchedReads();
-    guard('judge', () => judgeNew(document, true));
+    guard('judge', () => judgeNew(changed, true));
     return;
   }
   // Even when the set of columns is the same, the names arrive late
   guard('detect', () => report(surface().detect()));
   // What the page changed is no longer what was read out of it
   forgetTouchedReads();
-  guard('judge', () => judgeNew(document));
+  guard('judge', () => judgeNew(changed));
 };
 
 /*
