@@ -19,6 +19,7 @@ const api: typeof browser = typeof browser !== 'undefined' ? browser : chrome!;
 import { install as installSurface } from './surface/index.ts';
 import { surfaceFor } from './surface/select.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
+import { GUARD_KEY } from './loop-guard.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
 import { fixTrendLinks } from './timeline/trend-link.ts';
 import { recordable } from './settings/detected.ts';
@@ -68,6 +69,21 @@ const log = (...args: unknown[]) => console.log('%c[X Tweaks]', PREFIX_STYLE, ..
 // is assembled by a dedicated function
 const logStyled = (message: string, style: string) =>
   console.log(`%c[X Tweaks]%c ${message}`, PREFIX_STYLE, style);
+
+/**
+ * Tells the MAIN-world script whether to guard X Pro's store (`loop-guard.ts`), through the
+ * page's localStorage, which both worlds see. Read at the page's next load: the script runs
+ * at document_start, before this one is listening, so a message could not reach it.
+ */
+const askForLoopGuard = (wanted: boolean): void => {
+  try {
+    if (wanted) localStorage.setItem(GUARD_KEY, 'break');
+    else localStorage.removeItem(GUARD_KEY);
+  } catch (e) {
+    // Storage the page cannot write means the guard cannot be asked for; said, not hidden
+    console.warn('[X Tweaks] Could not pass the loop guard setting to the page', e);
+  }
+};
 
 /**
  * The settings applied while paused. Empty ones stop the filter and the appearance at once
@@ -160,6 +176,9 @@ const main = async (): Promise<void> => {
   // is read, so a page opened with them written down neither learns them again nor writes
   // over what was corrected by hand. `reapply` keeps them current
   useGenericAlts(current.genericAlts);
+  // Asked for at every load, not only when the setting changes: the page's own storage
+  // may have been cleared since, and the setting is what is remembered
+  if (surface.id === 'pro') askForLoopGuard(current.experiments.proLoopGuard);
 
   /*
    * The same two settings, reachable from the compose form itself. A change made there is
@@ -226,6 +245,9 @@ const main = async (): Promise<void> => {
     // Told unconditionally too: which words are X's own is not a setting that pausing
     // stands down, it is what stops a picture's own description being mistaken for one
     useGenericAlts(current.genericAlts);
+    // Likewise not stood down by pausing: it takes effect on the next load anyway, and
+    // whether the page's own loop is cut is not one of the marks pausing takes off
+    if (surface.id === 'pro') askForLoopGuard(current.experiments.proLoopGuard);
     if (!started) {
       missed = true;
       return false;

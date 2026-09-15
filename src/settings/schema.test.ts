@@ -418,6 +418,17 @@ test('投稿フォームの設定は、何も保存されていなければ X Pr
   assert.deepEqual(fillAll({ compose: {} }).compose, { reopen: false, keepHashtags: false });
 });
 
+test('実験的な機能は、何も保存されていなければ off', () => {
+  assert.deepEqual(emptySettings().experiments, { proLoopGuard: false });
+  assert.deepEqual(fillAll({ experiments: {} }).experiments, { proLoopGuard: false });
+});
+
+test('実験的な機能は明示的な true でだけ on になる', () => {
+  assert.deepEqual(fillAll({ experiments: { proLoopGuard: true } }).experiments, { proLoopGuard: true });
+  assert.deepEqual(fillAll({ experiments: { proLoopGuard: 'true' } }).experiments, { proLoopGuard: false });
+  assert.deepEqual(fillAll({ experiments: 'on' }).experiments, { proLoopGuard: false });
+});
+
 test('詳細検索フォームは、何も保存されていなければ出ない', () => {
   // The rail is not ours to fill uninvited. Everything else about x.com's page starts
   // as x.com draws it, and this adds something nobody asked for

@@ -510,6 +510,19 @@ export type ComposeSettings = {
 };
 
 /**
+ * Things tried out on the page that depend on X's internals rather than on what is drawn.
+ * Off by default and one answer for the whole extension, like `ComposeSettings`, and plain
+ * booleans for the same reason.
+ */
+export type ExperimentsSettings = {
+  /**
+   * Cuts X Pro's own runaway store updates, the loop that freezes a tab for minutes
+   * (`loop-guard.ts`). Read by the page on its next load, not the moment it is set
+   */
+  proLoopGuard: boolean;
+};
+
+/**
  * Whether the hashtags are put back. Does not depend on the form reopening: with the form
  * left closed, tags are kept until the next compose form is opened by hand and go in there
  * instead — two separate questions. Lives here with the other "nothing was set" answers, so
@@ -689,6 +702,8 @@ export type Settings = {
   language: Language;
   /** What the compose form does after a post. One for the whole extension, like `language` */
   compose: ComposeSettings;
+  /** What is tried out on the page beyond what it draws. One for the whole extension, like `compose` */
+  experiments: ExperimentsSettings;
   /** What of x.com's own furniture is taken off the page. One for the whole site */
   xChrome: XChromeSettings;
   /** What the extension adds to x.com's search. One for the whole site, like `xChrome` */
@@ -955,6 +970,9 @@ const fillCompose = (v: unknown): ComposeSettings => {
   return { reopen: compose.reopen === true, keepHashtags: compose.keepHashtags === true };
 };
 
+/** Only an explicit `true` switches an experiment on, the same as `fillCompose` and for the same reason */
+const fillExperiments = (v: unknown): ExperimentsSettings => ({ proLoopGuard: rec(v).proLoopGuard === true });
+
 /**
  * Default is off, so only an explicit `true` puts the form on the page — opposite of
  * `fillChrome` below, for the opposite reason: this adds something rather than leaving what X drew.
@@ -1034,6 +1052,7 @@ export const fillAll = (v: unknown): Settings => {
     version: SCHEMA_VERSION,
     language: isLanguage(stored.language) ? stored.language : 'auto',
     compose: fillCompose(stored.compose),
+    experiments: fillExperiments(stored.experiments),
     xChrome: fillChrome(stored.xChrome),
     search: fillSearch(stored.search),
     injected: fillInjected(stored.injected),

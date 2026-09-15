@@ -35,6 +35,15 @@ type Store = {
   subscribe: (listener: () => void) => () => void;
 };
 
+/**
+ * Where the extension side asks for the guard, in the page's localStorage: nothing, `tap`
+ * (count and record only) or `break` (refuse the dispatches of a runaway task), the latter
+ * with an optional threshold as `break:<n>`. localStorage rather than a message because the
+ * MAIN-world script reads it at document_start, before anything of the extension's is
+ * listening; it is read on the next load, not the moment it is written.
+ */
+export const GUARD_KEY = 'xtweaks:loop-guard';
+
 /** The text that tells Redux's module from the rest of the bundle */
 const REDUX_MARK = '@@redux/INIT';
 /** The chunk id pushed to get hold of `__webpack_require__`; anything but a real chunk id */

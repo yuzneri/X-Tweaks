@@ -6,7 +6,7 @@
  * module, which itself imports nothing: it sits where X's own scripts can see it, the most
  * exposed to their implementation changing, so its surface is kept as small as possible.
  */
-import { guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
+import { GUARD_KEY, guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
 
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';
@@ -109,13 +109,6 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
   window.postMessage({ type: RESPONSE, requestId: data.requestId, ...payload }, window.location.origin);
 });
 
-/**
- * Where the extension side says whether the loop guard is wanted: nothing, `tap` (count and
- * record only) or `break` (refuse the dispatches of a runaway task), the latter with an
- * optional threshold as `break:<n>`. localStorage rather than a message because this runs
- * at document_start, before anything of the extension's is listening.
- */
-const GUARD_KEY = 'xtweaks:loop-guard';
 /**
  * Where the guard keeps its record, rewritten as it goes. In `tap` mode it also goes to the
  * console: a write to localStorage only reaches the disk once the page's event loop comes

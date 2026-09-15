@@ -164,6 +164,7 @@ test('何も設定していなければ、階層は一つも書き出されな�
   // 残るのは真偽値で持つもの（未指定という状態がないので、既定値でも値は値）と版・言語
   assert.deepEqual(Object.keys(parsed.settings).sort(), [
     'compose',
+    'experiments',
     'injected',
     'language',
     'search',
