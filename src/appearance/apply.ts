@@ -272,13 +272,21 @@ const columnsThisRound = (columns: ColumnAppearance[]): (() => MarkedColumn[]) =
 /**
  * Whether a marker of ours may still be standing in the page, per pass. Every settling asks
  * each `clear…` below to take off what a pass nobody is asking for any more left behind, and
- * each walks the whole page to do it: three passes switched off are three walks of the page,
- * every settling, for a reader who never turned any of them on. So each is asked only while
- * the pass that writes those markers has written some. They start as "may be": an extension
- * updated over an open tab is left with whatever the copy before it wrote, and that has to be
- * swept up once; the marking pass sets its own back to "may be" as it marks.
+ * each walks the whole page to do it: six passes switched off are six walks of the page (more,
+ * for the ones sweeping several markers), every settling, for a reader who never turned any
+ * of them on. So each is asked only while the pass that writes those markers has written
+ * some. They start as "may be": an extension updated over an open tab is left with whatever
+ * the copy before it wrote, and that has to be swept up once; the marking pass sets its own
+ * back to "may be" as it marks.
  */
-const mayHold = { counts: true, times: true, frames: true };
+const mayHold = {
+  counts: true,
+  times: true,
+  frames: true,
+  attachments: true,
+  captions: true,
+  more: true,
+};
 
 /**
  * Every marker off, and everything they were carrying with them. Called where no scope wants
@@ -1621,17 +1629,17 @@ const restampAttachments = (
     }
   }
 
-  clearAttachments(live, sweepIn(changed));
+  // Something of ours stands in the page, to be swept up when no scope moves anything (`mayHold`)
+  if (live.size > 0) mayHold.attachments = true;
+
+  sweepAttachments(live, sweepIn(changed));
 };
 
 /**
  * Takes away the lines and the markers that no longer belong to something being moved.
  * Left in place, a post would keep a line while what it stood for is back on screen.
  */
-const clearAttachments = (
-  live: Set<Element> = new Set(),
-  where: (Element | Document)[] = [document]
-): void => {
+const sweepAttachments = (live: Set<Element>, where: (Element | Document)[]): void => {
   for (const root of where) {
     root.querySelectorAll(`.${ATTACHMENT_CLASS}`).forEach((line) => {
       if (!live.has(line)) line.remove();
@@ -1648,6 +1656,13 @@ const clearAttachments = (
      */
     if (root instanceof Element && !live.has(root)) root.removeAttribute(MEDIA_MARKED_ATTR);
   }
+};
+
+/** Every line and marker off, once no scope moves anything any more */
+const clearAttachments = (): void => {
+  if (!mayHold.attachments) return;
+  sweepAttachments(new Set(), [document]);
+  mayHold.attachments = false;
 };
 
 /**
@@ -1780,7 +1795,10 @@ const restampCaptions = (
       words.textContent = full;
     });
   }
-  clearCaptions(live, sweepIn(changed));
+  // Something of ours stands in the page, to be swept up when no scope captions (`mayHold`)
+  if (live.size > 0) mayHold.captions = true;
+
+  sweepCaptions(live, sweepIn(changed));
 };
 
 /** A caption, empty. The words go in a box of their own so the fold cannot reach the button */
@@ -1855,15 +1873,19 @@ const showMore = (
  * Takes away the captions that no longer belong under a picture. Left in place, one would
  * describe whatever X reused that box for.
  */
-const clearCaptions = (
-  live: Set<Element> = new Set(),
-  where: (Element | Document)[] = [document]
-): void => {
+const sweepCaptions = (live: Set<Element>, where: (Element | Document)[]): void => {
   for (const root of where) {
     root.querySelectorAll(`.${CAPTION_CLASS}`).forEach((caption) => {
       if (!live.has(caption)) caption.remove();
     });
   }
+};
+
+/** Every caption off, once no scope asks for them any more */
+const clearCaptions = (): void => {
+  if (!mayHold.captions) return;
+  sweepCaptions(new Set(), [document]);
+  mayHold.captions = false;
 };
 
 /** The height of one line. Estimated from the font size when `line-height` is `normal` */
@@ -2005,6 +2027,9 @@ const addShowMore = (
       (existing ?? strayShowMore(text))?.remove();
       continue;
     }
+    // Something of ours stands in the page, to be swept up when every tier drops the limit
+    // (`mayHold`)
+    mayHold.more = true;
     // Already there: only the color is looked at again, in case X's was changed
     if (existing) {
       paintLikeLink(existing, readLinkColor);
@@ -2030,6 +2055,13 @@ const addShowMore = (
     });
     under.after(button);
   }
+};
+
+/** Every "Show more" of ours off, once no tier cuts a body short any more */
+const clearShowMore = (): void => {
+  if (!mayHold.more) return;
+  document.querySelectorAll(`.${MORE_CLASS}`).forEach((button) => button.remove());
+  mayHold.more = false;
 };
 
 /**
@@ -2227,7 +2259,7 @@ export const stampMediaFrames = (): void => {
     );
   } else {
     // Once every tier drops the limit, remove the buttons added earlier too
-    document.querySelectorAll(`.${MORE_CLASS}`).forEach((button) => button.remove());
+    clearShowMore();
   }
   if (measuring) {
     /*
