@@ -95,10 +95,9 @@ type Draft = { drawer: Element; text: string; at: number };
  * otherwise be handed that draft's tags. Each opening of the form is a new element, so the
  * old one stops matching on its own.
  *
- * Typing alone, and this misses what is put in any other way: the box is a Draft.js editor,
- * which takes a paste by stopping the browser's own and inserting the text itself, so no
- * `input` event is raised for it. The same goes for a tag finished from the suggestions and
- * for the emoji picker. `lastSeen` below reads the box rather than listening, and covers them.
+ * Draft.js can paste, finish a suggested tag, or insert an emoji without an `input` event.
+ * The box is also read before a send action, so those changes do not depend on the filter's
+ * next DOM settling.
  */
 let written: Draft | null = null;
 /**
@@ -106,16 +105,26 @@ let written: Draft | null = null;
  *
  * Measured on the real thing: **by the time a post shows up in the page's resource timing,
  * the form is gone**. The request finishes after X has already taken it away, so looking
- * then finds nothing and the feature falls silent. It is written down on every settling of
- * the DOM instead, while the form is still open, and the post is followed using that.
+ * then finds nothing and the feature falls silent. It is written down while the form is
+ * still open, both on DOM settling and immediately before a send action.
  */
 let lastSeen: Draft | null = null;
 /**
- * The tags from the last post, waiting for a form to go into. Only filled while the form is
- * left to close: where it is opened again they go straight back in and nothing has to wait.
+ * The tags from the last post, waiting until a form accepts them. This also covers a form
+ * that could not be reopened or refused the insertion on the first attempt.
  * Held in memory alone — a reload drops it, which is right for something this short-lived.
  */
 let pending: string | null = null;
+/** A form that already failed to take the waiting tags; a newly opened form can try again */
+let attemptedPendingIn: Element | null = null;
+/** Distinguishes equal tags kept by different posts while an earlier insertion is settling */
+let pendingRevision = 0;
+
+const setPending = (tags: string | null): void => {
+  pending = tags;
+  pendingRevision++;
+  attemptedPendingIn = null;
+};
 
 /** Set while a post is being followed through, so a thread's several requests act once */
 let acting = false;
@@ -153,6 +162,13 @@ const linesIn = (editor: Element): string => {
 /** Everything written in the form. A thread's parts are joined so tags in any of them are found */
 const textIn = (drawer: Element): string =>
   Array.from(drawer.querySelectorAll(EDITOR), linesIn).join('\n');
+
+const draftIn = (drawer: Element): Draft => ({ drawer, text: textIn(drawer), at: performance.now() });
+
+const latestDraftBefore = (sentAt: number): Draft | null =>
+  [written, lastSeen]
+    .filter((draft): draft is Draft => draft !== null && draft.at <= sentAt)
+    .sort((a, b) => b.at - a.at)[0] ?? null;
 
 /** Waits for something to turn up, giving up after `within`. Resolves to null on giving up */
 const waitFor = <T>(look: () => T | null, within: number): Promise<T | null> =>
@@ -206,24 +222,25 @@ const pressOpener = async (): Promise<Element | null> => {
   return null;
 };
 
-/** Where the caret goes: the start of the text, not the start of the element */
+/** The first block may be empty when the restored text begins with a line break */
 const firstTextNode = (root: Node): Node =>
   document.createTreeWalker(root, NodeFilter.SHOW_TEXT).nextNode() ?? root;
+
+const caretStart = (editor: Element): Node => firstTextNode(editor.querySelector(LINE) ?? editor);
 
 const caretIsAtStart = (selection: Selection, editor: Element): boolean =>
   selection.isCollapsed &&
   selection.anchorOffset === 0 &&
-  selection.anchorNode === firstTextNode(editor);
+  selection.anchorNode === caretStart(editor);
 
 /**
  * Moves the caret in front of the tags, and keeps it there.
  *
  * The box keeps its own idea of where the caret is and puts it back as the text settles, so
  * setting it once only lands it at the end a moment later — it is moved, watched, and moved
- * again until it holds or the wait runs out. `Selection.modify` is tried first, the same
- * caret movement a Home key press goes through, which an editor watching the caret is
- * likelier to follow than a range set behind its back. Where it is missing, the range is set
- * directly.
+ * again until it holds or the wait runs out. The start belongs to the first block, which
+ * can be empty after inserting a leading newline. Moving to the first text node of the
+ * whole editor would land before the tag on the second line.
  */
 const putCaretAtStart = async (editor: Element): Promise<boolean> => {
   const held = await waitFor(() => {
@@ -232,13 +249,8 @@ const putCaretAtStart = async (editor: Element): Promise<boolean> => {
     // Checked before moving, so what is seen is where the caret settled last time round
     if (caretIsAtStart(selection, editor)) return true;
 
-    const modify = (selection as Selection & { modify?: (...args: string[]) => void }).modify;
-    if (typeof modify === 'function') {
-      modify.call(selection, 'move', 'backward', 'lineboundary');
-      return null;
-    }
     const range = document.createRange();
-    range.setStart(firstTextNode(editor), 0);
+    range.setStart(caretStart(editor), 0);
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
@@ -296,7 +308,19 @@ const restore = async (drawer: Element, text: string): Promise<boolean> => {
     return false;
   }
 
+  // A person may have started typing while the sliding form was waiting for focus.
+  if (textIn(drawer) !== '') return false;
   document.execCommand('insertText', false, text);
+  // The command can be refused or drop the line break. Only the full text counts as restored.
+  if (
+    !(await waitFor(
+      () => (textIn(drawer).includes(text) ? true : null),
+      EDITOR_WITHIN_MS
+    ))
+  ) {
+    hooks.log('The box did not retain the kept hashtags');
+    return false;
+  }
   // The tags are in either way; where the caret ended up is worth knowing but not worth
   // calling the whole thing a failure over
   if (!(await putCaretAtStart(focused))) {
@@ -318,7 +342,7 @@ const restore = async (drawer: Element, text: string): Promise<boolean> => {
  */
 const followPost = async (sentAt: number): Promise<void> => {
   if (!watching() || acting) return;
-  const drawer = formForPost();
+  const drawer = formForPost(sentAt);
   if (!drawer) return;
 
   acting = true;
@@ -334,10 +358,8 @@ const followPost = async (sentAt: number): Promise<void> => {
      * out. Told apart by when they were taken rather than by being empty: a box someone
      * cleared before posting is empty for a reason, and its tags are not wanted back.
      */
-    const text =
-      [written, lastSeen]
-        .filter((draft): draft is Draft => draft?.drawer === drawer && draft.at <= sentAt)
-        .sort((a, b) => b.at - a.at)[0]?.text ?? textIn(drawer);
+    const draft = latestDraftBefore(sentAt);
+    const text = draft?.drawer === drawer ? draft.text : textIn(drawer);
     /*
      * One remembered form serves one post. Left in place, the next post from anywhere —
      * a reply typed a moment later — would be followed as if it had come from this form.
@@ -357,7 +379,7 @@ const followPost = async (sentAt: number): Promise<void> => {
      * be the very thing the other switch was turned off to avoid.
      */
     if (!settings.reopen) {
-      pending = tags === '' ? null : tags;
+      setPending(tags === '' ? null : tags);
       written = null;
       hooks.log('Left the compose form closed', {
         hashtags: pending ?? 'none kept',
@@ -365,6 +387,7 @@ const followPost = async (sentAt: number): Promise<void> => {
       return;
     }
 
+    setPending(tags === '' ? null : tags);
     const reopened = await pressOpener();
     if (!reopened) {
       hooks.log('Could not open the compose form again; leaving it closed');
@@ -379,13 +402,17 @@ const followPost = async (sentAt: number): Promise<void> => {
     }
 
     if (await restore(reopened, tags)) {
+      setPending(null);
       hooks.log('Brought the compose form back', { hashtags: tags === '' ? 'none' : tags });
     } else {
+      attemptedPendingIn = reopened;
       hooks.log('The compose form came back but would not take the hashtags');
     }
     written = null;
   } finally {
     acting = false;
+    // The next form may already be open if it was opened before the post was noticed.
+    if (pending !== null) restorePending();
   }
 };
 
@@ -417,17 +444,16 @@ const findOpener = (): Element | null => {
 export const noticeComposeForm = (): void => {
   const drawer = composeDrawer();
   if (!drawer) return;
-  lastSeen = { drawer, text: textIn(drawer), at: performance.now() };
+  lastSeen = draftIn(drawer);
   // The form is open, so the button that opens it is disabled and can be picked out
   if (opener === null || !opener.isConnected) opener = findOpener();
 };
 
-/** The form to follow a post from: the one open now, or the one seen a moment ago */
-const formForPost = (): Element | null => {
-  const open = composeDrawer();
-  if (open) return open;
-  if (lastSeen === null || performance.now() - lastSeen.at > SEEN_WITHIN_MS) return null;
-  return lastSeen.drawer;
+/** The form to follow a post from, using the reading made before the request started */
+const formForPost = (sentAt: number): Element | null => {
+  const draft = latestDraftBefore(sentAt);
+  if (draft && sentAt - draft.at <= SEEN_WITHIN_MS) return draft.drawer;
+  return composeDrawer();
 };
 
 /**
@@ -435,27 +461,31 @@ const formForPost = (): Element | null => {
  *
  * Called on every settling of the DOM, so it must be cheap and sure: nothing waiting means
  * nothing to do; a form mid-reopen after a post (`acting`) has that path putting the tags in
- * itself; and a box with something already in it is not ours to overwrite. The tags are let
- * go whether or not they went in — retrying on the next settling would mean fighting
- * whatever stopped it, several times a second.
+ * itself; and a box with something already in it is not ours to overwrite. A failed attempt
+ * waits for a different form, rather than fighting the same one on every settling.
  */
 export const restorePending = (): void => {
   if (pending === null || acting) return;
   const drawer = composeDrawer();
-  if (!drawer) return;
+  if (!drawer || drawer === attemptedPendingIn) return;
   if (!drawer.querySelector(EDITOR) || textIn(drawer) !== '') return;
 
   const tags = pending;
-  pending = null;
+  const revision = pendingRevision;
+  attemptedPendingIn = drawer;
   /*
    * Waiting for the box to take focus makes this a promise, but the caller is the DOM
-   * settling and has nothing to wait for. `pending` is already let go of, so no second
-   * attempt can start while this one is still running.
+   * settling and has nothing to wait for. This form is marked as attempted before waiting,
+   * so another settling cannot start a second insertion into it.
    */
-  void restore(drawer, tags).then((put) => {
-    if (put) hooks.log('Put the kept hashtags into the form', { hashtags: tags });
-    else hooks.log('The compose form would not take the kept hashtags');
-  });
+  void restore(drawer, tags)
+    .then((put) => {
+      if (put) {
+        if (pendingRevision === revision) setPending(null);
+        hooks.log('Put the kept hashtags into the form', { hashtags: tags });
+      } else hooks.log('The compose form would not take the kept hashtags');
+    })
+    .catch((error: unknown) => hooks.log('Could not put the kept hashtags into the form', error));
 };
 
 /**
@@ -487,19 +517,39 @@ export const rememberTrigger = (target: Element | null): void => {
 
 /** Keeps track of what is being written, since the box is emptied before this can read it */
 const watchTyping = (): void => {
+  const inCompose = (target: EventTarget | null): Element | null => {
+    if (!(target instanceof Element)) return null;
+    const drawer = target.closest(DRAWER);
+    return drawer && drawer === composeDrawer() ? drawer : null;
+  };
+
   document.addEventListener(
     'input',
     (event) => {
       if (!watching()) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const drawer = target.closest(DRAWER);
-      // Only the compose form. The text of a reply is none of this module's business
-      if (!drawer || drawer !== composeDrawer()) return;
-      written = { drawer, text: textIn(drawer), at: performance.now() };
+      const drawer = inCompose(event.target);
+      if (!drawer) return;
+      // X updates its Draft.js DOM in its own handler, after this capturing listener.
+      queueMicrotask(() => {
+        if (watching() && drawer.isConnected && drawer === composeDrawer()) written = draftIn(drawer);
+      });
     },
     true
   );
+
+  // Draft.js may paste or complete a tag without an input event, and the filter's DOM
+  // settling can run too late. Read the finished box before X handles a send by mouse or
+  // keyboard, while the form and its text are still present.
+  const beforeAction = (event: Event): void => {
+    if (!watching()) return;
+    const drawer = inCompose(event.target);
+    if (!drawer) return;
+    written = draftIn(drawer);
+    lastSeen = written;
+  };
+  document.addEventListener('pointerdown', beforeAction, true);
+  document.addEventListener('keydown', beforeAction, true);
+  document.addEventListener('click', beforeAction, true);
 };
 
 /**
@@ -519,10 +569,11 @@ const watchPosts = (): void => {
        * console.
        */
       if (!watching()) continue;
+      const form = formForPost(entry.startTime);
       hooks.log('A post was sent', {
         reopen: settings.reopen,
         keepHashtags: settings.keepHashtags,
-        composeForm: composeDrawer() !== null ? 'open' : formForPost() !== null ? 'just gone' : 'none',
+        composeForm: form === null ? 'none' : form === composeDrawer() ? 'open' : 'just gone',
         knowsHowToReopen: opener !== null,
       });
       followPost(entry.startTime).catch((error) => {
@@ -543,7 +594,7 @@ export const updateSettings = (next: ComposeSettings): void => {
   // Nothing is kept from what was typed once neither switch wants it
   if (!watching()) written = null;
   // Tags waiting for a form are dropped the moment they stop being wanted
-  if (!restoresHashtags(next)) pending = null;
+  if (!restoresHashtags(next)) setPending(null);
 };
 
 export const start = (initial: ComposeSettings, given: Hooks): void => {

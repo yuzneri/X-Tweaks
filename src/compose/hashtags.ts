@@ -121,9 +121,8 @@ export const hashtagsIn = (text: string): string[] => {
 };
 
 /**
- * What gets put back into the emptied compose box. A single space leads the tags so the
- * body, typed at the caret waiting in front of them, does not run into the first tag; with
- * no tags to put back there is nothing to insert, and an empty string says so.
+ * What gets put back into the emptied compose box. A line break leaves the first line for
+ * the body, with the tags on the next line. With no tags there is nothing to insert.
  */
 export const restoredText = (tags: string[]): string =>
-  tags.length === 0 ? '' : ` ${tags.join(' ')}`;
+  tags.length === 0 ? '' : `\n${tags.join(' ')}`;
