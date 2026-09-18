@@ -110,13 +110,14 @@ It stands in the rail on the right, and where it goes depends on the page:
 - **On a search’s results**: in place of X’s own search filters
 - **On Explore**: at the head of the rail
 
-Always on show are the tab to land on (top, latest, people, media or lists — it starts on latest) and six fields:
+Always on show are the tab to land on (top, latest, people, media or lists — it starts on latest) and seven fields:
 
 - All of these keywords (an operator written here reaches X as written)
 - This keyword as a whole
 - Any of these keywords
 - None of these keywords
 - These hashtags
+- Exclude these hashtags
 - These cashtags (such as `$TSLA`)
 
 The rest sit in groups that start folded:

@@ -288,6 +288,7 @@ export const ja: Messages = {
       any: 'いずれかのキーワードを含む',
       none: 'キーワードを含まない',
       hashtags: 'ハッシュタグを含む',
+      hashtagsExclude: 'ハッシュタグを除く',
       cashtags: 'キャッシュタグを含む',
 
       from: 'アカウントの投稿を含む',

@@ -341,6 +341,7 @@ export const en = {
       any: 'Any of these keywords',
       none: 'None of these keywords',
       hashtags: 'These hashtags',
+      hashtagsExclude: 'Exclude these hashtags',
       cashtags: 'These cashtags',
 
       from: 'From these accounts',

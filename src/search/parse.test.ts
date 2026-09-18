@@ -82,6 +82,19 @@ test('ハッシュタグは往復する', () => {
   roundTrips('#rust #go');
 });
 
+test('除くハッシュタグは専用欄に戻り、OR に続く指定も保持する', () => {
+  roundTrips('#rust -#spam -#bot');
+  const parsed = parseQuery('#rust -#spam -#bot');
+  assert.equal(parsed.hashtags, 'rust');
+  assert.equal(parsed.hashtagsExclude, 'spam bot');
+  assert.equal(parsed.none, '');
+
+  const withOr = parseQuery('"A" OR "B" -#spam');
+  assert.equal(withOr.any, '"A" "B"');
+  assert.equal(withOr.hashtagsExclude, 'spam');
+  assert.equal(buildQuery(withOr), '("A" OR "B") -#spam');
+});
+
 test('キャッシュタグは往復し、専用欄に戻る', () => {
   roundTrips('$TSLA $AAPL');
   assert.equal(parseQuery('$TSLA').cashtags, 'TSLA');

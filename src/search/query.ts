@@ -45,6 +45,8 @@ export type SearchForm = {
   none: string;
   /** Hashtags, with or without the leading `#` */
   hashtags: string;
+  /** Hashtags to exclude, with or without the leading `#` */
+  hashtagsExclude: string;
   /** Cashtags, with or without the leading `$` */
   cashtags: string;
   /** A language code from X's own list, or an empty string for "any language" */
@@ -103,6 +105,7 @@ export const emptyForm = (): SearchForm => ({
   any: '',
   none: '',
   hashtags: '',
+  hashtagsExclude: '',
   cashtags: '',
   lang: '',
   from: emptyAccountField(),
@@ -355,6 +358,10 @@ export const buildQuery = (form: SearchForm): string => {
   for (const token of tokenize(form.hashtags)) {
     const tag = token.replaceAll('"', '').replace(/^#+/, '');
     if (tag !== '') parts.push(`#${tag}`);
+  }
+  for (const token of tokenize(form.hashtagsExclude)) {
+    const tag = token.replaceAll('"', '').replace(/^-+/, '').replace(/^#+/, '');
+    if (tag !== '') parts.push(`-#${tag}`);
   }
   for (const token of tokenize(form.cashtags)) {
     const tag = token.replaceAll('"', '').replace(/^\$+/, '');

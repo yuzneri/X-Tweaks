@@ -148,6 +148,7 @@ export const parseQuery = (query: string): SearchForm => {
   const any: string[] = [];
   const none: string[] = [];
   const hashtags: string[] = [];
+  const hashtagsExclude: string[] = [];
   const cashtags: string[] = [];
 
   for (const { body, excluded } of parts) {
@@ -210,6 +211,10 @@ export const parseQuery = (query: string): SearchForm => {
     if (matched) continue;
 
     // --- plain words ---
+    if (excluded && body.startsWith('#') && body.length > 1) {
+      hashtagsExclude.push(body.slice(1));
+      continue;
+    }
     if (excluded) {
       none.push(body);
       continue;
@@ -243,6 +248,7 @@ export const parseQuery = (query: string): SearchForm => {
   form.any = any.join(' ');
   form.none = none.join(' ');
   form.hashtags = hashtags.join(' ');
+  form.hashtagsExclude = hashtagsExclude.join(' ');
   form.cashtags = cashtags.join(' ');
   return form;
 };

@@ -380,6 +380,11 @@ export const SearchFormView = ({ messages }: Props) => {
         onInput={(hashtags) => patch({ hashtags })}
       />
       <Field
+        label={m.hashtagsExclude}
+        value={form.hashtagsExclude}
+        onInput={(hashtagsExclude) => patch({ hashtagsExclude })}
+      />
+      <Field
         label={m.cashtags}
         value={form.cashtags}
         onInput={(cashtags) => patch({ cashtags })}

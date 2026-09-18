@@ -128,6 +128,14 @@ test('ハッシュタグは # の有無どちらでも同じ形になる', () =>
   assert.equal(buildQuery(form({ hashtags: '#rust go' })), '#rust #go');
 });
 
+test('除くハッシュタグは # や - の有無どちらでも -# になる', () => {
+  assert.equal(
+    buildQuery(form({ hashtags: 'rust', hashtagsExclude: '#spam ads -#bot' })),
+    '#rust -#spam -#ads -#bot'
+  );
+  assert.equal(buildQuery(form({ hashtagsExclude: '#' })), '');
+});
+
 test('キャッシュタグは $ の有無どちらでも同じ形になる', () => {
   assert.equal(buildQuery(form({ cashtags: '$TSLA AAPL' })), '$TSLA $AAPL');
   assert.equal(buildQuery(form({ cashtags: '$' })), '');
@@ -454,7 +462,9 @@ const FILLED: [keyof SearchForm, Partial<SearchForm>, string][] = [
 ];
 
 /** The word and tag fields stand outside every group, so nothing they hold opens one */
-const UNGROUPED: (keyof SearchForm)[] = ['all', 'exact', 'any', 'none', 'hashtags', 'cashtags'];
+const UNGROUPED: (keyof SearchForm)[] = [
+  'all', 'exact', 'any', 'none', 'hashtags', 'hashtagsExclude', 'cashtags',
+];
 
 test('空のフォームでは畳みが1つも開かない', () => {
   assert.deepEqual(openGroups({}), []);
