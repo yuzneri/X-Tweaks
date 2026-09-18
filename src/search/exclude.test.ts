@@ -139,9 +139,9 @@ const formOf = (patch: Record<string, unknown> = {}) => ({
   all: '',
   exact: '',
   any: '',
-  from: { names: '' },
-  to: { names: '' },
-  mentioning: { names: '' },
+  from: { include: '', exclude: '' },
+  to: { include: '', exclude: '' },
+  mentioning: { include: '', exclude: '' },
   ...patch,
 });
 
@@ -156,12 +156,15 @@ test('引用符は語の一部にしない', () => {
 
 test('演算子の欄は検索語に入れない', () => {
   // filter:images に当たった投稿は、名前に何かを「含んで」いるわけではない
-  assert.deepEqual(termsOf(formOf({ from: { names: 'alice' } })).words, []);
+  assert.deepEqual(termsOf(formOf({ from: { include: 'alice', exclude: '' } })).words, []);
 });
 
 test('名指しされたアカウントを集め、@ を外す', () => {
-  const t = termsOf(formOf({ from: { names: '@alice bob' }, mentioning: { names: 'carol' } }));
-  assert.deepEqual(t.named, ['alice', 'bob', 'carol']);
+  const t = termsOf(formOf({
+    from: { include: '@alice', exclude: 'bob' },
+    mentioning: { include: 'carol', exclude: 'dave' },
+  }));
+  assert.deepEqual(t.named, ['alice', 'bob', 'carol', 'dave']);
 });
 
 test('印を書き出して読み戻すと、同じものになる', () => {

@@ -63,7 +63,7 @@ A form beside the timeline for building an X search out of fields, so the operat
 - Keywords, accounts, a span of days, the language, whether it has a link or a photo, the least it must have in replies or likes
 - On a search's results it takes the place of X's own search filters
 - A search reached from a trend or a hashtag fills the form, so it can be narrowed down rather than retyped
-- Things X's search cannot be asked for, such as leaving reposts out, or posts that matched only somebody's name
+- Hide reposts or posts that matched only somebody's name from the results on screen
 
 ■ Tidy the page around the timeline (x.com)
 

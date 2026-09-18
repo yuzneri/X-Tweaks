@@ -110,24 +110,25 @@ It stands in the rail on the right, and where it goes depends on the page:
 - **On a search’s results**: in place of X’s own search filters
 - **On Explore**: at the head of the rail
 
-Always on show are the tab to land on (top, latest, people, media or lists — it starts on latest) and five fields:
+Always on show are the tab to land on (top, latest, people, media or lists — it starts on latest) and six fields:
 
 - All of these keywords (an operator written here reaches X as written)
 - This keyword as a whole
 - Any of these keywords
 - None of these keywords
 - These hashtags
+- These cashtags (such as `$TSLA`)
 
 The rest sit in groups that start folded:
 
-- **Accounts**: from, replying to, or mentioning these accounts (each can be excluded instead)
+- **Accounts**: include and exclude accounts at the same time for authors, reply targets, and mentions; search posts from members of a List
 - **When**: a date and a time. Leave a time empty and the day is taken whole
-- **Filters**: whether it has a link, a photo, a video, or a verified author; whether it is a reply; the language; only accounts you follow; only near you
+- **Filters**: text in a linked URL; whether it has a link, media, a photo, a video, or a verified author; whether it is a reply; the language; only accounts you follow; only near you
 - **How much it got**: the least it must have in replies, likes and reposts
 
 ### Leaving posts out of the results
 
-What X’s search cannot be asked for, done to the results after they arrive.
+These act on the results after they arrive, separately from the search query.
 They sit inside “Filters”, and take effect on a search’s results.
 They are not saved, but they are carried for as long as the tab is open.
 

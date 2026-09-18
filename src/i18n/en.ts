@@ -341,18 +341,23 @@ export const en = {
       any: 'Any of these keywords',
       none: 'None of these keywords',
       hashtags: 'These hashtags',
+      cashtags: 'These cashtags',
 
       from: 'From these accounts',
+      fromExclude: 'Exclude posts from these accounts',
       to: 'Replying to these accounts',
+      toExclude: 'Exclude replies to these accounts',
       mentioning: 'Mentioning these accounts',
-      /** The one word shared by the three account fields, each having the same switch */
-      exclude: 'Exclude',
+      mentioningExclude: 'Exclude posts mentioning these accounts',
+      list: 'From this List (user/list name)',
 
       verified: 'Verified accounts',
       links: 'Links',
+      url: 'Text in linked URLs',
+      media: 'Media',
       images: 'Photos',
       videos: 'Videos',
-      /** How each of those four is asked for */
+      /** How each content filter is asked for */
       choices: { any: 'Either way', include: 'Only these', exclude: 'Leave out' },
 
       replies: 'Replies',
@@ -381,9 +386,8 @@ export const en = {
       reset: 'Clear',
 
       /**
-       * The four X has no operator for. They are done to the results after they arrive,
-       * which is what the note says — a reader who does not know that would take them for
-       * part of the search and wonder why they are gone on the next visit.
+       * These filters act on results after they arrive. The note makes that clear so readers
+       * do not mistake them for conditions stored in the search query.
        */
       leaveOutNote: 'Done to the results on screen.',
       excludeReposts: 'Hide reposts',

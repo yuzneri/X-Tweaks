@@ -1,9 +1,7 @@
 /**
- * The ways of putting a post out of sight that X has no operator for.
+ * Filters applied to the posts shown in X's search results.
  *
- * X's search cannot say "no reposts", "nothing with three hashtags in it", "nothing with a
- * thousand likes", or "not the ones that only matched somebody's name". These are decided
- * here, after the results arrive, by looking at what is on screen.
+ * These are decided after the results arrive, by looking at what is on screen.
  *
  * **None of this is saved.** What is asked for is carried no further than the tab it was
  * asked in (`state.ts`): running a search takes the reader to a new page, and arriving with
@@ -199,9 +197,9 @@ export const termsOf = (form: {
   all: string;
   exact: string;
   any: string;
-  from: { names: string };
-  to: { names: string };
-  mentioning: { names: string };
+  from: { include: string; exclude: string };
+  to: { include: string; exclude: string };
+  mentioning: { include: string; exclude: string };
 }): Terms => {
   const split = (value: string): string[] =>
     value
@@ -213,6 +211,9 @@ export const termsOf = (form: {
     split(value).map((name) => name.replace(/^@+/, '')).filter((name) => name !== '');
   return {
     words: [...split(form.all), ...split(form.exact), ...split(form.any)],
-    named: [...names(form.from.names), ...names(form.to.names), ...names(form.mentioning.names)],
+    named: [form.from, form.to, form.mentioning].flatMap((field) => [
+      ...names(field.include),
+      ...names(field.exclude),
+    ]),
   };
 };

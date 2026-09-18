@@ -6,8 +6,8 @@ import { buildQuery, emptyForm, type SearchForm } from './query.ts';
 const form = (fields: Partial<SearchForm>): SearchForm => ({ ...emptyForm(), ...fields });
 
 /**
- * The one promise this makes: what a query says survives being read and written again.
- * Which field a word lands in cannot always be told, so that is not what is checked.
+ * Queries already in the form's shape survive exactly when read and written again.
+ * External ungrouped OR queries are checked separately because they gain parentheses.
  */
 const roundTrips = (query: string): void =>
   assert.equal(buildQuery(parseQuery(query)), query, query);
@@ -28,6 +28,49 @@ test('OR の群は往復する', () => {
   roundTrips('rust (go OR zig)');
 });
 
+test('括弧なしの OR だけの検索は「いずれか」に入る', () => {
+  const query = '"Playwrightのあるきかた" OR "JPEGの裏側" OR "MPEGの魔法" OR "WebPの秘密"';
+  const parsed = parseQuery(query);
+  assert.equal(parsed.all, '');
+  assert.equal(parsed.exact, '');
+  assert.equal(
+    parsed.any,
+    '"Playwrightのあるきかた" "JPEGの裏側" "MPEGの魔法" "WebPの秘密"'
+  );
+  assert.equal(
+    buildQuery(parsed),
+    '("Playwrightのあるきかた" OR "JPEGの裏側" OR "MPEGの魔法" OR "WebPの秘密")'
+  );
+  assert.equal(parseQuery('red OR blue').any, 'red blue');
+});
+
+test('括弧なしの OR に続く除外アカウントも専用欄へ入る', () => {
+  const query = '"Playwrightのあるきかた" OR "JPEGの裏側" OR "MPEGの魔法" OR "WebPの秘密" -from:yuzneri';
+  const parsed = parseQuery(query);
+  assert.equal(parsed.all, '');
+  assert.equal(
+    parsed.any,
+    '"Playwrightのあるきかた" "JPEGの裏側" "MPEGの魔法" "WebPの秘密"'
+  );
+  assert.deepEqual(parsed.from, { include: '', exclude: 'yuzneri' });
+  assert.equal(
+    buildQuery(parsed),
+    '("Playwrightのあるきかた" OR "JPEGの裏側" OR "MPEGの魔法" OR "WebPの秘密") -from:yuzneri'
+  );
+});
+
+test('括弧なしの OR に続く絞り込みは専用欄へ入り、通常の語は保持する', () => {
+  const mixed = parseQuery('"A" OR "B" lang:ja');
+  assert.equal(mixed.any, '"A" "B"');
+  assert.equal(mixed.lang, 'ja');
+  assert.equal(buildQuery(mixed), '("A" OR "B") lang:ja');
+  const plain = parseQuery('"A" OR "B" C');
+  assert.equal(plain.any, '');
+  assert.equal(plain.all, '"A" OR "B" C');
+  assert.equal(buildQuery(plain), '"A" OR "B" C');
+  roundTrips('(red blue) OR green');
+});
+
 test('除外は往復する', () => {
   roundTrips('-crab');
   roundTrips('rust -crab -ferris');
@@ -39,6 +82,11 @@ test('ハッシュタグは往復する', () => {
   roundTrips('#rust #go');
 });
 
+test('キャッシュタグは往復し、専用欄に戻る', () => {
+  roundTrips('$TSLA $AAPL');
+  assert.equal(parseQuery('$TSLA').cashtags, 'TSLA');
+});
+
 test('アカウントの欄は往復する', () => {
   roundTrips('from:alice');
   roundTrips('(from:alice OR from:bob)');
@@ -46,14 +94,35 @@ test('アカウントの欄は往復する', () => {
   roundTrips('to:alice');
   roundTrips('@alice');
   roundTrips('(@alice OR @bob)');
+  roundTrips('from:alice -from:bob');
+  roundTrips('to:alice -to:bob');
+  roundTrips('@alice -@bob');
+  assert.deepEqual(parseQuery('from:alice -from:bob').from, {
+    include: 'alice',
+    exclude: 'bob',
+  });
+  assert.deepEqual(parseQuery('-from:bob from:alice').from, {
+    include: 'alice',
+    exclude: 'bob',
+  });
+  roundTrips('list:NASA/space-posts');
+  assert.equal(parseQuery('list:NASA/space-posts').list, 'NASA/space-posts');
 });
 
 test('filter: 系と返信は往復する', () => {
   roundTrips('filter:verified');
   roundTrips('-filter:links');
+  roundTrips('filter:media');
+  roundTrips('-filter:media');
   roundTrips('filter:images -filter:videos');
   roundTrips('filter:replies');
   roundTrips('-filter:replies');
+});
+
+test('リンク先の語句は往復し、専用欄に戻る', () => {
+  roundTrips('url:example.com');
+  roundTrips('url:"example site"');
+  assert.equal(parseQuery('url:"example site"').url, 'example site');
 });
 
 test('言語と反応数は往復する', () => {
@@ -64,8 +133,9 @@ test('言語と反応数は往復する', () => {
 
 test('全部入りのクエリが往復する', () => {
   roundTrips(
-    'rust "hello world" (go OR zig) -crab #rustlang lang:ja from:alice -to:bob @carol ' +
-      'filter:verified -filter:links -filter:replies min_faves:100'
+    'rust "hello world" (go OR zig) -crab #rustlang $TSLA lang:ja from:alice -to:bob @carol ' +
+      'list:NASA/space-posts filter:verified -filter:links url:example.com filter:media ' +
+      '-filter:replies min_faves:100'
   );
 });
 

@@ -74,7 +74,7 @@ const Field = ({
  * A group that starts folded, and unfolds itself once it holds something.
  *
  * Folded by default: the rail is 350px wide, and the whole form open runs past the height of
- * a window — the five word fields are what a search usually needs, these what it sometimes
+ * a window — the word and tag fields are what a search usually needs, these what it sometimes
  * needs. Built on `<details>` rather than a button and hidden div, which gives the opening,
  * the keyboard handling and the "this is collapsed" announcement for free.
  *
@@ -116,12 +116,9 @@ const Group = ({
 };
 
 /**
- * One account field: the names, and whether they are being excluded rather than asked for.
- * Hands back only the part that changed, never a whole `AccountField` built from the prop:
- * the prop holds the values as they stood when this render was made, so building
- * `{ ...field, exclude }` would carry the names back to what they were, and typing a name
- * then ticking the box would lose it. Merging is the caller's, against the values as they
- * stand now.
+ * The included and excluded names for one kind of account match. Hands back only the part
+ * that changed: the caller merges it with current values, so typing in one box cannot
+ * overwrite a change in the other before this component redraws.
  */
 const Accounts = ({
   label,
@@ -134,30 +131,14 @@ const Accounts = ({
   field: AccountField;
   onChange: (part: Partial<AccountField>) => void;
 }) => (
-  <div class="xpro-search-field">
-    {/*
-      The box is wrapped in its label rather than pointed at by an id, as every other field
-      here is: an id built from the label would come from a translated string — changing with
-      the language, carrying whatever spaces it puts in, no two labels guaranteed alike.
-    */}
-    <label class="xpro-search-field">
-      <span class="xpro-search-label">{label}</span>
-      <input
-        type="text"
-        class="xpro-search-input"
-        value={field.names}
-        onInput={(event) => onChange({ names: event.currentTarget.value })}
-      />
-    </label>
-    <label class="xpro-search-check">
-      <input
-        type="checkbox"
-        checked={field.exclude}
-        onChange={(event) => onChange({ exclude: event.currentTarget.checked })}
-      />
-      <span>{excludeLabel}</span>
-    </label>
-  </div>
+  <>
+    <Field label={label} value={field.include} onInput={(include) => onChange({ include })} />
+    <Field
+      label={excludeLabel}
+      value={field.exclude}
+      onInput={(exclude) => onChange({ exclude })}
+    />
+  </>
 );
 
 /**
@@ -274,8 +255,8 @@ export const SearchFormView = ({ messages }: Props) => {
   };
 
   /*
-   * What X has no operator for. They change nothing about the query: what they do is done
-   * to the results already on screen, by `hide.ts`, and only while this page is open
+   * Filters applied to visible results. They change nothing about the query: `hide.ts`
+   * applies them to results already on screen, while this page is open.
    */
   const [exclusions, setExclusions] = useState<Exclusions>(currentExclusions);
   const patchExclusions = (part: Partial<Exclusions>): void => {
@@ -352,7 +333,7 @@ export const SearchFormView = ({ messages }: Props) => {
       /*
        * Enter is caught here rather than left to the form's own submission: a form with no
        * submit button submits on Enter only where it holds exactly one field that blocks
-       * implicit submission, and this one holds thirteen, so Enter would do nothing at all
+       * implicit submission, and this one holds many, so Enter would do nothing at all
        * (measured).
        */
       onKeyDown={(event) => {
@@ -398,26 +379,32 @@ export const SearchFormView = ({ messages }: Props) => {
         value={form.hashtags}
         onInput={(hashtags) => patch({ hashtags })}
       />
+      <Field
+        label={m.cashtags}
+        value={form.cashtags}
+        onInput={(cashtags) => patch({ cashtags })}
+      />
 
       <Group label={g.accounts} filled={filled.accounts}>
         <Accounts
           label={m.from}
-          excludeLabel={m.exclude}
+          excludeLabel={m.fromExclude}
           field={form.from}
           onChange={(part) => patch({ from: { ...currentForm().from, ...part } })}
         />
         <Accounts
           label={m.to}
-          excludeLabel={m.exclude}
+          excludeLabel={m.toExclude}
           field={form.to}
           onChange={(part) => patch({ to: { ...currentForm().to, ...part } })}
         />
         <Accounts
           label={m.mentioning}
-          excludeLabel={m.exclude}
+          excludeLabel={m.mentioningExclude}
           field={form.mentioning}
           onChange={(part) => patch({ mentioning: { ...currentForm().mentioning, ...part } })}
         />
+        <Field label={m.list} value={form.list} onInput={(list) => patch({ list })} />
       </Group>
 
       <Group label={g.dates} filled={filled.dates}>
@@ -439,10 +426,12 @@ export const SearchFormView = ({ messages }: Props) => {
         about them. Ticked, they are still something this group holds and should show.
       */}
       <Group label={g.filters} filled={filled.filters || excludesAnything(exclusions)}>
+        <Field label={m.url} value={form.url} onInput={(url) => patch({ url })} />
         {(
           [
             ['verified', m.verified],
             ['links', m.links],
+            ['media', m.media],
             ['images', m.images],
             ['videos', m.videos],
           ] as const
@@ -516,7 +505,7 @@ export const SearchFormView = ({ messages }: Props) => {
           <span>{m.nearbyOnly}</span>
         </label>
         {/*
-          What X has no operator for. They ask the same kind of question as the rest of this
+          Filters applied to visible results. They ask the same kind of question as the rest of this
           group, but are answered here rather than by X — so they are marked off by the note,
           and by being the only part of the form that comes and goes: off a search's results
           there is nothing for them to act on, and the stylesheet takes the whole block away

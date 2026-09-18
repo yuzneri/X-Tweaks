@@ -25,8 +25,8 @@ export type ReplyChoice = 'any' | 'only' | 'exclude';
  */
 export type ResultTab = 'top' | 'live' | 'user' | 'media' | 'list';
 
-/** One account field: the names typed into it, and whether they are being excluded */
-export type AccountField = { names: string; exclude: boolean };
+/** Accounts to include and exclude for one kind of match */
+export type AccountField = { include: string; exclude: string };
 
 /**
  * The form's values, as strings, exactly as the fields hold them. Numbers and dates stay
@@ -45,13 +45,20 @@ export type SearchForm = {
   none: string;
   /** Hashtags, with or without the leading `#` */
   hashtags: string;
+  /** Cashtags, with or without the leading `$` */
+  cashtags: string;
   /** A language code from X's own list, or an empty string for "any language" */
   lang: string;
   from: AccountField;
   to: AccountField;
   mentioning: AccountField;
+  /** Members of one List, as `user/list-name` */
+  list: string;
+  /** A word or URL fragment in a linked URL */
+  url: string;
   verified: FilterChoice;
   links: FilterChoice;
+  media: FilterChoice;
   images: FilterChoice;
   videos: FilterChoice;
   replies: ReplyChoice;
@@ -88,7 +95,7 @@ export type SearchScopes = {
   nearbyOnly: boolean;
 };
 
-export const emptyAccountField = (): AccountField => ({ names: '', exclude: false });
+export const emptyAccountField = (): AccountField => ({ include: '', exclude: '' });
 
 export const emptyForm = (): SearchForm => ({
   all: '',
@@ -96,12 +103,16 @@ export const emptyForm = (): SearchForm => ({
   any: '',
   none: '',
   hashtags: '',
+  cashtags: '',
   lang: '',
   from: emptyAccountField(),
   to: emptyAccountField(),
   mentioning: emptyAccountField(),
+  list: '',
+  url: '',
   verified: 'any',
   links: 'any',
+  media: 'any',
   images: 'any',
   videos: 'any',
   replies: 'any',
@@ -151,11 +162,18 @@ const holdsMoment = (moment: Moment): boolean => moment.date !== '' || moment.ti
  * outside every group, where nothing has to be unfolded to see it.
  */
 export const filledGroups = (form: SearchForm, scopes: SearchScopes): FilledGroups => ({
-  accounts: [form.from, form.to, form.mentioning].some((field) => field.names.trim() !== ''),
+  accounts:
+    [form.from, form.to, form.mentioning].some(
+      (field) => field.include.trim() !== '' || field.exclude.trim() !== ''
+    ) ||
+    form.list.trim() !== '',
   filters:
-    [form.verified, form.links, form.images, form.videos].some((choice) => choice !== 'any') ||
+    [form.verified, form.links, form.media, form.images, form.videos].some(
+      (choice) => choice !== 'any'
+    ) ||
     form.replies !== 'any' ||
     form.lang !== '' ||
+    form.url.trim() !== '' ||
     scopes.followedOnly ||
     scopes.nearbyOnly,
   engagement: [form.minReplies, form.minFaves, form.minRetweets].some(
@@ -228,7 +246,7 @@ const excludedTerms = (value: string): string[] =>
     .map((term) => `-${term}`);
 
 /** The `filter:` values this form asks for. Named so a misspelling cannot reach X */
-type FilterName = 'verified' | 'links' | 'images' | 'videos';
+type FilterName = 'verified' | 'links' | 'media' | 'images' | 'videos';
 
 /**
  * The `filter:` term for one choice, or nothing where the reader did not ask. `is:` is not
@@ -244,12 +262,11 @@ const filterTerm = (choice: FilterChoice, name: FilterName): string[] => {
 /**
  * The terms for one account field.
  *
- * Several names read as "any of these" and are grouped, except when excluded, where they
- * stand side by side: excluding has to mean "and not this one either", and X's own
- * documentation says to write `skiing -snow -day` rather than `skiing -(snow OR day)` and
- * not to negate a group. A leading `@` comes off whatever the reader typed, so both `@alice`
- * and `alice` work, and the operator puts back whichever mark it needs: `from:` and `to:` a
- * bare name, mentioning `@name` with no operator word at all.
+ * Included names read as "any of these" and are grouped; excluded names stand side by side:
+ * excluding has to mean "and not this one either", and X's own documentation says to write
+ * `skiing -snow -day` rather than `skiing -(snow OR day)`. A leading `@` comes off whatever
+ * the reader typed, so both `@alice` and `alice` work, and the operator puts back whichever
+ * mark it needs: `from:` and `to:` a bare name, mentioning `@name` with no operator word.
  *
  * Quotes are stripped and what is left split again on spaces: a screen name cannot hold a
  * space, so `"alice bob"` is two names however it was quoted, and kept together it would
@@ -257,14 +274,19 @@ const filterTerm = (choice: FilterChoice, name: FilterName): string[] => {
  * search run without a word of warning.
  */
 const accountTerms = (field: AccountField, operator: string): string[] => {
-  const names = tokenize(field.names)
-    .flatMap((token) => token.replaceAll('"', '').split(/\s+/))
-    // After the split, so that every name loses its own mark rather than only the first
-    .map((name) => name.replace(/^@+/, ''))
-    .filter((name) => name !== '');
-  const marked = names.map((name) => `${operator}${name}`);
-  if (field.exclude) return marked.map((term) => `-${term}`);
-  return marked.length > 1 ? [`(${marked.join(' OR ')})`] : marked;
+  const marked = (value: string): string[] =>
+    tokenize(value)
+      .flatMap((token) => token.replaceAll('"', '').split(/\s+/))
+      // After the split, so that every name loses its own mark rather than only the first
+      .map((name) => name.replace(/^@+/, ''))
+      .filter((name) => name !== '')
+      .map((name) => `${operator}${name}`);
+  const included = marked(field.include);
+  const excluded = marked(field.exclude);
+  return [
+    ...(included.length > 1 ? [`(${included.join(' OR ')})`] : included),
+    ...excluded.map((term) => `-${term}`),
+  ];
 };
 
 /** A `name:value` term where the value was filled in, or nothing where it was left empty */
@@ -334,15 +356,22 @@ export const buildQuery = (form: SearchForm): string => {
     const tag = token.replaceAll('"', '').replace(/^#+/, '');
     if (tag !== '') parts.push(`#${tag}`);
   }
+  for (const token of tokenize(form.cashtags)) {
+    const tag = token.replaceAll('"', '').replace(/^\$+/, '');
+    if (tag !== '') parts.push(`$${tag}`);
+  }
 
   parts.push(...valueTerm('lang', form.lang));
 
   parts.push(...accountTerms(form.from, 'from:'));
   parts.push(...accountTerms(form.to, 'to:'));
   parts.push(...accountTerms(form.mentioning, '@'));
+  parts.push(...valueTerm('list', form.list));
 
   parts.push(...filterTerm(form.verified, 'verified'));
   parts.push(...filterTerm(form.links, 'links'));
+  parts.push(...valueTerm('url', quoted(form.url.trim())));
+  parts.push(...filterTerm(form.media, 'media'));
   parts.push(...filterTerm(form.images, 'images'));
   parts.push(...filterTerm(form.videos, 'videos'));
 
@@ -383,4 +412,3 @@ export const searchPath = (query: string, scopes: SearchScopes): string => {
   if (scopes.nearbyOnly) params.set('lf', 'on');
   return `/search?${params.toString()}`;
 };
-

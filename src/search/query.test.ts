@@ -128,17 +128,22 @@ test('ハッシュタグは # の有無どちらでも同じ形になる', () =>
   assert.equal(buildQuery(form({ hashtags: '#rust go' })), '#rust #go');
 });
 
+test('キャッシュタグは $ の有無どちらでも同じ形になる', () => {
+  assert.equal(buildQuery(form({ cashtags: '$TSLA AAPL' })), '$TSLA $AAPL');
+  assert.equal(buildQuery(form({ cashtags: '$' })), '');
+});
+
 test('言語は lang: になる', () => {
   assert.equal(buildQuery(form({ lang: 'ja' })), 'lang:ja');
 });
 
 test('送信者が1件なら括弧なし', () => {
-  assert.equal(buildQuery(form({ from: { names: 'alice', exclude: false } })), 'from:alice');
+  assert.equal(buildQuery(form({ from: { include: 'alice', exclude: '' } })), 'from:alice');
 });
 
 test('送信者が複数なら括弧と OR', () => {
   assert.equal(
-    buildQuery(form({ from: { names: 'alice bob', exclude: false } })),
+    buildQuery(form({ from: { include: 'alice bob', exclude: '' } })),
     '(from:alice OR from:bob)'
   );
 });
@@ -146,20 +151,38 @@ test('送信者が複数なら括弧と OR', () => {
 test('送信者の除外は括弧を付けずに並べる', () => {
   // 「a も b も除く」でなければ意味を成さない。X の文書も同じ書き方を指示している
   assert.equal(
-    buildQuery(form({ from: { names: 'alice bob', exclude: true } })),
+    buildQuery(form({ from: { include: '', exclude: 'alice bob' } })),
     '-from:alice -from:bob'
   );
 });
 
+test('同じ種類のアカウントで含む・除くを同時に指定できる', () => {
+  assert.equal(
+    buildQuery(form({ from: { include: 'alice carol', exclude: 'bob dave' } })),
+    '(from:alice OR from:carol) -from:bob -from:dave'
+  );
+  assert.equal(buildQuery(form({ to: { include: 'alice', exclude: 'bob' } })), 'to:alice -to:bob');
+  assert.equal(
+    buildQuery(form({ mentioning: { include: 'alice', exclude: 'bob' } })),
+    '@alice -@bob'
+  );
+});
+
 test('アカウント名の @ は付いていても外れる', () => {
-  assert.equal(buildQuery(form({ to: { names: '@alice', exclude: false } })), 'to:alice');
+  assert.equal(buildQuery(form({ to: { include: '@alice', exclude: '' } })), 'to:alice');
 });
 
 test('言及は演算子語を持たず @ だけが付く', () => {
   assert.equal(
-    buildQuery(form({ mentioning: { names: 'alice bob', exclude: false } })),
+    buildQuery(form({ mentioning: { include: 'alice bob', exclude: '' } })),
     '(@alice OR @bob)'
   );
+});
+
+test('リストとリンク先の語句を指定できる', () => {
+  assert.equal(buildQuery(form({ list: 'NASA/space-posts' })), 'list:NASA/space-posts');
+  assert.equal(buildQuery(form({ url: 'example.com' })), 'url:example.com');
+  assert.equal(buildQuery(form({ url: 'example site' })), 'url:"example site"');
 });
 
 test('認証済みは is: ではなく filter: で書く', () => {
@@ -168,10 +191,10 @@ test('認証済みは is: ではなく filter: で書く', () => {
   assert.equal(buildQuery(form({ verified: 'exclude' })), '-filter:verified');
 });
 
-test('リンク・画像・動画の除外は - が付く', () => {
+test('リンク・メディア・画像・動画の除外は - が付く', () => {
   assert.equal(
-    buildQuery(form({ links: 'include', images: 'exclude', videos: 'include' })),
-    'filter:links -filter:images filter:videos'
+    buildQuery(form({ links: 'include', media: 'exclude', images: 'exclude', videos: 'include' })),
+    'filter:links -filter:media -filter:images filter:videos'
   );
 });
 
@@ -235,19 +258,24 @@ test('全部埋めたときの並び', () => {
         any: 'go zig',
         none: 'crab',
         hashtags: 'rustlang',
+        cashtags: 'TSLA',
         lang: 'ja',
-        from: { names: 'alice', exclude: false },
-        to: { names: 'bob', exclude: true },
-        mentioning: { names: 'carol', exclude: false },
+        from: { include: 'alice', exclude: '' },
+        to: { include: '', exclude: 'bob' },
+        mentioning: { include: 'carol', exclude: '' },
+        list: 'NASA/space-posts',
         verified: 'include',
         links: 'exclude',
+        url: 'example.com',
+        media: 'include',
         replies: 'exclude',
         minFaves: '100',
         since: { date: '2026-01-01', time: '' },
       })
     ),
-    'rust "hello world" (go OR zig) -crab #rustlang lang:ja from:alice -to:bob @carol ' +
-      'filter:verified -filter:links -filter:replies min_faves:100 ' +
+    'rust "hello world" (go OR zig) -crab #rustlang $TSLA lang:ja from:alice -to:bob @carol ' +
+      'list:NASA/space-posts filter:verified -filter:links url:example.com filter:media ' +
+      '-filter:replies min_faves:100 ' +
       `since_time:${epochSecondsOf({ date: '2026-01-01', time: '' }, 'start')}`
   );
 });
@@ -363,14 +391,14 @@ test('アカウント欄に引用付きで複数語を打っても演算子が�
   // スクリーンネームに空白は入らない。from:alice bob は
   // 「from:alice かつ bob を含む」として X に届いてしまう
   assert.equal(
-    buildQuery(form({ from: { names: '"alice bob"', exclude: false } })),
+    buildQuery(form({ from: { include: '"alice bob"', exclude: '' } })),
     '(from:alice OR from:bob)'
   );
 });
 
 test('引用付き複数語のアカウントも @ が全部外れる', () => {
   assert.equal(
-    buildQuery(form({ to: { names: '"@alice @bob"', exclude: true } })),
+    buildQuery(form({ to: { include: '', exclude: '"@alice @bob"' } })),
     '-to:alice -to:bob'
   );
 });
@@ -406,11 +434,14 @@ const openGroups = (
  * that the test below can check the list against the form itself.
  */
 const FILLED: [keyof SearchForm, Partial<SearchForm>, string][] = [
-  ['from', { from: { names: 'alice', exclude: false } }, 'accounts'],
-  ['to', { to: { names: 'alice', exclude: false } }, 'accounts'],
-  ['mentioning', { mentioning: { names: 'alice', exclude: false } }, 'accounts'],
+  ['from', { from: { include: 'alice', exclude: '' } }, 'accounts'],
+  ['to', { to: { include: 'alice', exclude: '' } }, 'accounts'],
+  ['mentioning', { mentioning: { include: 'alice', exclude: '' } }, 'accounts'],
+  ['list', { list: 'NASA/space-posts' }, 'accounts'],
   ['verified', { verified: 'include' }, 'filters'],
   ['links', { links: 'exclude' }, 'filters'],
+  ['url', { url: 'example.com' }, 'filters'],
+  ['media', { media: 'include' }, 'filters'],
   ['images', { images: 'include' }, 'filters'],
   ['videos', { videos: 'include' }, 'filters'],
   ['replies', { replies: 'only' }, 'filters'],
@@ -422,8 +453,8 @@ const FILLED: [keyof SearchForm, Partial<SearchForm>, string][] = [
   ['until', { until: { date: '2026-09-03', time: '' } }, 'dates'],
 ];
 
-/** The five word fields stand outside every group, so nothing they hold opens one */
-const UNGROUPED: (keyof SearchForm)[] = ['all', 'exact', 'any', 'none', 'hashtags'];
+/** The word and tag fields stand outside every group, so nothing they hold opens one */
+const UNGROUPED: (keyof SearchForm)[] = ['all', 'exact', 'any', 'none', 'hashtags', 'cashtags'];
 
 test('空のフォームでは畳みが1つも開かない', () => {
   assert.deepEqual(openGroups({}), []);
@@ -456,12 +487,12 @@ test('時刻だけでも「いつ」は開く', () => {
   assert.deepEqual(openGroups({ since: { date: '', time: '09:00' } }), ['dates']);
 });
 
-test('名前の無い「除く」だけでは畳みは開かない', () => {
-  assert.deepEqual(openGroups({ from: { names: '', exclude: true } }), []);
+test('除くアカウントだけでも畳みが開く', () => {
+  assert.deepEqual(openGroups({ from: { include: '', exclude: 'bob' } }), ['accounts']);
 });
 
 test('空白だけの欄では畳みは開かない', () => {
-  assert.deepEqual(openGroups({ from: { names: '  ', exclude: false } }), []);
+  assert.deepEqual(openGroups({ from: { include: '  ', exclude: ' ' } }), []);
   assert.deepEqual(openGroups({ minFaves: ' ' }), []);
 });
 

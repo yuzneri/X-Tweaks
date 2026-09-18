@@ -7,8 +7,9 @@
  * **It cannot always be exact, and does not pretend to be.** One string comes out of several
  * fields, so taking it apart is a guess about where each piece came from: `rust` could have
  * been typed into "all of these words" or be the only word in "any of these". What is aimed
- * at is that reading a query and building it again gives the same query, not that the fields
- * come back exactly as somebody left them.
+ * at is that the fields describe the search the reader meant. A bare `a OR b` becomes
+ * `(a OR b)` when rebuilt; `a OR b -from:x` becomes `(a OR b) -from:x`, so the exclusion
+ * applies to both alternatives.
  */
 import {
   emptyForm,
@@ -60,6 +61,36 @@ const terms = (query: string): Term[] => {
   return out;
 };
 
+/** A leading OR chain of simple terms; the rest may contain form-supported filters */
+const ungroupedOr = (parts: Term[]): { alternatives: string[]; suffix: Term[] } | null => {
+  if (parts.length < 3) return null;
+  const alternatives: string[] = [];
+  const simple = ({ body, excluded }: Term): boolean => {
+    if (excluded) return false;
+    // Parenthesized groups and operators with quoted values need their own grammar.
+    // Putting either into the "any" field would make `quoted` search for literal text.
+    return !(
+      body === 'OR' ||
+      body.includes('(') ||
+      body.includes(')') ||
+      (body.includes('"') && !(body.startsWith('"') && body.endsWith('"')))
+    );
+  };
+  if (!simple(parts[0]!)) return null;
+  alternatives.push(parts[0]!.body);
+  let index = 1;
+  while (
+    parts[index]?.body === 'OR' &&
+    !parts[index]?.excluded &&
+    parts[index + 1] !== undefined &&
+    simple(parts[index + 1]!)
+  ) {
+    alternatives.push(parts[index + 1]!.body);
+    index += 2;
+  }
+  return alternatives.length > 1 ? { alternatives, suffix: parts.slice(index) } : null;
+};
+
 /** The names inside `(from:a OR from:b)` or a lone `from:a`, or null where it is neither */
 const namesFor = (body: string, operator: string): string[] | null => {
   const inner = body.startsWith('(') && body.endsWith(')') ? body.slice(1, -1) : body;
@@ -85,9 +116,10 @@ const momentOf = (seconds: number): Moment => {
   return { date, time: time === '00:00:00' || time === '23:59:59' ? '' : time };
 };
 
-const FILTERS: { name: string; key: 'verified' | 'links' | 'images' | 'videos' }[] = [
+const FILTERS: { name: string; key: 'verified' | 'links' | 'media' | 'images' | 'videos' }[] = [
   { name: 'verified', key: 'verified' },
   { name: 'links', key: 'links' },
+  { name: 'media', key: 'media' },
   { name: 'images', key: 'images' },
   { name: 'videos', key: 'videos' },
 ];
@@ -100,12 +132,25 @@ const FILTERS: { name: string; key: 'verified' | 'links' | 'images' | 'videos' }
  */
 export const parseQuery = (query: string): SearchForm => {
   const form = emptyForm();
+  const parts = terms(query);
+  const or = ungroupedOr(parts);
+  if (or) {
+    const suffix = parseQuery(
+      or.suffix.map(({ body, excluded }) => `${excluded ? '-' : ''}${body}`).join(' ')
+    );
+    // Plain trailing words or another OR group are too ambiguous to map into these fields.
+    if (suffix.all === '' && suffix.exact === '' && suffix.any === '') {
+      suffix.any = or.alternatives.join(' ');
+      return suffix;
+    }
+  }
   const all: string[] = [];
   const any: string[] = [];
   const none: string[] = [];
   const hashtags: string[] = [];
+  const cashtags: string[] = [];
 
-  for (const { body, excluded } of terms(query)) {
+  for (const { body, excluded } of parts) {
     // --- the operators that take a value ---
     const colon = body.indexOf(':');
     const name = colon > 0 ? body.slice(0, colon) : '';
@@ -113,6 +158,14 @@ export const parseQuery = (query: string): SearchForm => {
 
     if (name === 'lang' && !excluded) {
       form.lang = value;
+      continue;
+    }
+    if (name === 'list' && value !== '' && !excluded) {
+      form.list = value;
+      continue;
+    }
+    if (name === 'url' && value !== '' && !excluded) {
+      form.url = value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
       continue;
     }
     if ((name === 'min_replies' || name === 'min_faves' || name === 'min_retweets') && !excluded) {
@@ -146,9 +199,10 @@ export const parseQuery = (query: string): SearchForm => {
       const names = namesFor(body, operator);
       if (!names) continue;
       const held = form[key];
+      const side = excluded ? 'exclude' : 'include';
       form[key] = {
-        names: [...tokenize(held.names), ...names].join(' '),
-        exclude: excluded,
+        ...held,
+        [side]: [...tokenize(held[side]), ...names].join(' '),
       };
       matched = true;
       break;
@@ -162,6 +216,10 @@ export const parseQuery = (query: string): SearchForm => {
     }
     if (body.startsWith('#') && body.length > 1) {
       hashtags.push(body.slice(1));
+      continue;
+    }
+    if (body.startsWith('$') && body.length > 1) {
+      cashtags.push(body.slice(1));
       continue;
     }
     if (body.startsWith('(') && body.endsWith(')') && body.includes(' OR ')) {
@@ -185,6 +243,7 @@ export const parseQuery = (query: string): SearchForm => {
   form.any = any.join(' ');
   form.none = none.join(' ');
   form.hashtags = hashtags.join(' ');
+  form.cashtags = cashtags.join(' ');
   return form;
 };
 

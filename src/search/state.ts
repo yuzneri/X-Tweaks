@@ -56,7 +56,7 @@ const carry = (exclusions: Exclusions): void => {
 };
 
 /**
- * The four X has no operator for. Held here with the rest, and saved no more than the rest
+ * The filters applied to visible results. Held here with the rest, and saved no more than the rest
  * is — but carried across the page the search takes the reader to (`carried`).
  */
 let exclusions: Exclusions = carried();

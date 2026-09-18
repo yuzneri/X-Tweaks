@@ -374,7 +374,7 @@ const main = async (): Promise<void> => {
       if (surface.id === 'x') {
         if (effectiveSettings(current, paused).search.form) {
           timed('· search form', () => insertSearchForm(messages));
-          // What the form ticks that X has no operator for. Asked every settling: results
+          // Filters the form applies to visible results. Asked every settling: results
           // arrive as the reader scrolls, and the answer changes as the boxes are ticked
           const exclusions = currentExclusions();
           if (onSearchResults() && excludesAnything(exclusions)) {
