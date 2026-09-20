@@ -273,6 +273,21 @@ export const ja: Messages = {
 
   search: {
     label: '検索',
+    library: {
+      search: '検索',
+      saved: '保存',
+      history: '履歴',
+      name: '名前（省略可）',
+      save: 'この検索を保存',
+      remove: (name) => `「${name}」を削除`,
+      confirmRemove: (name) => `「${name}」を削除しますか？`,
+      confirmYes: '削除',
+      confirmNo: 'やめる',
+      clearHistory: '履歴を消去',
+      noSaved: '保存した検索はありません。',
+      noHistory: '履歴はありません。',
+      error: '検索を読み書きできませんでした。拡張機能のストレージを確認してください。',
+    },
     form: {
       label: '右に詳細検索フォームを出す',
       note:
@@ -432,7 +447,8 @@ export const ja: Messages = {
     open: '設定の入出力',
     legend: '設定のJSON',
     hint:
-      'アカウント名・カラム名・見たビューが入ります。人に渡す前に中身を確かめてください。' +
+      'アカウント名・カラム名・保存した検索・見たビューが入ります。' +
+      '人に渡す前に中身を確かめてください。' +
       'この欄に貼り付けて読み込むこともできます。',
     save: 'ファイルに保存',
     copy: 'コピー',

@@ -10,6 +10,12 @@ import { clearDetected, type DetectedGroup } from '../settings/storage.ts';
 import type { Messages } from '../i18n/index.ts';
 import { useMessages } from './messages.tsx';
 import { noteOf } from './transfer-note.ts';
+import {
+  loadLibrary,
+  replaceSaved,
+  subscribeLibrary,
+  type SavedEntry,
+} from '../search/library.ts';
 
 type Props = {
   settings: Settings;
@@ -39,14 +45,39 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
   const [forgotten, setForgotten] = useState<'done' | 'failed' | null>(null);
   /** Whether the user has touched the box. Once they have, it is not overwritten with the export */
   const [draft, setDraft] = useState<string | null>(null);
+  const [savedSearches, setSavedSearches] = useState<SavedEntry[] | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    let changed = false;
+    const unsubscribe = subscribeLibrary((library) => {
+      changed = true;
+      if (active) setSavedSearches(library.saved);
+    });
+    void loadLibrary().then(
+      (library) => {
+        if (active && !changed) setSavedSearches(library.saved);
+      },
+      () => {
+        if (active) setError(m.search.library.error);
+      }
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   // The timestamp is built with the contents; fixed at the moment of opening it would disagree once the settings change
   const { at, text } = useMemo(() => {
     const at = new Date();
-    return { at, text: buildExport(settings, detected, at) };
-  }, [settings, detected]);
+    return {
+      at,
+      text: savedSearches === null ? '' : buildExport(settings, detected, at, savedSearches),
+    };
+  }, [settings, detected, savedSearches]);
 
   const shown = draft ?? text;
 
@@ -114,13 +145,22 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
     setConfirming(true);
   };
 
-  const load = () => {
+  const load = async () => {
     const result = parseImport(shown);
     if (!result.ok) {
       // The box can be rewritten while the confirmation is up. Check again before touching storage
       setError(errorText(result.error, m));
       setConfirming(false);
       return;
+    }
+    if (result.savedSearches !== null) {
+      try {
+        await replaceSaved(result.savedSearches);
+      } catch {
+        setError(m.search.library.error);
+        setConfirming(false);
+        return;
+      }
     }
     onLoad(result.settings);
     setConfirming(false);
@@ -137,10 +177,10 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
     <section class="transfer">
       <div class="row">
         <span>{m.transfer.legend}</span>
-        <button type="button" onClick={save}>
+        <button type="button" disabled={savedSearches === null} onClick={save}>
           {m.transfer.save}
         </button>
-        <button type="button" onClick={copy}>
+        <button type="button" disabled={savedSearches === null} onClick={copy}>
           {m.transfer.copy}
         </button>
         {onClose && (
@@ -198,7 +238,7 @@ export const Transfer = ({ settings, detected, onLoad, onClose }: Props) => {
       {confirming && (
         <div class="row add confirm">
           <span>{m.transfer.confirm}</span>
-          <button type="button" class="danger" onClick={load}>
+          <button type="button" class="danger" onClick={() => void load()}>
             {m.transfer.confirmYes}
           </button>
           <button type="button" onClick={() => setConfirming(false)}>

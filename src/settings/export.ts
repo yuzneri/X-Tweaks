@@ -4,6 +4,7 @@
  */
 import { isEmptyNode, isRecord, type Settings } from './schema.ts';
 import type { DetectedGroup } from './detected.ts';
+import type { SavedEntry } from '../search/library.ts';
 
 /** The mark identifying a file as one of ours. The import checks it too */
 export const EXPORT_APP = 'x-pro-tweaks';
@@ -17,6 +18,8 @@ export type ExportedSettings = {
    * alone and fills back in whatever was left out.
    */
   settings: Settings;
+  /** Searches the reader explicitly saved. Search history is local and is not exported. */
+  savedSearches: SavedEntry[];
   /**
    * The names of the columns that have settings, under the decks they belong to.
    *
@@ -90,16 +93,21 @@ const whatIsSet = (value: unknown): unknown => {
 export const buildExport = (
   settings: Settings,
   detectedDecks: DetectedGroup[],
-  at: Date
+  at: Date,
+  savedSearches: SavedEntry[] = []
 ): string => {
   const exported: ExportedSettings = {
     app: EXPORT_APP,
     exportedAt: at.toISOString(),
     settings,
+    savedSearches,
     detectedDecks: explaining(detectedDecks, settings),
   };
   // Meant to be read and checked by a person, so indented rather than packed
-  return JSON.stringify(whatIsSet(exported), null, 2);
+  const kept = whatIsSet(exported) as Record<string, unknown>;
+  // Keep the empty list too. Its presence distinguishes a new export that means “replace
+  // saved searches with none” from an older export that knew nothing about saved searches.
+  return JSON.stringify({ ...kept, savedSearches }, null, 2);
 };
 
 const pad = (n: number): string => String(n).padStart(2, '0');

@@ -103,6 +103,7 @@ Replies and quotes are left alone.
 
 A form for building an X search out of fields, so that the operators do not have to be remembered (**x.com only**).
 Off until asked for.
+The form is divided into Search, Saved and History tabs.
 
 It stands in the rail on the right, and where it goes depends on the page:
 
@@ -150,6 +151,14 @@ Hashtags are counted as X itself marks them, so a `C#` is not one.
 - The form fills X’s box on a search’s results only
 
 An operator this extension does not offer still survives, and reaches X as it arrived.
+
+### Search history and saved searches
+
+When the detailed search form is shown, search results you open are added to history. Repeated searches are combined, and the most recent 50 are kept. You can reopen a search from history or clear the history in the form.
+
+You can also save the search currently in the form, with an optional name. Saved searches can be reopened and removed individually. The results tab and the “accounts you follow” and “near you” options are included. The “leave out of results” options are not part of a saved query.
+
+History and saved searches are kept in this browser's extension storage. An unfinished form is not saved. Saved searches are included when settings are exported and imported; history is not.
 
 ## The page around the timeline
 

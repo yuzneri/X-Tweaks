@@ -12,6 +12,7 @@ import { onSearchResults } from './hide.ts';
 import { parseQuery, parseScopes, queryAt } from './parse.ts';
 import { placementIn } from './rail.ts';
 import { adoptQuery } from './state.ts';
+import { recordHistory } from './library.ts';
 
 /** The mark on what was inserted, so nothing is inserted twice */
 const MARK = 'data-xpro-search';
@@ -21,6 +22,7 @@ const COVERED = 'data-xpro-search-covered';
 
 /** The node the form is rendered into, marked so it can be found again to unmount */
 const MOUNT = 'data-xpro-search-mount';
+let lastHistoryAddress: string | null = null;
 
 /**
  * Hides one of X's blocks rather than removing it. Removing would take it out of reach of
@@ -75,6 +77,7 @@ const build = (messages: Messages): HTMLElement => {
  * left alone rather than guessed at.
  */
 export const insertInto = (messages: Messages): number => {
+  if (!onSearchResults()) lastHistoryAddress = null;
   const placement = placementIn();
   if (!placement) return 0;
 
@@ -90,11 +93,21 @@ export const insertInto = (messages: Messages): number => {
     // The path is part of the address here, not just the parameters: `/hashtag/a` and
     // `/hashtag/b` are two different searches carrying the same (empty) parameters
     const asked = queryAt(location.pathname, location.search);
+    const address = location.pathname + location.search;
+    const scopes = parseScopes(location.search);
+    if (asked.trim() !== '' && lastHistoryAddress !== address) {
+      lastHistoryAddress = address;
+      void recordHistory({ query: asked, scopes }).catch((error) => {
+        // A transient storage failure should not make this address permanently count as recorded.
+        if (lastHistoryAddress === address) lastHistoryAddress = null;
+        console.error('Could not record search history', error);
+      });
+    }
     adopted = adoptQuery(
-      location.pathname + location.search,
+      address,
       asked,
       parseQuery(asked),
-      parseScopes(location.search)
+      scopes
     );
     if (adopted) remove();
   }

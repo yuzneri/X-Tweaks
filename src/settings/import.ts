@@ -11,6 +11,7 @@ import {
   type Settings,
   type SettingsNode,
 } from './schema.ts';
+import { savedEntriesFrom, type SavedEntry } from '../search/library.ts';
 
 /** Why it could not be read. The wording is chosen from the dictionaries by the caller (the screen) */
 export type ImportError =
@@ -21,7 +22,9 @@ export type ImportError =
   /** A different storage format version. No conversion is attempted */
   | { kind: 'badVersion'; version: unknown };
 
-export type ImportResult = { ok: true; settings: Settings } | { ok: false; error: ImportError };
+export type ImportResult =
+  | { ok: true; settings: Settings; savedSearches: SavedEntry[] | null }
+  | { ok: false; error: ImportError };
 
 /**
  * Gives that tier's rules new ids, updating the order's references at the same time. Rules
@@ -85,5 +88,12 @@ export const parseImport = (text: string): ImportResult => {
   }
 
   // Missing keys and wrong types fall back to defaults here (the same route as reading stored values)
-  return { ok: true, settings: reidentifyAll(fillAll(settings)) };
+  return {
+    ok: true,
+    settings: reidentifyAll(fillAll(settings)),
+    // Older exports did not carry this key. Preserve what is already stored when loading one.
+    savedSearches: Object.hasOwn(parsed, 'savedSearches')
+      ? savedEntriesFrom(parsed.savedSearches)
+      : null,
+  };
 };

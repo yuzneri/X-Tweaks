@@ -31,6 +31,18 @@ import {
 } from './exclude.ts';
 import { stepped } from '../ui/step.ts';
 import { mirror } from './mirror.ts';
+import { parseQuery } from './parse.ts';
+import {
+  clearHistory,
+  emptyLibrary,
+  entryPath,
+  loadLibrary,
+  removeSaved,
+  saveSearch,
+  subscribeLibrary,
+  type SearchEntry,
+  type SearchLibrary,
+} from './library.ts';
 import {
   clear,
   currentExclusions,
@@ -43,6 +55,9 @@ import {
 } from './state.ts';
 
 type Props = { messages: Messages };
+
+type SearchSection = 'search' | 'saved' | 'history';
+const SEARCH_SECTIONS: SearchSection[] = ['search', 'saved', 'history'];
 
 /** The tabs offered, in the order X shows them. `top` is the one X lands on unasked */
 const TABS: ResultTab[] = ['top', 'live', 'user', 'media', 'list'];
@@ -254,6 +269,72 @@ export const SearchFormView = ({ messages }: Props) => {
     setScopes(next);
   };
 
+  const [library, setLibrary] = useState<SearchLibrary>(emptyLibrary);
+  const [libraryError, setLibraryError] = useState(false);
+  const [savedName, setSavedName] = useState('');
+  const [section, setSection] = useState<SearchSection>('search');
+  const [confirmingSaved, setConfirmingSaved] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let changed = false;
+    const unsubscribe = subscribeLibrary((next) => {
+      changed = true;
+      if (active) setLibrary(next);
+    });
+    void loadLibrary().then((next) => {
+      if (active && !changed) setLibrary(next);
+    }).catch((error) => {
+      console.error('Could not load search library', error);
+      if (active) setLibraryError(true);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const storeSearch = (): void => {
+    const name = savedName.trim() || query;
+    void saveSearch({ query, scopes }, name).then((next) => {
+      setLibrary(next);
+      setSavedName('');
+      setLibraryError(false);
+    }).catch((error) => {
+      console.error('Could not save search', error);
+      setLibraryError(true);
+    });
+  };
+
+  const removeSearch = (entry: SearchEntry): void => {
+    void removeSaved(entry).then((next) => {
+      setLibrary(next);
+      setConfirmingSaved(null);
+      setLibraryError(false);
+    }).catch((error) => {
+      console.error('Could not remove saved search', error);
+      setLibraryError(true);
+    });
+  };
+
+  const emptyHistory = (): void => {
+    void clearHistory().then((next) => {
+      setLibrary(next);
+      setLibraryError(false);
+    }).catch((error) => {
+      console.error('Could not clear search history', error);
+      setLibraryError(true);
+    });
+  };
+
+  const restore = (entry: SearchEntry): void => {
+    const next = parseQuery(entry.query);
+    updateForm(next);
+    setForm(next);
+    updateScopes(entry.scopes);
+    setScopes(entry.scopes);
+    setSection('search');
+  };
+
   /*
    * Filters applied to visible results. They change nothing about the query: `hide.ts`
    * applies them to results already on screen, while this page is open.
@@ -291,6 +372,12 @@ export const SearchFormView = ({ messages }: Props) => {
 
   const m = messages.search.fields;
   const g = messages.search.groups;
+  const l = messages.search.library;
+  const scopeLabel = (entry: SearchEntry): string => [
+    m.tabs[entry.scopes.tab],
+    entry.scopes.followedOnly ? m.followedOnly : null,
+    entry.scopes.nearbyOnly ? m.nearbyOnly : null,
+  ].filter(Boolean).join(' · ');
 
   /*
    * Where this form would take the reader, worked out afresh on every redraw so the link
@@ -348,6 +435,45 @@ export const SearchFormView = ({ messages }: Props) => {
       // this is what stops the page being sent somewhere and reloaded
       onSubmit={(event) => event.preventDefault()}
     >
+      <div class="xpro-search-tabs" role="tablist" aria-label={messages.search.label}>
+        {SEARCH_SECTIONS.map((key) => (
+          <button
+            key={key}
+            type="button"
+            id={`xpro-search-tab-${key}`}
+            class={section === key ? 'xpro-search-tab current' : 'xpro-search-tab'}
+            role="tab"
+            aria-selected={section === key}
+            aria-controls={`xpro-search-panel-${key}`}
+            tabIndex={section === key ? 0 : -1}
+            onClick={() => setSection(key)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const at = SEARCH_SECTIONS.indexOf(key);
+              const next = event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? SEARCH_SECTIONS.length - 1
+                  : (at + (event.key === 'ArrowRight' ? 1 : -1) + SEARCH_SECTIONS.length)
+                    % SEARCH_SECTIONS.length;
+              const nextKey = SEARCH_SECTIONS[next]!;
+              setSection(nextKey);
+              document.getElementById(`xpro-search-tab-${nextKey}`)?.focus();
+            }}
+          >
+            {l[key]}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id="xpro-search-panel-search"
+        class="xpro-search-tab-panel"
+        role="tabpanel"
+        aria-labelledby="xpro-search-tab-search"
+        hidden={section !== 'search'}
+      >
       {/*
         Which of X's own tabs to land on. Not part of the query — it rides in the address
         (`searchPath`) — but at the head of the form all the same: it is the one control here
@@ -589,6 +715,118 @@ export const SearchFormView = ({ messages }: Props) => {
           {m.go}
         </a>
       </div>
+      </div>
+
+      <section
+        id="xpro-search-panel-saved"
+        class="xpro-search-tab-panel"
+        role="tabpanel"
+        aria-labelledby="xpro-search-tab-saved"
+        hidden={section !== 'saved'}
+      >
+        <div class="xpro-search-group-body">
+          <label class="xpro-search-field">
+            <span class="xpro-search-label">{l.name}</span>
+            <input
+              type="text"
+              class="xpro-search-input"
+              value={savedName}
+              onInput={(event) => setSavedName(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (query !== '') storeSearch();
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            class="xpro-search-library-action"
+            disabled={query === ''}
+            onClick={storeSearch}
+          >
+            {l.save}
+          </button>
+          {library.saved.length === 0 ? <p class="xpro-search-note">{l.noSaved}</p> : (
+            <ul class="xpro-search-library-list">
+              {library.saved.map((entry) => {
+                const entryKey = entryPath(entry);
+                return (
+                  <li key={entryKey} class="xpro-search-library-item">
+                    {confirmingSaved === entryKey ? (
+                      <div class="xpro-search-library-confirm">
+                        <span>{l.confirmRemove(entry.name)}</span>
+                        <button
+                          type="button"
+                          class="danger"
+                          onClick={() => removeSearch(entry)}
+                        >{l.confirmYes}</button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingSaved(null)}
+                        >{l.confirmNo}</button>
+                      </div>
+                    ) : (
+                      <>
+                        <a href={entryKey} title={entry.query} onClick={(event) => {
+                          if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+                            restore(entry);
+                          }
+                        }}>
+                          <span>{entry.name}</span>
+                          <small>{entry.query} · {scopeLabel(entry)}</small>
+                        </a>
+                        <button
+                          type="button"
+                          class="xpro-search-library-remove"
+                          aria-label={l.remove(entry.name)}
+                          onClick={() => setConfirmingSaved(entryKey)}
+                        >×</button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section
+        id="xpro-search-panel-history"
+        class="xpro-search-tab-panel"
+        role="tabpanel"
+        aria-labelledby="xpro-search-tab-history"
+        hidden={section !== 'history'}
+      >
+        <div class="xpro-search-group-body">
+          {library.history.length === 0 ? <p class="xpro-search-note">{l.noHistory}</p> : (
+            <>
+              <button type="button" class="xpro-search-library-action" onClick={emptyHistory}>{l.clearHistory}</button>
+              <ul class="xpro-search-library-list">
+                {library.history.map((entry) => (
+                  <li key={entryPath(entry)} class="xpro-search-library-item">
+                    <a
+                      href={entryPath(entry)}
+                      title={entry.query}
+                      onClick={(event) => {
+                        if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+                          restore(entry);
+                        }
+                      }}
+                    >
+                      <span>{entry.query}</span>
+                      <small>{scopeLabel(entry)} · {new Date(entry.visitedAt).toLocaleString()}</small>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </section>
+      {libraryError && <p class="xpro-search-library-error" role="alert">{l.error}</p>}
     </form>
   );
 };

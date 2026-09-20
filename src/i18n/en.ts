@@ -321,6 +321,21 @@ export const en = {
    */
   search: {
     label: 'Search',
+    library: {
+      search: 'Search',
+      saved: 'Saved',
+      history: 'History',
+      name: 'Name (optional)',
+      save: 'Save this search',
+      remove: (name: string) => `Remove ${name}`,
+      confirmRemove: (name: string) => `Remove “${name}”?`,
+      confirmYes: 'Remove',
+      confirmNo: 'Cancel',
+      clearHistory: 'Clear history',
+      noSaved: 'No saved searches yet.',
+      noHistory: 'No searches yet.',
+      error: 'Could not read or save searches. Check extension storage.',
+    },
     form: {
       label: 'Put a detailed search form on the right',
       note:
@@ -492,7 +507,7 @@ export const en = {
     legend: 'Settings as JSON',
     /** The contents reveal things about the user's setup, so they get a look before passing it on */
     hint:
-      'This includes your account names, column names and the views you visited. ' +
+      'This includes your account names, column names, saved searches and the views you visited. ' +
       'Check it before sharing. ' +
       'You can also paste settings here and load them.',
     save: 'Save to a file',

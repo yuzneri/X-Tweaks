@@ -1,9 +1,9 @@
 /**
  * What has been typed into the search form, held for as long as the page is open.
  *
- * Not stored: nothing about the form is saved (the design calls for no history and no saved
- * searches), so a reload starts from an empty form. The four the form ticks are the one
- * exception, carried no further than the tab (`carried`).
+ * The draft form is not stored, so a reload starts from an empty form. Search history and
+ * searches explicitly saved by the reader live separately in `library.ts`; the result
+ * exclusions are carried no further than the tab (`carried`).
  *
  * Held here rather than inside the component, which does not outlive the page: x.com moves
  * between views without reloading and redraws its rail as it goes, the form is put back on

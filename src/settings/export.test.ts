@@ -131,6 +131,23 @@ test('書き出した JSON は、保存されている設定をそのまま含�
   assert.deepEqual(fillAll(parsed.settings), full);
 });
 
+test('保存した検索を書き出し、履歴は持たない', () => {
+  const saved = [{
+    name: '猫',
+    query: 'cats filter:media',
+    scopes: { tab: 'live' as const, followedOnly: true, nearbyOnly: false },
+  }];
+  const parsed = JSON.parse(buildExport(emptySettings(), [], at, saved));
+
+  assert.deepEqual(parsed.savedSearches, saved);
+  assert.ok(!('history' in parsed));
+});
+
+test('保存した検索がなくても空のリストを書き出す', () => {
+  const parsed = JSON.parse(buildExport(emptySettings(), [], at));
+  assert.deepEqual(parsed.savedSearches, []);
+});
+
 test('未設定の項目は書き出さない（null・空リスト・空になった入れ物）', () => {
   const parsed = JSON.parse(buildExport(sparse, [], at));
   const column = parsed.settings.columns['col-1'];

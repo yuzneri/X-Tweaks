@@ -50,6 +50,26 @@ test('書き出したものをそのまま読み戻せる', () => {
   assert.equal(result.settings.language, 'ja');
 });
 
+test('保存した検索を読み戻す', () => {
+  const saved = [{
+    name: '猫',
+    query: 'cats filter:media',
+    scopes: { tab: 'live' as const, followedOnly: true, nearbyOnly: false },
+  }];
+  const result = parseImport(buildExport(fillAll({ version: SCHEMA_VERSION }), [], at, saved));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ok && result.savedSearches, saved);
+});
+
+test('古い書き出しに保存した検索がなければ、いまの保存内容を置き換えない', () => {
+  const text = `{"app":"x-pro-tweaks","settings":{"version":${SCHEMA_VERSION}}}`;
+  const result = parseImport(text);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.savedSearches, null);
+});
+
 test('ルールの id は読み込むときに振り直す（段をまたぐ衝突を避ける）', () => {
   const result = parseImport(exported(shared()));
   assert.equal(result.ok, true);
