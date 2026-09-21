@@ -1,27 +1,53 @@
 /**
  * The script running in the page's context (the MAIN world). It walks React's internal
  * state from a column element to read the columnId and writes it onto the element as a
- * marker, and — only when asked to through `localStorage` — puts a guard on X's Redux store
- * (`loop-guard.ts`). Nothing else is given to it and it imports nothing beyond that one
- * module, which itself imports nothing: it sits where X's own scripts can see it, the most
- * exposed to their implementation changing, so its surface is kept as small as possible.
+ * marker, observes X's notification requests so a deliberate read can be sent, and — only
+ * when asked to through `localStorage` — puts a guard on X's Redux store (`loop-guard.ts`).
+ * It sits where X's own scripts can see it, the most exposed to their implementation
+ * changing, so every input and destination at this boundary is kept narrow.
  */
 import { GUARD_KEY, guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
+import {
+  columnSetKeyOf,
+  resolveNotificationAccount,
+  type NotificationColumnAccount,
+} from './notification-read/column-account.ts';
+import { columnAccountIn } from './notification-read/column-context.ts';
+import { installNotificationReadMain } from './notification-read/main.ts';
+import { userIdFromCookies } from './notification-read/request.ts';
 
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';
 const COLUMN_SELECTOR = '[data-testid="multi-column-layout-column-content"]';
 /** Where the columnId read is written. The extension side (columns/registry.ts) reads it under the same name */
 const COLUMN_ID_ATTR = 'data-xpro-column-id';
+/** Numeric account id that X uses for this column's authenticated requests */
+const COLUMN_ACCOUNT_ATTR = 'data-xpro-account-id';
 /** The drawer that renders the column options. Which column it belongs to is not in the DOM, so it is read from the internal state here too */
 const DRAWER_SELECTOR = '[data-testid="drawerAnimatedDiv"]';
 
 /** React's internals. No public type exists, so only what is needed to walk it is written out */
 type Fiber = {
   memoizedProps?: { columnId?: unknown } | null;
+  memoizedState?: unknown;
+  stateNode?: unknown;
   return?: Fiber | null;
   child?: Fiber | null;
   sibling?: Fiber | null;
+};
+
+/** Reads account context only from objects tied to the column's own id. */
+const columnAccountOf = (el: Element, columnId: string) => {
+  const roots: unknown[] = [];
+  let fiber = fiberOf(el);
+  for (let depth = 0; fiber && depth < 12; depth++) {
+    roots.push(fiber.memoizedProps, fiber.memoizedState);
+    // Class component instances can carry the column history. Host fibers instead point
+    // back to DOM nodes, whose React back-references would turn this into a whole-tree walk.
+    if (!(fiber.stateNode instanceof Node)) roots.push(fiber.stateNode);
+    fiber = fiber.return ?? null;
+  }
+  return columnAccountIn(roots, columnId, userIdFromCookies(document.cookie));
 };
 
 /** The columnId is not in a DOM attribute, so React's internal state is the only place to read it */
@@ -83,13 +109,49 @@ const collectDrawers = () =>
 const collect = () =>
   Array.from(document.querySelectorAll(COLUMN_SELECTOR)).map((el, index) => {
     const { columnId, depth } = columnIdOf(el);
+    const account = columnId ? columnAccountOf(el, columnId) : null;
     if (columnId) {
       if (el.getAttribute(COLUMN_ID_ATTR) !== columnId) el.setAttribute(COLUMN_ID_ATTR, columnId);
     } else {
       el.removeAttribute(COLUMN_ID_ATTR);
     }
-    return { index, columnId, depth, fiberFound: !!fiberOf(el) };
+    if (account) el.setAttribute(COLUMN_ACCOUNT_ATTR, account.accountId);
+    else el.removeAttribute(COLUMN_ACCOUNT_ATTR);
+    return {
+      index,
+      columnId,
+      accountId: account?.accountId ?? null,
+      path: account?.path ?? null,
+      depth,
+      fiberFound: !!fiberOf(el),
+    };
   });
+
+const notificationColumns = (): NotificationColumnAccount[] => {
+  collect();
+  return Array.from(document.querySelectorAll(COLUMN_SELECTOR)).map((column) => ({
+    columnId: column.getAttribute(COLUMN_ID_ATTR),
+    accountId: column.getAttribute(COLUMN_ACCOUNT_ATTR),
+    hasNotifications: column.querySelector('article[data-testid="notification"]') !== null,
+  }));
+};
+
+installNotificationReadMain({
+  columnSetKey: () => {
+    try {
+      return columnSetKeyOf(notificationColumns());
+    } catch {
+      return null;
+    }
+  },
+  accountForColumn: (columnId, observedAccounts) => {
+    try {
+      return resolveNotificationAccount(notificationColumns(), columnId, observedAccounts);
+    } catch {
+      return null;
+    }
+  },
+});
 
 window.addEventListener('message', (event: MessageEvent<unknown>) => {
   // Anything not from this same window is ignored
@@ -203,4 +265,3 @@ if (wanted) {
 // document_idle, so nothing is listening yet and the message is lost. The DOM is visible
 // from both worlds, whatever the order of execution.
 document.documentElement.dataset.xproMainWorld = '1';
-

@@ -23,6 +23,12 @@ export const en = {
   /** X's own words for a picture nobody described. Kept beside the language: both are about what X shows, not what the extension does */
   experiments: {
     note: 'Turn these on only when you need them',
+    proNotificationRead: {
+      label: 'Mark X Pro notifications as read after interaction',
+      note:
+        'In an “All notifications” column, marks fetched notifications as read only after ' +
+        'you click a notification or scroll the column vertically. Displaying it alone does not.',
+    },
     proLoopGuard: {
       label: "Rein in X Pro's runaway",
       note:

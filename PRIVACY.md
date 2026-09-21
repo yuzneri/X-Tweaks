@@ -2,10 +2,10 @@
 
 [日本語](PRIVACY.ja.md)
 
-X Tweaks sends nothing anywhere.
-It makes no network requests of its own, and it contains no analytics, no telemetry and no remotely hosted code.
+X Tweaks sends no analytics or usage data to its author or to third parties, and contains no remotely hosted code.
+Only when marking X Pro notifications as read, it sends the read cursor from notifications fetched by X Pro back to X's API.
 
-Last updated: 2026-09-01.
+Last updated: 2026-09-21.
 
 ## What is stored
 
@@ -22,10 +22,14 @@ Nothing is put in synced storage, so nothing travels to another device or to a b
 The extension reads the posts on the page to decide whether a rule matches, but it never keeps them.
 The text of a post exists only for as long as the decision takes.
 
+Notification read cursors and the authentication context needed to communicate with X are not persisted.
+They are held only in the open page's memory and are lost when the page is closed or reloaded.
+
 ## What is shared
 
-Nothing.
-No data is sent to the author of this extension, and none is sent to any third party.
+No analytics, usage data, settings or post contents are sent to the author of this extension or to any third party.
+
+When the experimental notification-read feature is enabled, clicking a notification or actually scrolling an X Pro “All notifications” column sends its read cursor to X's API so that the notifications fetched so far can be marked as read. X is the only recipient. The feature is off by default, and merely fetching notifications sends nothing on the extension's behalf.
 
 ## Permissions
 

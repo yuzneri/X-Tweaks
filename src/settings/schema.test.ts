@@ -419,14 +419,29 @@ test('投稿フォームの設定は、何も保存されていなければ X Pr
 });
 
 test('実験的な機能は、何も保存されていなければ off', () => {
-  assert.deepEqual(emptySettings().experiments, { proLoopGuard: false });
-  assert.deepEqual(fillAll({ experiments: {} }).experiments, { proLoopGuard: false });
+  assert.deepEqual(emptySettings().experiments, {
+    proNotificationRead: false,
+    proLoopGuard: false,
+  });
+  assert.deepEqual(fillAll({ experiments: {} }).experiments, {
+    proNotificationRead: false,
+    proLoopGuard: false,
+  });
 });
 
 test('実験的な機能は明示的な true でだけ on になる', () => {
-  assert.deepEqual(fillAll({ experiments: { proLoopGuard: true } }).experiments, { proLoopGuard: true });
-  assert.deepEqual(fillAll({ experiments: { proLoopGuard: 'true' } }).experiments, { proLoopGuard: false });
-  assert.deepEqual(fillAll({ experiments: 'on' }).experiments, { proLoopGuard: false });
+  assert.deepEqual(
+    fillAll({ experiments: { proNotificationRead: true, proLoopGuard: true } }).experiments,
+    { proNotificationRead: true, proLoopGuard: true }
+  );
+  assert.deepEqual(
+    fillAll({ experiments: { proNotificationRead: 'true', proLoopGuard: 'true' } }).experiments,
+    { proNotificationRead: false, proLoopGuard: false }
+  );
+  assert.deepEqual(fillAll({ experiments: 'on' }).experiments, {
+    proNotificationRead: false,
+    proLoopGuard: false,
+  });
 });
 
 test('詳細検索フォームは、何も保存されていなければ出ない', () => {

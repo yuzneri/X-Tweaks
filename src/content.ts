@@ -62,6 +62,8 @@ import {
 } from './search/hide.ts';
 import { excludesAnything, termsOf } from './search/exclude.ts';
 import { currentExclusions, currentForm } from './search/state.ts';
+import { watchNotificationReadInteractions } from './notification-read/interaction.ts';
+import { READ_ENABLED, READ_REQUEST } from './notification-read/protocol.ts';
 
 const PREFIX_STYLE = 'color:#1d9bf0;font-weight:bold';
 const log = (...args: unknown[]) => console.log('%c[X Tweaks]', PREFIX_STYLE, ...args);
@@ -143,6 +145,27 @@ const main = async (): Promise<void> => {
   // The settings and the pause arrive separately, so the current values are kept and recombined
   let current = settings;
   let paused = startPaused;
+  let readRequestId = 0;
+  let notificationReads: ReturnType<typeof watchNotificationReadInteractions> | null = null;
+  const syncNotificationReads = (): void => {
+    const enabled = surface.id === 'pro' && current.experiments.proNotificationRead && !paused;
+    window.postMessage({ type: READ_ENABLED, enabled }, window.location.origin);
+    if (enabled && !notificationReads) {
+      notificationReads = watchNotificationReadInteractions({
+        paused: () => paused,
+        onIntent: ({ columnId }) => {
+          window.postMessage(
+            { type: READ_REQUEST, requestId: ++readRequestId, columnId },
+            window.location.origin
+          );
+        },
+      });
+    } else if (!enabled && notificationReads) {
+      notificationReads.stop();
+      notificationReads = null;
+    }
+  };
+  syncNotificationReads();
   if (unreadable !== null) {
     logStyled(
       `⚠ The saved settings use format version ${unreadable.version}, which this extension ` +
@@ -248,6 +271,7 @@ const main = async (): Promise<void> => {
     // Likewise not stood down by pausing: it takes effect on the next load anyway, and
     // whether the page's own loop is cut is not one of the marks pausing takes off
     if (surface.id === 'pro') askForLoopGuard(current.experiments.proLoopGuard);
+    syncNotificationReads();
     if (!started) {
       missed = true;
       return false;

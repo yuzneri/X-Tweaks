@@ -515,6 +515,8 @@ export type ComposeSettings = {
  * booleans for the same reason.
  */
 export type ExperimentsSettings = {
+  /** Marks X Pro notifications as read only after a deliberate click or vertical scroll. */
+  proNotificationRead: boolean;
   /**
    * Cuts X Pro's own runaway store updates, the loop that freezes a tab for minutes
    * (`loop-guard.ts`). Read by the page on its next load, not the moment it is set
@@ -971,7 +973,13 @@ const fillCompose = (v: unknown): ComposeSettings => {
 };
 
 /** Only an explicit `true` switches an experiment on, the same as `fillCompose` and for the same reason */
-const fillExperiments = (v: unknown): ExperimentsSettings => ({ proLoopGuard: rec(v).proLoopGuard === true });
+const fillExperiments = (v: unknown): ExperimentsSettings => {
+  const experiments = rec(v);
+  return {
+    proNotificationRead: experiments.proNotificationRead === true,
+    proLoopGuard: experiments.proLoopGuard === true,
+  };
+};
 
 /**
  * Default is off, so only an explicit `true` puts the form on the page — opposite of

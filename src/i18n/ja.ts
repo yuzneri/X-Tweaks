@@ -15,6 +15,12 @@ export const ja: Messages = {
   experiments: {
     note:
       '必要なときだけ有効にしてください',
+    proNotificationRead: {
+      label: 'X Proの通知を操作時に既読にする',
+      note:
+        '「すべての通知」カラムで通知をクリックするか縦にスクロールしたときだけ、' +
+        '取得済みの通知をX上で既読にします。表示しただけでは既読にしません。',
+    },
     proLoopGuard: {
       label: 'X Proの暴走を抑制する',
       note:

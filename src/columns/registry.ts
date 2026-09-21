@@ -23,9 +23,16 @@ const TITLE_SELECTOR = '[data-testid="column-title-wrapper"]';
 
 /** The marker the MAIN world stamps. That side imports nothing, so the name is kept in sync by hand */
 const COLUMN_ID_ATTR = 'data-xpro-column-id';
+/** The MAIN world resolves the numeric authentication account for notification requests */
+export const COLUMN_ACCOUNT_ATTR = 'data-xpro-account-id';
 
 type ColumnResponse = {
-  columns: { index: number; columnId: string | null }[];
+  columns: {
+    index: number;
+    columnId: string | null;
+    accountId?: string | null;
+    path?: string | null;
+  }[];
   /** Which column each open column-options drawer belongs to (matched by position) */
   drawers?: { index: number; columnId: string | null }[];
   error: string | null;

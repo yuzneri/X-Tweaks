@@ -10,6 +10,7 @@ import { useMessages } from './messages.tsx';
 
 /* The note is tied to the switch it describes, as in Compose.tsx, so a screen reader says what the switch entails */
 const PRO_LOOP_GUARD_NOTE = 'xpro-experiments-pro-loop-guard-note';
+const PRO_NOTIFICATION_READ_NOTE = 'xpro-experiments-pro-notification-read-note';
 
 type Props = {
   experiments: ExperimentsSettings;
@@ -21,6 +22,20 @@ export const Experiments = ({ experiments, onChange }: Props) => {
   return (
     <>
       <p class="hint">{m.experiments.note}</p>
+      <label class="row switch">
+        <input
+          type="checkbox"
+          checked={experiments.proNotificationRead}
+          aria-describedby={PRO_NOTIFICATION_READ_NOTE}
+          onChange={(event) =>
+            onChange({ ...experiments, proNotificationRead: event.currentTarget.checked })
+          }
+        />
+        <span>{m.experiments.proNotificationRead.label}</span>
+      </label>
+      <p class="hint indent" id={PRO_NOTIFICATION_READ_NOTE}>
+        {m.experiments.proNotificationRead.note}
+      </p>
       <label class="row switch">
         <input
           type="checkbox"

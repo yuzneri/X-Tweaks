@@ -89,6 +89,10 @@ A post can carry a card for a trend X has written up.
 On X Pro that card's address is written for the phone app (`twitter://…`), which no browser can follow, so pressing the card does nothing at all; it is put back to the page x.com opens.
 Always on, X Pro only, and nothing else about the card is touched.
 
+## Notification reads on X Pro
+
+When the experimental “Mark X Pro notifications as read after interaction” option is enabled, clicking a notification or scrolling an X Pro “All notifications” column vertically marks the notifications fetched so far as read on X. The option is off by default. Merely displaying notifications does not mark them as read. Nothing is marked while the extension is paused, and with multiple accounts only the account belonging to the column you used is affected.
+
 ## Posting
 
 Two things about the compose form for a new post (one setting for the whole of X Pro).
@@ -198,7 +202,7 @@ npm run build
 
 ## Privacy
 
-The extension sends nothing anywhere, and keeps your settings on your own device ([PRIVACY.md](PRIVACY.md)).
+The extension sends no analytics or usage data, and keeps your settings on your own device. Only when the experimental notification-read feature is enabled are read cursors sent to X as you interact with an X Pro notification column ([PRIVACY.md](PRIVACY.md)).
 
 ## License
 
