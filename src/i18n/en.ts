@@ -27,7 +27,11 @@ export const en = {
       label: 'Mark X Pro notifications as read after interaction',
       note:
         'In an “All notifications” column, marks fetched notifications as read only after ' +
-        'you click a notification or scroll the column vertically. Displaying it alone does not.',
+        'you click a notification, scroll the column vertically, or hover over it for 3 seconds. Displaying it alone does not.',
+    },
+    proSuppressNewPostFollow: {
+      label: 'Suppress following new posts in X Pro',
+      note: 'Tries to keep the post you are reading in place even near the top of timeline columns. Stops following new posts while the pointer is over the column, even at the top. Otherwise, follows only within 30px of the top and keeps your reading position below that. New posts are still fetched. Replaced posts or height changes may still move your reading position. Changes to X may stop this from working.',
     },
     proLoopGuard: {
       label: "Rein in X Pro's runaway",

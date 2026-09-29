@@ -25,6 +25,20 @@ export const Experiments = ({ experiments, onChange }: Props) => {
       <label class="row switch">
         <input
           type="checkbox"
+          checked={experiments.proSuppressNewPostFollow}
+          aria-describedby="xpro-experiments-pro-follow-note"
+          onChange={(event) =>
+            onChange({ ...experiments, proSuppressNewPostFollow: event.currentTarget.checked })
+          }
+        />
+        <span>{m.experiments.proSuppressNewPostFollow.label}</span>
+      </label>
+      <p class="hint indent" id="xpro-experiments-pro-follow-note">
+        {m.experiments.proSuppressNewPostFollow.note}
+      </p>
+      <label class="row switch">
+        <input
+          type="checkbox"
           checked={experiments.proNotificationRead}
           aria-describedby={PRO_NOTIFICATION_READ_NOTE}
           onChange={(event) =>

@@ -515,8 +515,10 @@ export type ComposeSettings = {
  * booleans for the same reason.
  */
 export type ExperimentsSettings = {
-  /** Marks X Pro notifications as read only after a deliberate click or vertical scroll. */
+  /** Marks X Pro notifications as read after a deliberate click, vertical scroll, or three-second hover. */
   proNotificationRead: boolean;
+  /** Keeps the visible post anchored when X Pro prepends new posts, even near the top. */
+  proSuppressNewPostFollow: boolean;
   /**
    * Cuts X Pro's own runaway store updates, the loop that freezes a tab for minutes
    * (`loop-guard.ts`). Read by the page on its next load, not the moment it is set
@@ -977,6 +979,7 @@ const fillExperiments = (v: unknown): ExperimentsSettings => {
   const experiments = rec(v);
   return {
     proNotificationRead: experiments.proNotificationRead === true,
+    proSuppressNewPostFollow: experiments.proSuppressNewPostFollow === true,
     proLoopGuard: experiments.proLoopGuard === true,
   };
 };

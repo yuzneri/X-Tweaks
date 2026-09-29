@@ -21,6 +21,7 @@ import { surfaceFor } from './surface/select.ts';
 import { emptySettings, type Settings } from './settings/schema.ts';
 import { GUARD_KEY } from './loop-guard.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
+import { PRO_FOLLOW_ENABLED } from './timeline/pro-follow.ts';
 import { fixTrendLinks } from './timeline/trend-link.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, standDown, standUp, start, updateSettings } from './filter/engine.ts';
@@ -165,6 +166,13 @@ const main = async (): Promise<void> => {
       notificationReads = null;
     }
   };
+  const syncProFollow = (): void => {
+    if (surface.id === 'pro') window.postMessage({
+      type: PRO_FOLLOW_ENABLED,
+      enabled: current.experiments.proSuppressNewPostFollow && !paused,
+    }, window.location.origin);
+  };
+  syncProFollow();
   syncNotificationReads();
   if (unreadable !== null) {
     logStyled(
@@ -272,6 +280,7 @@ const main = async (): Promise<void> => {
     // whether the page's own loop is cut is not one of the marks pausing takes off
     if (surface.id === 'pro') askForLoopGuard(current.experiments.proLoopGuard);
     syncNotificationReads();
+    syncProFollow();
     if (!started) {
       missed = true;
       return false;

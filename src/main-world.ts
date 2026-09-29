@@ -6,6 +6,7 @@
  * It sits where X's own scripts can see it, the most exposed to their implementation
  * changing, so every input and destination at this boundary is kept narrow.
  */
+import { installProFollowGuard } from './timeline/pro-follow.ts';
 import { GUARD_KEY, guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
 import {
   columnSetKeyOf,
@@ -15,6 +16,8 @@ import {
 import { columnAccountIn } from './notification-read/column-context.ts';
 import { installNotificationReadMain } from './notification-read/main.ts';
 import { userIdFromCookies } from './notification-read/request.ts';
+
+installProFollowGuard();
 
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';

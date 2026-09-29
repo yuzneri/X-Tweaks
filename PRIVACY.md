@@ -29,7 +29,7 @@ They are held only in the open page's memory and are lost when the page is close
 
 No analytics, usage data, settings or post contents are sent to the author of this extension or to any third party.
 
-When the experimental notification-read feature is enabled, clicking a notification or actually scrolling an X Pro “All notifications” column sends its read cursor to X's API so that the notifications fetched so far can be marked as read. X is the only recipient. The feature is off by default, and merely fetching notifications sends nothing on the extension's behalf.
+When the experimental notification-read feature is enabled, clicking a notification, actually scrolling an X Pro “All notifications” column, or hovering over that column for 3 seconds sends its read cursor to X's API so that the notifications fetched so far can be marked as read. X is the only recipient. The feature is off by default, and merely fetching notifications sends nothing on the extension's behalf.
 
 ## Permissions
 

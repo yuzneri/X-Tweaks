@@ -1,3 +1,4 @@
+import { HoverReadTracker } from './hover.ts';
 import { COLUMN_SELECTOR } from '../columns/registry.ts';
 
 const COLUMN_ID_ATTR = 'data-xpro-column-id';
@@ -97,6 +98,37 @@ export const watchNotificationReadInteractions = ({
   now = () => performance.now(),
 }: InteractionOptions): InteractionWatch => {
   const tracker = new UserScrollTracker<HTMLElement, Element>();
+  const hover = new HoverReadTracker<Element>(
+    (column, columnId) => !paused() && document.visibilityState === 'visible' &&
+      document.hasFocus() && column.isConnected && column.matches(':hover') &&
+      contextOf(column)?.columnId === columnId && !!column.querySelector(NOTIFICATION_SELECTOR),
+    columnId => onIntent({ columnId }),
+  );
+  const reset = (): void => {
+    tracker.clear();
+    hover.clear();
+  };
+  const onPointerOver = (event: PointerEvent): void => {
+    if (!event.isTrusted || event.pointerType !== 'mouse') return;
+    if (paused() || document.visibilityState !== 'visible' || !document.hasFocus()) {
+      hover.clear();
+      return;
+    }
+    const column = notificationColumnOf(event.target);
+    const context = column && contextOf(column);
+    if (column && context) hover.enter(column, context.columnId);
+    else hover.clear();
+  };
+  const onPointerOut = (event: PointerEvent): void => {
+    if (!event.isTrusted || event.pointerType !== 'mouse') return;
+    // Child-to-child movement stays one visit; leaving the column cancels it.
+    const from = asElement(event.target)?.closest(COLUMN_SELECTOR);
+    const to = asElement(event.relatedTarget)?.closest(COLUMN_SELECTOR);
+    if (from !== to || event.relatedTarget === null) hover.clear();
+  };
+  const onVisibility = (): void => {
+    if (document.visibilityState !== 'visible') reset();
+  };
 
   const remember = (target: EventTarget | null): void => {
     const column = notificationColumnOf(target);
@@ -146,6 +178,11 @@ export const watchNotificationReadInteractions = ({
     if (context) onIntent(context);
   };
 
+  document.addEventListener('pointerover', onPointerOver, true);
+  document.addEventListener('pointermove', onPointerOver, true);
+  document.addEventListener('pointerout', onPointerOut, true);
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('blur', reset);
   document.addEventListener('click', onClick, true);
   document.addEventListener('wheel', onWheel, true);
   document.addEventListener('touchmove', onTouchMove, true);
@@ -153,8 +190,14 @@ export const watchNotificationReadInteractions = ({
   document.addEventListener('keydown', onKeyDown, true);
   document.addEventListener('scroll', onScroll, true);
   return {
-    reset: () => tracker.clear(),
+    reset,
     stop: () => {
+      reset();
+      document.removeEventListener('pointerover', onPointerOver, true);
+      document.removeEventListener('pointermove', onPointerOver, true);
+      document.removeEventListener('pointerout', onPointerOut, true);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', reset);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('wheel', onWheel, true);
       document.removeEventListener('touchmove', onTouchMove, true);

@@ -89,9 +89,15 @@ A post can carry a card for a trend X has written up.
 On X Pro that card's address is written for the phone app (`twitter://…`), which no browser can follow, so pressing the card does nothing at all; it is put back to the page x.com opens.
 Always on, X Pro only, and nothing else about the card is touched.
 
+## Following new posts on X Pro
+
+Enable **Suppress following new posts in X Pro** under **More → Experiments** to try to keep the post you are reading in place even near the top of timeline columns. This helps when new posts push your reading position away in For you. While the pointer is over a column, following is stopped even at the top. Otherwise, following is allowed only within 30px of the top; below that, your reading position is preserved. Fetching continues; scroll up to read the new posts. Notification columns are excluded from this position correction.
+
+Off by default. Changes take effect immediately, and pausing restores X Pro's own behavior. This experiment relies on X Pro's internal scroller; changes to X, replacement of the anchored post, or height changes may prevent it from preserving your position.
+
 ## Notification reads on X Pro
 
-When the experimental “Mark X Pro notifications as read after interaction” option is enabled, clicking a notification or scrolling an X Pro “All notifications” column vertically marks the notifications fetched so far as read on X. The option is off by default. Merely displaying notifications does not mark them as read. Nothing is marked while the extension is paused, and with multiple accounts only the account belonging to the column you used is affected.
+When the experimental “Mark X Pro notifications as read after interaction” option is enabled, clicking a notification, scrolling an X Pro “All notifications” column vertically, or hovering over the column for 3 seconds marks the notifications fetched so far as read on X. The option is off by default. Merely displaying notifications does not mark them as read. Nothing is marked while the extension is paused, and with multiple accounts only the account belonging to the column you used is affected.
 
 ## Posting
 
