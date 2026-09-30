@@ -159,13 +159,33 @@ test('抑制中だけ見えている投稿をアンカーにし、取得不可�
   assert.equal(s._getAnchor, original);
 });
 
-test('通知タイムラインは通知行が仮想化で消えても投稿用補正から除外する', async () => {
-  const { isNotificationTimeline } = await import('./pro-follow.ts');
-  assert.equal(isNotificationTimeline({ return: { memoizedProps: { timelineId: 'notifications-all-' } } }), true);
-  assert.equal(isNotificationTimeline({ memoizedProps: { timelineId: 'notifications-mentions-account' } }), true);
-  assert.equal(isNotificationTimeline({ memoizedProps: { timelineId: 'home-latest-account' } }), false);
-  assert.equal(isNotificationTimeline(null), false);
+test('ホームのおすすめだけを許可し、検索・通知・フォロー中・未知は除外する', async () => {
+  const { isForYouTimeline } = await import('./pro-follow.ts');
+  const fiber = (timelineId: unknown) => ({ memoizedProps: { timelineId } });
+  for (const label of ['おすすめ', 'For you', ' For You ']) {
+    assert.equal(isForYouTimeline({ return: fiber('home-123') }, label), true);
+    for (const id of ['search-query', 'notifications-all-', 'list-123', 'home-latest-123', '', null]) {
+      assert.equal(isForYouTimeline(fiber(id), label), false);
+    }
+    assert.equal(isForYouTimeline({ ...fiber('search-query'), return: fiber('home-123') }, label), false);
+  }
+  for (const label of ['Following', 'フォロー中', '', null]) {
+    assert.equal(isForYouTimeline(fiber('home-123'), label), false);
+  }
+  assert.equal(isForYouTimeline(null, 'おすすめ'), false);
   const cycle: { return?: typeof cycle } = {};
   cycle.return = cycle;
-  assert.equal(isNotificationTimeline(cycle), false);
+  assert.equal(isForYouTimeline(cycle, 'おすすめ'), false);
+});
+
+test('おすすめから他タブへ切り替わると補正を解除する', async () => {
+  const { isForYouTimeline } = await import('./pro-follow.ts');
+  const s = scroller(), guard = new ProFollowGuard(() => 100);
+  const original = s._getAnchor;
+  const fiber = { memoizedProps: { timelineId: 'home-123' } };
+  guard.sync(isForYouTimeline(fiber, 'おすすめ') ? [s] : []);
+  assert.notEqual(s._getAnchor, original);
+  guard.sync(isForYouTimeline(fiber, 'フォロー中') ? [s] : []);
+  assert.equal(s._getAnchor, original);
+  assert.equal(s.isAtNewest(), true);
 });

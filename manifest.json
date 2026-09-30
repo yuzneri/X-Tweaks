@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Tweaks",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "default_locale": "en",
   "description": "__MSG_extensionDescription__",
   "icons": {
@@ -16,7 +16,9 @@
       "id": "{548d4cad-1a21-436d-8ad8-5f2c70009586}",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   },

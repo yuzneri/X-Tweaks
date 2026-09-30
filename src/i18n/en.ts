@@ -31,7 +31,7 @@ export const en = {
     },
     proSuppressNewPostFollow: {
       label: 'Suppress following new posts in X Pro',
-      note: 'Tries to keep the post you are reading in place even near the top of timeline columns. Stops following new posts while the pointer is over the column, even at the top. Otherwise, follows only within 30px of the top and keeps your reading position below that. New posts are still fetched. Replaced posts or height changes may still move your reading position. Changes to X may stop this from working.',
+      note: 'Tries to keep the post you are reading in place even near the top, only in For you columns. Stops following new posts while the pointer is over the column, even at the top. Otherwise, follows only within 30px of the top and keeps your reading position below that. New posts are still fetched. Replaced posts or height changes may still move your reading position. Changes to X may stop this from working.',
     },
     proLoopGuard: {
       label: "Rein in X Pro's runaway",

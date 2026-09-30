@@ -91,7 +91,7 @@ Always on, X Pro only, and nothing else about the card is touched.
 
 ## Following new posts on X Pro
 
-Enable **Suppress following new posts in X Pro** under **More → Experiments** to try to keep the post you are reading in place even near the top of timeline columns. This helps when new posts push your reading position away in For you. While the pointer is over a column, following is stopped even at the top. Otherwise, following is allowed only within 30px of the top; below that, your reading position is preserved. Fetching continues; scroll up to read the new posts. Notification columns are excluded from this position correction.
+Enable **Suppress following new posts in X Pro** under **More → Experiments** to try to keep the post you are reading in place even near the top, only in For you columns. This helps when new posts push your reading position away in For you. While the pointer is over a column, following is stopped even at the top. Otherwise, following is allowed only within 30px of the top; below that, your reading position is preserved. Fetching continues; scroll up to read the new posts. Search, Notifications, Following, and other columns are excluded from this position correction.
 
 Off by default. Changes take effect immediately, and pausing restores X Pro's own behavior. This experiment relies on X Pro's internal scroller; changes to X, replacement of the anchored post, or height changes may prevent it from preserving your position.
 

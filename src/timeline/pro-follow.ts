@@ -107,13 +107,14 @@ export class ProFollowGuard {
 
 type Fiber = { stateNode?: unknown; memoizedProps?: { timelineId?: unknown }; return?: Fiber | null };
 
-/** Notification lists mix notifications and tweets; tweet-only anchoring is unsafe there.
- * Use the timeline identity so virtualization cannot re-enable it when notification rows vanish.
+/** Require both a home timeline and its selected For you tab. Unknown layouts stay native.
+ * The nearest timeline wins: a nested search must not inherit an outer home identity.
  */
-export const isNotificationTimeline = (root: Fiber | null): boolean => {
+export const isForYouTimeline = (root: Fiber | null, selectedTab: string | null): boolean => {
+  if (!selectedTab || !/^(?:For you|おすすめ)$/i.test(selectedTab.trim())) return false;
   for (let f = root, depth = 0; f && depth < 80; f = f.return ?? null, depth++) {
     const id = f.memoizedProps?.timelineId;
-    if (typeof id === 'string' && /^notifications(?:-|$)/.test(id)) return true;
+    if (typeof id === 'string') return /^home(?:-|$)/.test(id) && !/^home-latest(?:-|$)/.test(id);
   }
   return false;
 };
@@ -149,7 +150,8 @@ export const installProFollowGuard = (): (() => void) => {
       if (!cell) continue;
       const key = Object.keys(cell).find(k => k.startsWith('__reactFiber$'));
       const fiber = key ? (cell as unknown as Record<string, Fiber>)[key] : null;
-      if (column.querySelector('article[data-testid="notification"]') || isNotificationTimeline(fiber ?? null)) continue;
+      const selectedTab = column.querySelector('[role="tab"][aria-selected="true"]')?.textContent ?? null;
+      if (!isForYouTimeline(fiber ?? null, selectedTab)) continue;
       const scroller = scrollerAbove(fiber ?? null);
       if (!isScroller(scroller)) continue;
       hoverElements.set(scroller, column);
@@ -205,7 +207,7 @@ export const installProFollowGuard = (): (() => void) => {
     enabled = data.enabled;
     if (enabled) {
       scan();
-      observer.observe(document, { childList: true, subtree: true });
+      observer.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
     } else {
       stop();
     }
