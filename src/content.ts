@@ -22,6 +22,7 @@ import { emptySettings, type Settings } from './settings/schema.ts';
 import { GUARD_KEY } from './loop-guard.ts';
 import { startNewPosts, takeNewPosts, updateNewPosts } from './timeline/new-posts.ts';
 import { PRO_FOLLOW_ENABLED } from './timeline/pro-follow.ts';
+import { PROFILE_DEFAULTS } from './profile/main.ts';
 import { fixTrendLinks } from './timeline/trend-link.ts';
 import { recordable } from './settings/detected.ts';
 import { currentMessages, standDown, standUp, start, updateSettings } from './filter/engine.ts';
@@ -172,7 +173,18 @@ const main = async (): Promise<void> => {
       enabled: current.experiments.proSuppressNewPostFollow && !paused,
     }, window.location.origin);
   };
+  /*
+   * What a profile opens on, sent to x.com's own world (`profile/main.ts`). While paused it
+   * is X's own defaults, so nothing is moved; resuming sends the chosen ones again.
+   */
+  const syncProfile = (): void => {
+    if (surface.id === 'x') window.postMessage({
+      type: PROFILE_DEFAULTS,
+      profile: effectiveSettings(current, paused).profile,
+    }, window.location.origin);
+  };
   syncProFollow();
+  syncProfile();
   syncNotificationReads();
   if (unreadable !== null) {
     logStyled(
@@ -281,6 +293,7 @@ const main = async (): Promise<void> => {
     if (surface.id === 'pro') askForLoopGuard(current.experiments.proLoopGuard);
     syncNotificationReads();
     syncProFollow();
+    syncProfile();
     if (!started) {
       missed = true;
       return false;

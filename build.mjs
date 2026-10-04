@@ -39,7 +39,13 @@ const copyStatic = () =>
   ]);
 
 const options = {
-  entryPoints: ['src/main-world.ts', 'src/content.ts', 'src/options.tsx', 'src/popup.tsx'],
+  entryPoints: [
+    'src/main-world.ts',
+    'src/main-world-x.ts',
+    'src/content.ts',
+    'src/options.tsx',
+    'src/popup.tsx',
+  ],
   outdir: OUT,
   bundle: true,
   // A content script cannot load ES modules, so every entry is wrapped in an IIFE

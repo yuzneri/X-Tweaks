@@ -36,6 +36,16 @@
     },
     {
       "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "dist/main-world-x.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "https://pro.x.com/*",
         "https://x.com/*"
       ],

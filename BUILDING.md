@@ -10,7 +10,7 @@ Of those only `dist/` is generated at build time; the rest are checked in as the
 
 Everything in `dist/` is produced from `src/` by `build.mjs`:
 
-- `dist/main-world.js`, `dist/content.js`, `dist/options.js`, `dist/popup.js` are bundled from the TypeScript sources by esbuild, one bundle per entry point.
+- `dist/main-world.js`, `dist/main-world-x.js`, `dist/content.js`, `dist/options.js`, `dist/popup.js` are bundled from the TypeScript sources by esbuild, one bundle per entry point.
 - `dist/options.html`, `dist/options.css`, `dist/popup.html`, `dist/popup.css`, `dist/panel.css` are copied verbatim from `src/`.
 
 `icons/*.png` are rasterized from `icons/icon.svg`, which is the source of truth for them.
