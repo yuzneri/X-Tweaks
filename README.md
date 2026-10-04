@@ -185,6 +185,25 @@ A ticked box means the thing is on the page, and everything starts ticked.
 
 Taking the rail away also takes the detailed search form with it.
 
+## The tabs a profile opens on
+
+Choose what a profile on x.com shows when you open it (one setting for all of x.com).
+X opens every profile on Posts, Most recent and Videos, and forgets what was picked from the tab menus.
+
+- **Posts tab**: Posts / All / Highlights
+- **Sort by**: Most recent / Popular
+- **Media tab**: Videos / Photos
+
+The defaults are X’s own, so nothing changes until you pick something else.
+
+- It takes effect when you move to a profile or its media tab from another page, and when the page loads
+- What you pick from the menu on the same tab stays
+- Coming back with the Back button keeps what you were looking at
+- Where the address already says the kind or the order (`/username/all`, `?sort=popular`), that is what you get; whichever it leaves out still gets your default
+- Highlights are empty for someone who has none
+- Reloading after picking something else on the same tab brings back your default
+- Nothing happens while paused
+
 ## Opening the settings
 
 Most editing happens inside the site itself.
