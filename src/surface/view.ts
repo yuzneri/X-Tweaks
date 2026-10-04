@@ -100,6 +100,23 @@ export const viewKeyOf = (pathname: string, search = ''): string | null => {
 };
 
 /**
+ * Whether that path is a profile's posts tab showing a kind other than X's default
+ * (`/name/all`, `/name/highlights`). The view is the profile's, but the page title is not
+ * its name: X titles the highlights "…によるハイライト", and the name recorded for the
+ * profile would flip each time one or the other is opened.
+ */
+export const isOtherPostsKind = (pathname: string): boolean => {
+  const [name, kind, ...rest] = pathname.split('/').filter((part) => part !== '');
+  return (
+    rest.length === 0 &&
+    name !== undefined &&
+    !NOT_A_PROFILE.has(name.toLowerCase()) &&
+    kind !== undefined &&
+    POSTS_TAB_KINDS.has(kind.toLowerCase())
+  );
+};
+
+/**
  * A post's own page: somebody's screen name, then `status`, then the post's id. `/web`
  * comes in between on the older form of the address, which X still redirects from.
  * What follows — the photo viewer, the list of reposts — is still that post's page.

@@ -10,7 +10,7 @@ import { watch as watchEntry } from '../panel/menu-item.ts';
 import { insertInto as insertMenuItem } from '../panel/x-menu.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import type { Surface } from './index.ts';
-import { isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
+import { isOtherPostsKind, isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
 
 /** The one group x.com's views go in. The name is the settings screen's to supply */
 const GROUP = 'all';
@@ -59,7 +59,10 @@ export const xSurface: Surface = {
   detect: () => {
     const key = viewKeyOf(location.pathname, location.search);
     // What X calls this view. Reading it is `viewNameFrom`'s; all this knows is where to look
-    return key === null ? [] : [{ ...currentScope(), title: viewNameFrom(document.title) }];
+    if (key === null) return [];
+    // null keeps the name already recorded (`settings/detected.ts`)
+    const title = isOtherPostsKind(location.pathname) ? null : viewNameFrom(document.title);
+    return [{ ...currentScope(), title }];
   },
   refresh: () => Promise.resolve(xSurface.detect()),
   /*

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
+import { isOtherPostsKind, isPostPage, viewKeyOf, viewNameFrom } from './view.ts';
 
 test('設定を持てるビューは、パスから決まる', () => {
   assert.equal(viewKeyOf('/home'), 'view:home');
@@ -39,6 +39,15 @@ test('ポストのタブで種類を変えても、同じプロフィール', ()
   // X 自身のページの下は、プロフィールではない
   assert.equal(viewKeyOf('/explore/all'), null);
   assert.equal(viewKeyOf('/settings/highlights'), null);
+});
+
+test('ポストのタブの別の種類では、タイトルをプロフィールの名前にしない', () => {
+  // ハイライトのタイトルは「…によるハイライト」。記録した名前が開くたびに入れ替わる
+  assert.equal(isOtherPostsKind('/alice/all'), true);
+  assert.equal(isOtherPostsKind('/Alice/Highlights/'), true);
+  for (const path of ['/alice', '/alice/media', '/alice/all/x', '/explore/all', '/home', '/']) {
+    assert.equal(isOtherPostsKind(path), false, path);
+  }
 });
 
 test('ハッシュタグのページは、そのタグの検索と同じ扱い', () => {
