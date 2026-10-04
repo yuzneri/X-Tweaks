@@ -459,20 +459,25 @@ const formForPost = (sentAt: number): Element | null => {
 /**
  * Puts the tags from the last post into a compose form that has just been opened by hand.
  *
- * Called on every settling of the DOM, so it must be cheap and sure: nothing waiting means
- * nothing to do; a form mid-reopen after a post (`acting`) has that path putting the tags in
- * itself; and a box with something already in it is not ours to overwrite. A failed attempt
+ * Called on every settling of the DOM and when the box takes focus (`watchFocus`), so it
+ * must be cheap and sure: nothing waiting means nothing to do; a form mid-reopen after a
+ * post (`acting`) has that path putting the tags in itself; and a box with something already
+ * in it is not ours to overwrite, which is logged once per form. A failed attempt
  * waits for a different form, rather than fighting the same one on every settling.
  */
 export const restorePending = (): void => {
   if (pending === null || acting) return;
   const drawer = composeDrawer();
   if (!drawer || drawer === attemptedPendingIn) return;
-  if (!drawer.querySelector(EDITOR) || textIn(drawer) !== '') return;
+  if (!drawer.querySelector(EDITOR)) return;
 
   const tags = pending;
   const revision = pendingRevision;
   attemptedPendingIn = drawer;
+  if (textIn(drawer) !== '') {
+    hooks.log('The compose form already had something in it, so the kept hashtags were left out');
+    return;
+  }
   /*
    * Waiting for the box to take focus makes this a promise, but the caller is the DOM
    * settling and has nothing to wait for. This form is marked as attempted before waiting,
@@ -515,14 +520,31 @@ export const rememberTrigger = (target: Element | null): void => {
   });
 };
 
+const inCompose = (target: EventTarget | null): Element | null => {
+  if (!(target instanceof Element)) return null;
+  const drawer = target.closest(DRAWER);
+  return drawer && drawer === composeDrawer() ? drawer : null;
+};
+
+/**
+ * Puts the waiting tags in the moment the box takes focus. The DOM settling alone comes
+ * 50–500ms after the form opens, and X Pro focuses the box on opening it: a person typing
+ * straight away had written something by then, and the tags were left out. The attempt is
+ * made after the event, so X has handled the focus before the text goes in.
+ */
+const watchFocus = (): void => {
+  document.addEventListener(
+    'focusin',
+    (event) => {
+      if (pending === null || acting || !inCompose(event.target)) return;
+      setTimeout(restorePending, 0);
+    },
+    true
+  );
+};
+
 /** Keeps track of what is being written, since the box is emptied before this can read it */
 const watchTyping = (): void => {
-  const inCompose = (target: EventTarget | null): Element | null => {
-    if (!(target instanceof Element)) return null;
-    const drawer = target.closest(DRAWER);
-    return drawer && drawer === composeDrawer() ? drawer : null;
-  };
-
   document.addEventListener(
     'input',
     (event) => {
@@ -601,5 +623,6 @@ export const start = (initial: ComposeSettings, given: Hooks): void => {
   hooks = given;
   updateSettings(initial);
   watchTyping();
+  watchFocus();
   watchPosts();
 };

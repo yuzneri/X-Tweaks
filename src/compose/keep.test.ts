@@ -178,4 +178,32 @@ test('タグを改行して残し、挿入失敗時は次のフォームで再�
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(retry.editor.lines.map((line) => line.textContent), ['', '#サンプルタグ']);
   assert.equal(selection.anchorNode, retry.editor.lines[0]);
+
+  // The box taking focus puts the tags in without waiting for the next DOM settling.
+  const sendFrom = async (form: ReturnType<typeof makeDrawer>): Promise<void> => {
+    for (const listener of listeners.get('pointerdown') ?? []) listener({ target: form.target });
+    form.drawer.isConnected = false;
+    current = null;
+    FakePerformanceObserver.current.post();
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  await sendFrom(retry);
+  const focused = makeDrawer('');
+  current = focused.drawer;
+  for (const listener of listeners.get('focusin') ?? []) listener({ target: focused.target });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(focused.editor.lines.map((line) => line.textContent), ['', '#サンプルタグ']);
+
+  // A form already written in is left alone, and says so once instead of staying silent.
+  await sendFrom(focused);
+  const typed = makeDrawer('先に打った本文');
+  current = typed.drawer;
+  restorePending();
+  restorePending();
+  assert.deepEqual(typed.editor.lines.map((line) => line.textContent), ['先に打った本文']);
+  assert.equal(
+    logs.filter(([message]) => String(message).startsWith('The compose form already had')).length,
+    1
+  );
 });
