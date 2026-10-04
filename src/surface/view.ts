@@ -43,6 +43,9 @@ const NOT_A_PROFILE = new Set([
   'bookmarks',
 ]);
 
+/** Whether a first path segment can be somebody's screen name, rather than one of X's own pages */
+export const isProfileName = (segment: string): boolean => !NOT_A_PROFILE.has(segment.toLowerCase());
+
 /** A list's id is the digits X puts in the path */
 const LIST = /^\/i\/lists\/(\d+)/;
 /** What follows a screen name when the profile's posts tab shows a kind other than X's default */
@@ -94,7 +97,7 @@ export const viewKeyOf = (pathname: string, search = ''): string | null => {
   if (segments.length > 2 || (tab !== undefined && !POSTS_TAB_KINDS.has(tab.toLowerCase()))) {
     return null;
   }
-  return name && !NOT_A_PROFILE.has(name.toLowerCase())
+  return name && isProfileName(name)
     ? `${VIEW_PREFIX}profile:${name.toLowerCase()}`
     : null;
 };
@@ -110,7 +113,7 @@ export const isOtherPostsKind = (pathname: string): boolean => {
   return (
     rest.length === 0 &&
     name !== undefined &&
-    !NOT_A_PROFILE.has(name.toLowerCase()) &&
+    isProfileName(name) &&
     kind !== undefined &&
     POSTS_TAB_KINDS.has(kind.toLowerCase())
   );
