@@ -12,6 +12,7 @@ import {
   emptySettings,
   fillAll,
   changesAnyChrome,
+  changesAnyProfile,
   changesAnySearch,
   X_MENU_KEYS,
   X_NAV_KEYS,
@@ -470,6 +471,36 @@ test('検索フォームを出すことは「何か指定されている」に�
   // while the form is being put on the page
   assert.equal(changesAnySearch(emptySettings().search), false);
   assert.equal(changesAnySearch({ form: true }), true);
+});
+
+test('プロフィールの既定は、何も保存されていなければ X と同じ', () => {
+  const xDefault = { posts: 'posts', sort: 'recent', media: 'videos' };
+  assert.deepEqual(emptySettings().profile, xDefault);
+  assert.deepEqual(fillAll({ profile: {} }).profile, xDefault);
+  assert.equal(changesAnyProfile(emptySettings().profile), false);
+});
+
+test('プロフィールの既定は保存された値を読み出し、知らない値は X の既定に戻す', () => {
+  const stored = { posts: 'highlights', sort: 'popular', media: 'photos' };
+  assert.deepEqual(fillAll({ profile: stored }).profile, stored);
+  assert.deepEqual(fillAll({ profile: { posts: 'all' } }).profile, {
+    posts: 'all',
+    sort: 'recent',
+    media: 'videos',
+  });
+  assert.deepEqual(fillAll({ profile: { posts: 'likes', sort: 1, media: null } }).profile, {
+    posts: 'posts',
+    sort: 'recent',
+    media: 'videos',
+  });
+  assert.deepEqual(fillAll({ profile: 'all' }).profile, emptySettings().profile);
+});
+
+test('プロフィールの既定は、どれか1つでも変えれば「何か指定されている」に数える', () => {
+  const base = emptySettings().profile;
+  assert.equal(changesAnyProfile({ ...base, posts: 'all' }), true);
+  assert.equal(changesAnyProfile({ ...base, sort: 'popular' }), true);
+  assert.equal(changesAnyProfile({ ...base, media: 'photos' }), true);
 });
 
 test('投稿フォームの設定は保存された値を読み出す', () => {

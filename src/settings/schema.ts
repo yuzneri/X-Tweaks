@@ -700,6 +700,34 @@ export type SearchSettings = {
  */
 export const changesAnySearch = (search: SearchSettings): boolean => search.form;
 
+/** What a profile's posts tab can show, chosen from the menu on the tab itself */
+export const PROFILE_POSTS_KINDS = ['posts', 'all', 'highlights'] as const;
+export type ProfilePostsKind = (typeof PROFILE_POSTS_KINDS)[number];
+/** The order of a profile's posts: newest first, or most liked first */
+export const PROFILE_SORTS = ['recent', 'popular'] as const;
+export type ProfileSort = (typeof PROFILE_SORTS)[number];
+/** What a profile's media tab shows */
+export const PROFILE_MEDIA_KINDS = ['videos', 'photos'] as const;
+export type ProfileMediaKind = (typeof PROFILE_MEDIA_KINDS)[number];
+
+/**
+ * What a profile on x.com shows when it is opened: X opens on its own choice (posts, newest
+ * first; videos on the media tab) every time, forgetting what was picked from the menus.
+ *
+ * One answer for the whole site, not per tier: it is how someone likes profiles opened, not
+ * something one profile asks for. Plain values with no "not set", for the reason
+ * `ComposeSettings` gives; the defaults are X's own, so nothing moves until one is changed.
+ */
+export type ProfileSettings = {
+  posts: ProfilePostsKind;
+  sort: ProfileSort;
+  media: ProfileMediaKind;
+};
+
+/** Whether anything differs from what X opens on. Beside the shape, like `changesAnySearch` */
+export const changesAnyProfile = (profile: ProfileSettings): boolean =>
+  profile.posts !== 'posts' || profile.sort !== 'recent' || profile.media !== 'videos';
+
 export type Settings = {
   version: number;
   /** The language of the text the extension shows. Not per tier: one for the whole extension */
@@ -712,6 +740,8 @@ export type Settings = {
   xChrome: XChromeSettings;
   /** What the extension adds to x.com's search. One for the whole site, like `xChrome` */
   search: SearchSettings;
+  /** What a profile shows when opened. One for the whole site, like `xChrome` */
+  profile: ProfileSettings;
   /** What X slips into a timeline, one answer per site — the two are read in different frames of mind, so what is unwanted on one may be wanted on the other */
   injected: { pro: InjectedSettings; x: InjectedSettings };
   /**
@@ -990,6 +1020,22 @@ const fillExperiments = (v: unknown): ExperimentsSettings => {
  */
 const fillSearch = (v: unknown): SearchSettings => ({ form: rec(v).form === true });
 
+const isPostsKind = (v: unknown): v is ProfilePostsKind =>
+  PROFILE_POSTS_KINDS.includes(v as ProfilePostsKind);
+const isSort = (v: unknown): v is ProfileSort => PROFILE_SORTS.includes(v as ProfileSort);
+const isMediaKind = (v: unknown): v is ProfileMediaKind =>
+  PROFILE_MEDIA_KINDS.includes(v as ProfileMediaKind);
+
+/** Anything unreadable falls to what X opens on, the same side a missing key lands on */
+const fillProfile = (v: unknown): ProfileSettings => {
+  const profile = rec(v);
+  return {
+    posts: isPostsKind(profile.posts) ? profile.posts : 'posts',
+    sort: isSort(profile.sort) ? profile.sort : 'recent',
+    media: isMediaKind(profile.media) ? profile.media : 'videos',
+  };
+};
+
 /**
  * An item missing from the stored value stays where X put it, as does one stored as
  * something odd — default is `true` (on the page), and only an explicit `false` removes it.
@@ -1066,6 +1112,7 @@ export const fillAll = (v: unknown): Settings => {
     experiments: fillExperiments(stored.experiments),
     xChrome: fillChrome(stored.xChrome),
     search: fillSearch(stored.search),
+    profile: fillProfile(stored.profile),
     injected: fillInjected(stored.injected),
     genericAlts: fillGenericAlts(stored.genericAlts),
     global: fillNode(stored.global),

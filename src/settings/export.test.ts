@@ -107,6 +107,7 @@ const full = fillAll({
     menu: { spaces: false },
   },
   search: { form: true },
+  profile: { posts: 'all', sort: 'popular', media: 'photos' },
   injected: { pro: { discoverMore: false }, x: { whoToFollow: false } },
   genericAlts: ['画像', '動画'],
   global: fullNode(),
@@ -178,12 +179,13 @@ test('false は書き出す（未指定とは意味が違う）', () => {
 test('何も設定していなければ、階層は一つも書き出されない', () => {
   const parsed = JSON.parse(buildExport(emptySettings(), [], at));
 
-  // 残るのは真偽値で持つもの（未指定という状態がないので、既定値でも値は値）と版・言語
+  // 残るのは真偽値や選択肢で持つもの（未指定という状態がないので、既定値でも値は値）と版・言語
   assert.deepEqual(Object.keys(parsed.settings).sort(), [
     'compose',
     'experiments',
     'injected',
     'language',
+    'profile',
     'search',
     'version',
     'xChrome',
