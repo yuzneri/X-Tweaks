@@ -26,6 +26,21 @@ test('プロフィールは人ごとに分かれる', () => {
   assert.equal(viewKeyOf('/Alice'), viewKeyOf('/alice'));
 });
 
+test('ポストのタブで種類を変えても、同じプロフィール', () => {
+  // メニューで「すべて」「ハイライト」を選ぶと URL が変わる。同じタブなので設定も同じ
+  assert.equal(viewKeyOf('/alice/all'), 'view:profile:alice');
+  assert.equal(viewKeyOf('/alice/highlights'), 'view:profile:alice');
+  assert.equal(viewKeyOf('/Alice/All/'), 'view:profile:alice');
+  assert.equal(viewKeyOf('/alice/all', '?sort=popular'), 'view:profile:alice');
+  // ほかのタブは今のところビューとして持たない
+  for (const path of ['/alice/with_replies', '/alice/reposts', '/alice/media', '/alice/all/x']) {
+    assert.equal(viewKeyOf(path), null, path);
+  }
+  // X 自身のページの下は、プロフィールではない
+  assert.equal(viewKeyOf('/explore/all'), null);
+  assert.equal(viewKeyOf('/settings/highlights'), null);
+});
+
 test('ハッシュタグのページは、そのタグの検索と同じ扱い', () => {
   // 同じ結果を見せる 2 つの入口。どちらに書いても効くように、キーを揃える
   assert.equal(viewKeyOf('/hashtag/conference'), 'view:search:#conference');

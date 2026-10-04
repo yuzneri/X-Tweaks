@@ -13,7 +13,7 @@ export const VIEW_PREFIX = 'view:';
 
 /**
  * First path segments that are X's own pages rather than someone's screen name. Best effort,
- * and deliberately so: a profile is "one segment that is not one of these", so a page X adds
+ * and deliberately so: a profile is "a first segment that is not one of these", so a page X adds
  * later would be taken for a profile until this list catches up. The cost of that is the
  * profile settings applying somewhere they were not meant to; the cost of the opposite —
  * listing screen names — is not being able to have profile settings at all.
@@ -45,6 +45,8 @@ const NOT_A_PROFILE = new Set([
 
 /** A list's id is the digits X puts in the path */
 const LIST = /^\/i\/lists\/(\d+)/;
+/** What follows a screen name when the profile's posts tab shows a kind other than X's default */
+const POSTS_TAB_KINDS = new Set(['all', 'highlights']);
 /** A hashtag has a page of its own, showing the same results as searching for it */
 const HASHTAG = /^\/hashtag\/([^/]+)/;
 
@@ -82,10 +84,16 @@ export const viewKeyOf = (pathname: string, search = ''): string | null => {
   const hashtag = HASHTAG.exec(path);
   if (hashtag?.[1]) return `${VIEW_PREFIX}search:#${decodeURIComponent(hashtag[1])}`;
 
-  // One segment and not one of X's own pages: somebody's profile
+  /*
+   * One segment and not one of X's own pages: somebody's profile. The posts tab can also
+   * sit at `/name/all` or `/name/highlights` — the same tab with another kind chosen from
+   * its menu — and is the same view there. The other tabs (replies, media, …) are not.
+   */
   const segments = path.split('/').filter((part) => part !== '');
-  if (segments.length !== 1) return null;
-  const [name] = segments;
+  const [name, tab] = segments;
+  if (segments.length > 2 || (tab !== undefined && !POSTS_TAB_KINDS.has(tab.toLowerCase()))) {
+    return null;
+  }
   return name && !NOT_A_PROFILE.has(name.toLowerCase())
     ? `${VIEW_PREFIX}profile:${name.toLowerCase()}`
     : null;
