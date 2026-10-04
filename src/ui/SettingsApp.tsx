@@ -13,6 +13,7 @@ import {
   hasContent,
   changesAnyChrome,
   changesAnyInjected,
+  changesAnyProfile,
   changesAnySearch,
   isEmptyNode,
   SCHEMA_VERSION,
@@ -55,6 +56,7 @@ import { About } from './About.tsx';
 import { Compose } from './Compose.tsx';
 import { Experiments } from './Experiments.tsx';
 import { Injected } from './Injected.tsx';
+import { Profile } from './Profile.tsx';
 import { XChrome, XTimeline } from './XChrome.tsx';
 import { Effective } from './Effective.tsx';
 import { useSettings } from './useSettings.ts';
@@ -512,6 +514,7 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
         configured:
           changesAnyChrome(settings.xChrome) ||
           changesAnySearch(settings.search) ||
+          changesAnyProfile(settings.profile) ||
           changesAnyInjected(settings.injected.x) ||
           marked(settings.surfaces.x, { account: null, surface: 'x', columnId: null }),
       },
@@ -985,6 +988,13 @@ export const SettingsApp = ({ onLocale, start }: Props = {}) => {
                                 <XTimeline
                                   chrome={settings.xChrome}
                                   onChange={(xChrome) => update({ ...settings, xChrome })}
+                                />
+                              )}
+                              {/* Which timeline a profile opens on; x.com only, X Pro has no profile page */}
+                              {surfaceOfScope === 'x' && (
+                                <Profile
+                                  profile={settings.profile}
+                                  onChange={(profile) => update({ ...settings, profile })}
                                 />
                               )}
                               {/* Offered under either site, each keeping its own answer */}

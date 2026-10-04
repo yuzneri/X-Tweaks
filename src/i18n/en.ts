@@ -324,6 +324,24 @@ export const en = {
     },
   },
 
+  /** What a profile shows when it is opened. Each option is named as X's own menu names it */
+  profile: {
+    label: 'Profile',
+    posts: {
+      label: 'Posts tab',
+      options: { posts: 'Posts', all: 'All', highlights: 'Highlights' },
+    },
+    sort: {
+      label: 'Sort by',
+      options: { recent: 'Most recent', popular: 'Popular' },
+    },
+    media: {
+      label: 'Media tab',
+      options: { videos: 'Videos', photos: 'Photos' },
+    },
+    note: 'Sets the default tabs.',
+  },
+
   /**
    * The detailed search form. It stands in its own box beside the items on the right rather than among
    * them: those are things x.com draws and this is a thing put there, and a switch reading "add this"

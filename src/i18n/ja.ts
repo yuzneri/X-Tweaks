@@ -281,6 +281,23 @@ export const ja: Messages = {
     },
   },
 
+  profile: {
+    label: 'プロフィール',
+    posts: {
+      label: 'ポストのタブ',
+      options: { posts: 'ポスト', all: 'すべて', highlights: 'ハイライト' },
+    },
+    sort: {
+      label: '並べ替え',
+      options: { recent: '新しい順', popular: '人気' },
+    },
+    media: {
+      label: 'メディアのタブ',
+      options: { videos: '動画', photos: '画像' },
+    },
+    note: 'デフォルトのタブを設定します。',
+  },
+
   search: {
     label: '検索',
     library: {
