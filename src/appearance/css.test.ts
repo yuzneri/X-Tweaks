@@ -362,10 +362,11 @@ test('詰めると、ボタンの行は消えずに名前の横へ浮く', () =>
 
   // Only the repost and the like are kept
   const hidden = lines.find((line) => line.includes('display: none'))!;
-  assert.ok(hidden.includes(':not(:has([data-testid="retweet"]))'));
-  assert.ok(hidden.includes(':not(:has([data-testid="like"]))'));
+  assert.ok(hidden.includes(':not(:has([data-testid="retweet"], [data-testid="unretweet"], '));
+  // Pressed ones too: pressing swaps the marker, and the button must not vanish with it
+  assert.ok(hidden.includes('[data-testid="like"], [data-testid="unlike"]))'));
   // Written for both shapes: a button wrapped in a container, or sitting in the row directly
-  assert.ok(hidden.includes(':not([data-testid="retweet"])'));
+  assert.ok(hidden.includes(':not([data-testid="retweet"], [data-testid="unretweet"], '));
 
   // Room is made by pushing the "…", not by padding the name row (the "…" sits inside that row)
   const room = lines.find((line) => line.includes('margin-left'))!;

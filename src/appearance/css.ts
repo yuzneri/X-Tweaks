@@ -2,6 +2,7 @@
 import {
   ARTICLE,
   CELL_SELECTOR,
+  COUNT_MARKERS,
   LINK_CARD,
   PHOTO,
   TREND_CARD,
@@ -175,6 +176,12 @@ const POST_MENU = 'button[data-testid="caret"]';
 /** The row of buttons under a post. Named here because both it and its contents are targeted */
 const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
 
+/**
+ * The buttons kept in that row when packed: repost and like, in both states, since pressing
+ * one swaps its marker (`like` becomes `unlike`) and would otherwise hide it.
+ */
+const KEPT_ACTIONS = `${COUNT_MARKERS.repost}, ${COUNT_MARKERS.like}`;
+
 /** What the 10px above and below a post shrinks to when packed */
 const COMPACT_GAP = 2;
 
@@ -280,8 +287,7 @@ const TARGETS = {
    * first would hide the two buttons meant to be kept.
    */
   otherActions: [
-    `${ACTION_BAR} > *:not(:has([data-testid="retweet"])):not(:has([data-testid="like"]))` +
-      `:not([data-testid="retweet"]):not([data-testid="like"])`,
+    `${ACTION_BAR} > *:not(:has(${KEPT_ACTIONS})):not(${KEPT_ACTIONS})`,
   ],
   divider: ['[data-testid="cellInnerDiv"] > div'],
   photo: ['[data-testid="tweetPhoto"] img'],
