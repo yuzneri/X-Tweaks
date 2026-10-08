@@ -22,7 +22,7 @@ The narrower scope wins, and a colour or size set by a wider one can be put back
 ## Filter
 
 Rules say what to do with a post that matches.
-The first rule that matches from the top decides, and each rule can be switched off without being deleted.
+The first rule that matches from the top is applied, and each rule can be switched off without being deleted.
 
 Conditions:
 
@@ -63,7 +63,7 @@ The same items can also be set in any wider scope.
 - **When a highlight makes text unreadable**: whether the text color is fixed automatically
 
 Anything left unset keeps the way the site itself shows it.
-Where a post is open to be read, the packing, the line limit, the folding of line breaks and the hiding of cards and photos all stand down.
+Where a post is open to be read, the packing, the line limit, the folding of line breaks and the hiding of cards and photos do not apply.
 
 The compose form background is decided by the account the post will go out as and by the site.
 Setting it per account tells you at a glance which account you are about to post as.
