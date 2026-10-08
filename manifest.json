@@ -22,7 +22,7 @@
       }
     }
   },
-  "minimum_chrome_version": "111",
+  "minimum_chrome_version": "114",
   "content_scripts": [
     {
       "matches": [

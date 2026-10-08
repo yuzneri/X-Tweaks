@@ -53,7 +53,7 @@ const options = {
   jsx: 'automatic',
   jsxImportSource: 'preact',
   // Kept in step with minimum_chrome_version / strict_min_version in manifest.json
-  target: ['chrome111', 'firefox140'],
+  target: ['chrome114', 'firefox140'],
   // By default non-ASCII is \u-escaped, making Japanese logs and messages unreadable.
   // In line with keeping dist/ readable (see the top of this file), it is emitted as UTF-8
   charset: 'utf8',
