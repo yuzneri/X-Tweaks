@@ -1,6 +1,6 @@
 {
   "name": "xpro-tweaks",
-  "version": "1.8.2",
+  "version": "1.9.0",
   "private": true,
   "license": "Apache-2.0",
   "description": "X Proとx.comのタイムラインを絞り込み、見た目を整えるブラウザ拡張",
