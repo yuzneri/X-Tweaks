@@ -64,6 +64,7 @@ A form beside the timeline for building an X search out of fields, so the operat
 - Search by keywords, hashtags to exclude, cashtags, a span of days, the language, whether it has a link or a photo, and the least it must have in replies or likes
 - Include and exclude accounts as authors, reply targets and mentions, and search the posts of a List's members
 - On a search's results, it takes the place of X's own search filters
+- While the rail is not on screen (a narrow window, or the timeline widened), it opens from a button in the navigation on the left
 - A search reached from a trend or a hashtag fills the form, so it can be narrowed down rather than retyped
 - Leave reposts, posts that matched only somebody's name, and posts with at least the given number of hashtags, reactions or views out of the results on screen
 - Keep the searches you open in a history (the latest 50), and save a search under a name

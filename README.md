@@ -122,6 +122,11 @@ It stands in the rail on the right, and where it goes depends on the page:
 - **On a search’s results**: in place of X’s own search filters
 - **On Explore**: at the head of the rail
 
+While the rail is not on screen (a narrow window, or the timeline widened), a Detailed search button appears under Explore in the navigation on the left.
+Pressing it opens the same form beside the button.
+Pressing it again, Escape, or a press outside closes it, and so does starting a search.
+Whatever has been typed stays when the window changes width.
+
 Always on show are the tab to land on (top, latest, people, media or lists — it starts on latest) and seven fields:
 
 - All of these keywords (an operator written here reaches X as written)
@@ -184,7 +189,7 @@ A ticked box means the thing is on the page, and everything starts ticked.
 - **The items in the bottom-right corner**: Grok and chat
 - **Bring new posts in by itself**: presses X’s own button for new posts while you are at the top
 
-Taking the rail away also takes the detailed search form with it.
+With the rail taken away, the detailed search form opens from the Detailed search button in the navigation on the left instead.
 
 ## The tabs a profile opens on
 
