@@ -3,6 +3,7 @@
 [日本語](README.ja.md)
 
 A browser extension that hides unwanted posts from the X Pro (pro.x.com, formerly TweetDeck) and x.com timelines, and changes how they look.
+On x.com it also builds searches, picks the tabs a profile opens on, and tidies the page around the timeline.
 
 Settings can be placed in five scopes.
 The narrower scope wins, and a colour or size set by a wider one can be put back to how X shows it.

@@ -1,6 +1,6 @@
 {
   "extensionDescription": {
-    "message": "Filters the X Pro and x.com timelines: collapse, hide or highlight posts, read picture descriptions, search, and tidy the page.",
+    "message": "Filters the X Pro and x.com timelines: hide or highlight posts, show exact counts and picture descriptions, search, tidy the page.",
     "description": "The add-on description shown in about:addons and on addons.mozilla.org."
   }
 }
