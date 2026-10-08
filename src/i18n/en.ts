@@ -349,6 +349,8 @@ export const en = {
    */
   search: {
     label: 'Search',
+    /** The button in the navigation on the left that opens the form while the rail is gone */
+    open: 'Detailed search',
     library: {
       search: 'Search',
       saved: 'Saved',
@@ -368,9 +370,9 @@ export const en = {
       label: 'Put a detailed search form on the right',
       note:
         'Goes under the search box, which stays as it is. On a search results page it ' +
-        'takes the place of X’s own search filters, which it already covers.',
-      /** Shown in place of `note` while the rail has been taken away */
-      noteWide: 'Not while the items on the right are taken away: there is nowhere to put it.',
+        'takes the place of X’s own search filters, which it already covers. ' +
+        'While the items on the right are not shown — a narrow window, or the timeline ' +
+        'widened — it opens from a button in the navigation on the left.',
     },
 
     /**

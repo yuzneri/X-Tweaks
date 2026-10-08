@@ -418,8 +418,9 @@ const main = async (): Promise<void> => {
        * standing — and what it covered is uncovered with it.
        */
       if (surface.id === 'x') {
-        if (effectiveSettings(current, paused).search.form) {
-          timed('· search form', () => insertSearchForm(messages));
+        const effective = effectiveSettings(current, paused);
+        if (effective.search.form) {
+          timed('· search form', () => insertSearchForm(messages, effective.xChrome.wideTimeline));
           // Filters the form applies to visible results. Asked every settling: results
           // arrive as the reader scrolls, and the answer changes as the boxes are ticked
           const exclusions = currentExclusions();

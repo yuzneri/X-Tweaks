@@ -130,15 +130,14 @@ export const XChrome = ({ chrome, onChange, search, onSearchChange }: Props) => 
         <label class="row switch">
           <input
             type="checkbox"
-            checked={!railGone && search.form}
-            disabled={railGone}
+            checked={search.form}
             aria-describedby={SEARCH_NOTE}
             onChange={(event) => onSearchChange({ ...search, form: event.currentTarget.checked })}
           />
           <span>{m.search.form.label}</span>
         </label>
         <p class="hint indent" id={SEARCH_NOTE}>
-          {railGone ? m.search.form.noteWide : m.search.form.note}
+          {m.search.form.note}
         </p>
       </fieldset>
 

@@ -436,3 +436,28 @@
   min-width: 0;
   flex: 2 1 0;
 }
+
+/*
+ * The popover the form opens in while the rail is not on screen (`popover.ts`). The browser's own
+ * placement (centred in the window) is undone: where it stands is set beside the button on opening,
+ * and so are its background, color and type, there being nothing of X's under it to inherit from.
+ * As wide as the rail, so the form is laid out as it is there.
+ */
+.xpro-search-popover {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto;
+  width: 350px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 0 15px rgba(101, 119, 134, 0.2), 0 0 3px 1px rgba(101, 119, 134, 0.15);
+}
+
+.xpro-search-popover > .xpro-search {
+  margin: 0;
+}

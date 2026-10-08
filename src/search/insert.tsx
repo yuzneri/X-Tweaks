@@ -1,6 +1,7 @@
 /**
  * Puts the search form into x.com's rail, and takes it out again. Where it goes is
- * `rail.ts`'s to say; this does the putting and the keeping there. X redraws the rail as it
+ * `rail.ts`'s to say; this does the putting and the keeping there. With the rail off screen
+ * the same form goes into a popover opened from the navigation (`popover.ts`). X redraws the rail as it
  * is used, so this is called on every settling of the DOM (`content.ts`): a form already
  * standing is left alone, one X has thrown away is put back. No timer of its own — the
  * settling is the signal this extension already has.
@@ -10,7 +11,8 @@ import type { Messages } from '../i18n/index.ts';
 import { SearchFormView } from './Form.tsx';
 import { onSearchResults } from './hide.ts';
 import { parseQuery, parseScopes, queryAt } from './parse.ts';
-import { placementIn } from './rail.ts';
+import { formHome, placementIn, railDrawn } from './rail.ts';
+import * as popover from './popover.ts';
 import { adoptQuery } from './state.ts';
 import { recordHistory } from './library.ts';
 
@@ -23,6 +25,12 @@ const COVERED = 'data-xpro-search-covered';
 /** The node the form is rendered into, marked so it can be found again to unmount */
 const MOUNT = 'data-xpro-search-mount';
 let lastHistoryAddress: string | null = null;
+
+/**
+ * The form in use, held rather than searched for: asking the whole page on every settling
+ * would cost a search of every element, and the rail is not always where it stands.
+ */
+let form: Element | null = null;
 
 /**
  * Hides one of X's blocks rather than removing it. Removing would take it out of reach of
@@ -68,18 +76,18 @@ const build = (messages: Messages): HTMLElement => {
   mount.setAttribute(MOUNT, '');
   box.append(mount);
   render(<SearchFormView messages={messages} />, mount);
+  form = box;
   return box;
 };
 
 /**
- * Puts the form in, returning how many were added. Safe to call on every settling: a rail
- * that already has one is left as it is, and a page whose rail cannot be made sense of is
- * left alone rather than guessed at.
+ * Puts the form in, returning how many were added. Safe to call on every settling: a form
+ * already standing where it belongs is left as it is, and a page whose rail cannot be made
+ * sense of is left alone rather than guessed at. `railHidden` says this extension has hidden
+ * the rail (`appearance/css.ts`), which the page alone does not tell.
  */
-export const insertInto = (messages: Messages): number => {
+export const insertInto = (messages: Messages, railHidden: boolean): number => {
   if (!onSearchResults()) lastHistoryAddress = null;
-  const placement = placementIn();
-  if (!placement) return 0;
 
   /*
    * A search arrived at without this form — a trend pressed, a link somebody shared, a page
@@ -109,8 +117,24 @@ export const insertInto = (messages: Messages): number => {
       parseQuery(asked),
       scopes
     );
-    if (adopted) remove();
+    if (adopted) removeForm();
   }
+
+  if (formHome({ railDrawn: railDrawn(), railHidden }) === 'popover') {
+    const holder = popover.ensure(messages);
+    if (!holder) return 0;
+    const existing = theForm();
+    // Moved, not rebuilt, so what was typed in the rail comes along (see `build`)
+    if (existing) {
+      if (existing.parentElement !== holder) holder.append(existing);
+      return 0;
+    }
+    holder.append(build(messages));
+    return 1;
+  }
+
+  const placement = placementIn();
+  if (!placement) return 0;
 
   /*
    * What the form stands in for changes with the rail: x.com moves between views without
@@ -125,7 +149,14 @@ export const insertInto = (messages: Messages): number => {
   // the form would be standing beside the very filters it replaced (see `cover`)
   for (const block of placement.covers) cover(block);
 
-  const existing = adopted ? null : placement.holder.querySelector(`:scope > [${MARK}]`);
+  // Held, not looked for in the rail: the form may be coming back from the popover
+  const existing = theForm();
+  /*
+   * A rail X hid rather than threw away comes back holding the form that stood in it before
+   * the popover's was built. The popover's is the one in use since, so the other goes.
+   */
+  const stray = placement.holder.querySelector(`:scope > [${MARK}]`);
+  if (stray && stray !== existing) discard(stray);
   if (existing) {
     /*
      * Standing somewhere is not standing in the right place: the form goes under the search
@@ -136,16 +167,38 @@ export const insertInto = (messages: Messages): number => {
      * moving a node takes it out of the document and puts it back, dropping the caret out of
      * whatever field was being typed in — so this must not run on a form already in place.
      */
-    if (existing !== placement.before && existing.nextElementSibling !== placement.before) {
+    if (
+      existing.parentElement !== placement.holder ||
+      (existing !== placement.before && existing.nextElementSibling !== placement.before)
+    ) {
       placement.holder.insertBefore(existing, placement.before);
     }
+    // Moved out first, so taking the popover away takes nothing of the form with it
+    popover.remove();
     return 0;
   }
 
   const box = build(messages);
   placement.holder.insertBefore(box, placement.before);
+  popover.remove();
   return 1;
 };
+
+/** Takes a form out, letting Preact go of it first */
+const discard = (box: Element): void => {
+  // Preact is let go of before the node is taken away, so what the tree held on to
+  // (listeners, effects) goes with it rather than being left behind
+  box.querySelectorAll(`[${MOUNT}]`).forEach((mount) => render(null, mount));
+  box.remove();
+};
+
+const removeForm = (): void => {
+  document.querySelectorAll(`[${MARK}]`).forEach(discard);
+  form = null;
+};
+
+/** The form in use, or null once X has thrown away whatever held it */
+const theForm = (): Element | null => (form?.isConnected ? form : null);
 
 /**
  * Takes the form back out and uncovers what it stood in for. Used when the switch is turned
@@ -153,9 +206,7 @@ export const insertInto = (messages: Messages): number => {
  * there once it has stood down, and X's own filters have to come back with it.
  */
 export const remove = (): void => {
-  // Preact is let go of before the node is taken away, so what the tree held on to
-  // (listeners, effects) goes with it rather than being left behind
-  document.querySelectorAll(`[${MOUNT}]`).forEach((mount) => render(null, mount));
-  document.querySelectorAll(`[${MARK}]`).forEach((box) => box.remove());
+  removeForm();
+  popover.remove();
   document.querySelectorAll(`[${COVERED}]`).forEach(uncover);
 };

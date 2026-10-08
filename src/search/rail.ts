@@ -55,6 +55,22 @@ export const railShape = (holds: { searchForm: boolean; advancedSearch: boolean 
 };
 
 /**
+ * Where the form stands: in the rail while the rail is on screen, otherwise in a panel
+ * opened from the navigation on the left. The rail goes off screen two ways. X stops drawing
+ * it when the window is narrow (below about 1000px), and this extension hides it when the
+ * timeline is widened — hidden, not removed, so it is still found in the page and must be
+ * told apart by the setting. Neither way is read from the layout: that would mean reading
+ * geometry on every settling, which this project has measured to be costly.
+ */
+export type FormHome = 'rail' | 'popover';
+
+export const formHome = (state: { railDrawn: boolean; railHidden: boolean }): FormHome =>
+  state.railDrawn && !state.railHidden ? 'rail' : 'popover';
+
+/** Whether X has drawn the rail at all. Present but hidden is still drawn */
+export const railDrawn = (root: ParentNode = document): boolean => root.querySelector(RAIL) !== null;
+
+/**
  * The container the rail's blocks are laid out in, or null while the rail cannot be read.
  * Climbed from the small print rather than descended from the rail: descending forks — on
  * `/explore` a container two levels down already has two children while the blocks are four

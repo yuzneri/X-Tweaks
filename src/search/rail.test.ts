@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { railShape } from './rail.ts';
+import { formHome, railShape } from './rail.ts';
 
 /*
  * Only the rule deciding which shape the rail is can be checked here: everything else in
@@ -25,4 +25,20 @@ test('両方あるときは検索窓が勝つ', () => {
   // all the same: a rail holding a search box is a timeline's rail, and putting the form
   // under the box is where a reader of that page will look for it
   assert.equal(railShape({ searchForm: true, advancedSearch: true }), 'below-search');
+});
+
+test('欄が描かれていて隠してもいなければ、欄に置く', () => {
+  assert.equal(formHome({ railDrawn: true, railHidden: false }), 'rail');
+});
+
+test('幅が狭くて欄が描かれていなければ、ポップオーバーに置く', () => {
+  assert.equal(formHome({ railDrawn: false, railHidden: false }), 'popover');
+});
+
+test('タイムラインを広げて欄を隠しているときは、欄が残っていてもポップオーバーに置く', () => {
+  assert.equal(formHome({ railDrawn: true, railHidden: true }), 'popover');
+});
+
+test('隠す設定のまま幅も狭いときも、ポップオーバーに置く', () => {
+  assert.equal(formHome({ railDrawn: false, railHidden: true }), 'popover');
 });
