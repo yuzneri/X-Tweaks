@@ -380,6 +380,42 @@
 }
 
 /*
+ * The spans filled in with one press, and the row below the span that works on what is there.
+ * Smaller pills than the two that send or clear the form.
+ */
+.xpro-search-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.xpro-search-preset {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border, rgb(47, 51, 54));
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.xpro-search-preset:hover:not(:disabled) {
+  border-color: rgb(29, 155, 240);
+}
+
+/* Nothing to move, narrow or empty yet */
+.xpro-search-preset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.xpro-search-preset:focus-visible {
+  outline: 2px solid rgb(29, 155, 240);
+  outline-offset: -1px;
+}
+
+/*
  * One end of the span: the day and the time of day, side by side. A row rather than the column the
  * other fields are in — the two belong to one answer, and stacking them makes a span take four rows in
  * a rail that is 350px wide. The day carries the more text, so it takes the larger share.

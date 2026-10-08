@@ -88,6 +88,115 @@ export type Moment = {
 
 export const emptyMoment = (): Moment => ({ date: '', time: '' });
 
+/** An instant as the two fields hold it, in the reader's own time and to the second */
+export const momentAt = (at: Date): Moment => {
+  const pad = (value: number): string => `${value}`.padStart(2, '0');
+  return {
+    date: `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`,
+    time: `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`,
+  };
+};
+
+/** Both ends of a span, as the form holds them */
+export type Span = { since: Moment; until: Moment };
+
+/** The spans the form offers to fill in with one press */
+export type SpanPreset =
+  | 'today'
+  | 'yesterday'
+  | 'lastWeek'
+  | 'lastMonth'
+  | '1h'
+  | '24h'
+  | '7d'
+  | '30d';
+
+/**
+ * The presets in the two rows the form shows them in: spans fixed on the calendar, and spans
+ * counted back from now. Kept apart because they answer different questions, "which day" and
+ * "how recent", and one row of eight read as a list to be searched through.
+ */
+export const SPAN_PRESET_ROWS: { kind: 'calendar' | 'recent'; presets: readonly SpanPreset[] }[] = [
+  { kind: 'calendar', presets: ['today', 'yesterday', 'lastWeek', 'lastMonth'] },
+  { kind: 'recent', presets: ['1h', '24h', '7d', '30d'] },
+];
+
+const PRESET_HOURS: Record<'1h' | '24h' | '7d' | '30d', number> = {
+  '1h': 1,
+  '24h': 24,
+  '7d': 24 * 7,
+  '30d': 24 * 30,
+};
+
+/**
+ * Whole days from one date to another. Both ends name a date and neither carries a time,
+ * the shape a span of days comes back in from the address (`momentOf`).
+ */
+const wholeDays = (first: Date, last: Date): Span => ({
+  since: { date: momentAt(first).date, time: '' },
+  until: { date: momentAt(last).date, time: '' },
+});
+
+/** One day from start to end, the span `shiftSpan` moves along a day at a time */
+export const wholeDay = (date: string): Span => ({
+  since: { date, time: '' },
+  until: { date, time: '' },
+});
+
+/** `YYYY-MM-DD` moved by whole days, counted on the calendar so a change of clocks cannot skip one */
+const shiftDate = (date: string, days: number): string => {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  if (parts === null) return date;
+  const [, year, month, day] = parts;
+  return momentAt(new Date(Number(year), Number(month) - 1, Number(day) + days)).date;
+};
+
+/**
+ * Both ends of the span for a preset, counted back from `now`. Both, so that pressing one
+ * replaces whatever span was there rather than leaving the other end to narrow it. What is
+ * filled in is a fixed instant, not "always the last 24 hours": a search saved or kept in the
+ * history goes on asking for the moment the button was pressed, as anything typed would.
+ * The days, the week and the month are whole days (`wholeDays`); a week runs Monday to
+ * Sunday, as ISO 8601 and Japanese working weeks count it. The others go back from this very
+ * second and leave the end open, nothing having been posted after now.
+ */
+export const presetSpan = (preset: SpanPreset, now: Date): Span => {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const day = now.getDate();
+  switch (preset) {
+    case 'today':
+      return wholeDays(now, now);
+    case 'yesterday':
+      return wholeDays(new Date(year, month, day - 1), new Date(year, month, day - 1));
+    case 'lastWeek': {
+      // Days since this week's Monday: `getDay` counts from Sunday
+      const monday = day - ((now.getDay() + 6) % 7);
+      return wholeDays(new Date(year, month, monday - 7), new Date(year, month, monday - 1));
+    }
+    case 'lastMonth':
+      // Day 0 of a month is the last day of the one before it
+      return wholeDays(new Date(year, month - 1, 1), new Date(year, month, 0));
+  }
+  return {
+    since: momentAt(new Date(now.getTime() - PRESET_HOURS[preset] * 3600 * 1000)),
+    until: emptyMoment(),
+  };
+};
+
+/**
+ * The span moved by whole days, each end that names a date moving by the same amount and
+ * keeping its time. An open end after a named start means "until now", and is filled in with
+ * now before it moves: moving only the start would widen the span rather than shift it, so
+ * the last 24 hours stepped back once would be the last 48 rather than the 24 before them.
+ */
+export const shiftSpan = ({ since, until }: Span, days: number, now: Date): Span => {
+  const end = until.date.trim() === '' && since.date.trim() !== '' ? momentAt(now) : until;
+  const shift = (moment: Moment): Moment =>
+    moment.date.trim() === '' ? moment : { ...moment, date: shiftDate(moment.date, days) };
+  return { since: shift(since), until: shift(end) };
+};
+
 /** What goes into the address beside the query itself */
 export type SearchScopes = {
   tab: ResultTab;

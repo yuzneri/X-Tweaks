@@ -419,6 +419,23 @@ export const en = {
       /** Each names both of the controls beside it, the day and the time within it: the time carries no label of its own (`Span`) */
       since: 'From',
       until: 'Until',
+      /** The buttons that fill in both ends of the span at once, and the names of their two rows */
+      presetRows: { calendar: 'Days on the calendar', recent: 'Counted back from now' },
+      presets: {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        lastWeek: 'Last week',
+        lastMonth: 'Last month',
+        '1h': 'Past 1h',
+        '24h': 'Past 24h',
+        '7d': 'Past 7d',
+        '30d': 'Past 30d',
+      },
+      /** The buttons below the span that move it, narrow it to one day, or empty it */
+      dayBefore: 'Prev day',
+      dayAfter: 'Next day',
+      thisDayOnly: 'This day',
+      clearSpan: 'Clear span',
 
       tab: 'Show',
       /** X's own tabs, worded as X words them */

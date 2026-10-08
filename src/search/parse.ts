@@ -15,6 +15,7 @@ import {
   emptyForm,
   type FilterChoice,
   type Moment,
+  momentAt,
   type ResultTab,
   type SearchForm,
   type SearchScopes,
@@ -103,10 +104,7 @@ const namesFor = (body: string, operator: string): string[] | null => {
 
 /** `2026-01-01T09:30:00` back into the two fields the form holds it in */
 const momentOf = (seconds: number): Moment => {
-  const at = new Date(seconds * 1000);
-  const pad = (value: number): string => `${value}`.padStart(2, '0');
-  const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-  const time = `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
+  const { date, time } = momentAt(new Date(seconds * 1000));
   /*
    * A time at the edge of a day is left off, so a span of whole days comes back as the two
    * dates it was built from. Which edge belongs to which end is `buildQuery`'s rule (`start`

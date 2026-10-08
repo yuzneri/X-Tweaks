@@ -14,7 +14,12 @@ import {
   emptyForm,
   emptyScopes,
   filledGroups,
+  emptyMoment,
+  presetSpan,
   searchPath,
+  shiftSpan,
+  SPAN_PRESET_ROWS,
+  wholeDay,
   type AccountField,
   type FilterChoice,
   type ResultTab,
@@ -539,6 +544,21 @@ export const SearchFormView = ({ messages }: Props) => {
       </Group>
 
       <Group label={g.dates} filled={filled.dates}>
+        {SPAN_PRESET_ROWS.map(({ kind, presets }) => (
+          <div key={kind} class="xpro-search-presets" role="group" aria-label={m.presetRows[kind]}>
+            {presets.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                class="xpro-search-preset"
+                // One write for both ends: two before the next redraw would build on a stale copy (`patch`)
+                onClick={() => patch(presetSpan(preset, new Date()))}
+              >
+                {m.presets[preset]}
+              </button>
+            ))}
+          </div>
+        ))}
         <Span
           label={m.since}
           moment={form.since}
@@ -549,6 +569,42 @@ export const SearchFormView = ({ messages }: Props) => {
           moment={form.until}
           onChange={(part) => patch({ until: { ...currentForm().until, ...part } })}
         />
+        <div class="xpro-search-presets">
+          <button
+            type="button"
+            class="xpro-search-preset"
+            disabled={!filled.dates}
+            onClick={() => patch(shiftSpan(currentForm(), -1, new Date()))}
+          >
+            <span aria-hidden="true">◀ </span>
+            {m.dayBefore}
+          </button>
+          <button
+            type="button"
+            class="xpro-search-preset"
+            disabled={form.since.date.trim() === ''}
+            onClick={() => patch(wholeDay(currentForm().since.date))}
+          >
+            {m.thisDayOnly}
+          </button>
+          <button
+            type="button"
+            class="xpro-search-preset"
+            disabled={!filled.dates}
+            onClick={() => patch(shiftSpan(currentForm(), 1, new Date()))}
+          >
+            {m.dayAfter}
+            <span aria-hidden="true"> ▶</span>
+          </button>
+          <button
+            type="button"
+            class="xpro-search-preset"
+            disabled={!filled.dates}
+            onClick={() => patch({ since: emptyMoment(), until: emptyMoment() })}
+          >
+            {m.clearSpan}
+          </button>
+        </div>
       </Group>
 
       {/*

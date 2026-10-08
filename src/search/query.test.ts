@@ -7,7 +7,10 @@ import {
   filledGroups,
   quoted,
   epochSecondsOf,
+  presetSpan,
   searchPath,
+  shiftSpan,
+  wholeDay,
   tokenize,
   type SearchForm,
   type SearchScopes,
@@ -326,6 +329,92 @@ test('時刻が空なら、端によって日の始まりと終わりに落ち�
   const 始まり = epochSecondsOf({ date: '2026-01-01', time: '' }, 'start');
   const 終わり = epochSecondsOf({ date: '2026-01-01', time: '' }, 'end');
   assert.equal(終わり! - 始まり!, 86399);
+});
+
+// --- presetSpan / shiftSpan / wholeDay ---
+//
+// `now` is built from local parts, so the expected fields hold in any time zone
+
+const now = new Date(2026, 2, 1, 9, 5, 7); // 2026-03-01 09:05:07, the day after a month's end
+const open = { date: '', time: '' };
+
+test('今日は今日を丸ごと指す', () => {
+  assert.deepEqual(presetSpan('today', now), wholeDay('2026-03-01'));
+});
+
+test('昨日は月をまたいでも前日を丸ごと指す', () => {
+  assert.deepEqual(presetSpan('yesterday', now), wholeDay('2026-02-28'));
+});
+
+test('時間で数えるものは今の秒から遡り、終わりは空', () => {
+  assert.deepEqual(presetSpan('1h', now), { since: { date: '2026-03-01', time: '08:05:07' }, until: open });
+  assert.deepEqual(presetSpan('24h', now).since, { date: '2026-02-28', time: '09:05:07' });
+  assert.deepEqual(presetSpan('7d', now).since, { date: '2026-02-22', time: '09:05:07' });
+  assert.deepEqual(presetSpan('30d', now).since, { date: '2026-01-30', time: '09:05:07' });
+});
+
+const span = (since: string, until: string) => ({
+  since: { date: since, time: '' },
+  until: { date: until, time: '' },
+});
+
+test('先週は前の週の月曜から日曜まで', () => {
+  // 2026-03-01 は日曜。今週は 2/23（月）から
+  assert.deepEqual(presetSpan('lastWeek', now), span('2026-02-16', '2026-02-22'));
+  // 月曜当日でも、その週ではなく前の週
+  assert.deepEqual(presetSpan('lastWeek', new Date(2026, 2, 2, 0, 0, 0)), span('2026-02-23', '2026-03-01'));
+  // 年をまたぐ: 2026-01-01 は木曜
+  assert.deepEqual(presetSpan('lastWeek', new Date(2026, 0, 1, 12)), span('2025-12-22', '2025-12-28'));
+});
+
+test('先月は前の月の1日から末日まで', () => {
+  assert.deepEqual(presetSpan('lastMonth', now), span('2026-02-01', '2026-02-28'));
+  assert.deepEqual(presetSpan('lastMonth', new Date(2024, 2, 31, 12)), span('2024-02-01', '2024-02-29'));
+  assert.deepEqual(presetSpan('lastMonth', new Date(2026, 0, 15, 12)), span('2025-12-01', '2025-12-31'));
+});
+
+test('24時間以内はちょうど 86400 秒前から', () => {
+  const since = epochSecondsOf(presetSpan('24h', now).since, 'start');
+  assert.equal(since, Math.floor(now.getTime() / 1000) - 86400);
+});
+
+test('プリセットで埋めた期間はクエリに since_time として出る', () => {
+  const span = presetSpan('1h', now);
+  assert.equal(
+    buildQuery(form({ all: 'rust', ...span })),
+    `rust since_time:${Math.floor(now.getTime() / 1000) - 3600}`
+  );
+});
+
+test('丸ごとの1日は、送ると隣の1日になる', () => {
+  assert.deepEqual(shiftSpan(wholeDay('2026-03-01'), -1, now), wholeDay('2026-02-28'));
+  assert.deepEqual(shiftSpan(wholeDay('2026-02-28'), 1, now), wholeDay('2026-03-01'));
+  assert.deepEqual(shiftSpan(wholeDay('2026-12-31'), 1, now), wholeDay('2027-01-01'));
+});
+
+test('時刻は送っても変わらない', () => {
+  const span = { since: { date: '2026-02-10', time: '08:00' }, until: { date: '2026-02-12', time: '20:30:00' } };
+  assert.deepEqual(shiftSpan(span, -1, now), {
+    since: { date: '2026-02-09', time: '08:00' },
+    until: { date: '2026-02-11', time: '20:30:00' },
+  });
+});
+
+test('終わりが空なら今を終わりとして送るので、幅が変わらない', () => {
+  // 直近24時間を1日戻すと、その前の24時間になる（48時間に広がらない）
+  assert.deepEqual(shiftSpan(presetSpan('24h', now), -1, now), {
+    since: { date: '2026-02-27', time: '09:05:07' },
+    until: { date: '2026-02-28', time: '09:05:07' },
+  });
+});
+
+test('始まりが空なら終わりだけが動く', () => {
+  const span = { since: open, until: { date: '2026-03-01', time: '' } };
+  assert.deepEqual(shiftSpan(span, -1, now), { since: open, until: { date: '2026-02-28', time: '' } });
+});
+
+test('日付が無ければ送っても何も変わらない', () => {
+  assert.deepEqual(shiftSpan({ since: open, until: open }, -1, now), { since: open, until: open });
 });
 
 // --- searchPath ---

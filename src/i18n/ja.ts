@@ -363,6 +363,21 @@ export const ja: Messages = {
 
       since: 'この日から',
       until: 'この日まで',
+      presetRows: { calendar: '日付で区切る', recent: '今から遡る' },
+      presets: {
+        today: '今日',
+        yesterday: '昨日',
+        lastWeek: '先週',
+        lastMonth: '先月',
+        '1h': '1時間以内',
+        '24h': '24時間以内',
+        '7d': '7日以内',
+        '30d': '30日以内',
+      },
+      dayBefore: '前の日',
+      dayAfter: '次の日',
+      thisDayOnly: 'この日だけ',
+      clearSpan: '期間を消す',
 
       tab: '表示',
       tabs: { top: '話題のポスト', live: '最新', user: 'アカウント', media: 'メディア', list: 'リスト' },
