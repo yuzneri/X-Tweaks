@@ -135,7 +135,7 @@ Always on show are the tab to land on (top, latest, people, media or lists — i
 The rest sit in groups that start folded:
 
 - **Accounts**: include and exclude accounts at the same time for authors, reply targets, and mentions; search posts from members of a List
-- **When**: a date and a time. Leave a time empty and the day is taken whole
+- **When**: a date and a time. Leave a time empty and the day is taken whole. The Today, Yesterday, Last week (Monday to Sunday), Last month, Past 1h, Past 24h, Past 7d and Past 30d buttons fill them in, counted from the moment pressed (a saved or remembered search keeps that moment). Prev day and Next day move the span by a day (an open end is taken as now, so the span keeps its length), This day narrows it to the From date, and Clear span empties all four
 - **Filters**: text in a linked URL; whether it has a link, media, a photo, a video, or a verified author; whether it is a reply; the language; only accounts you follow; only near you
 - **How much it got**: the least it must have in replies, likes and reposts
 
