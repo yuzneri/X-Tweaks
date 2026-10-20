@@ -16,7 +16,7 @@ import {
 import { apply, composeWaiting, isExpandedByUser, reset, type Look } from './apply.ts';
 import { clearReadable, markReadableWaiting } from './readable.ts';
 import { nextWait, SETTLE_MS } from './pace.ts';
-import { sweep } from './emphasis.ts';
+import { markWaiting, sweep } from './emphasis.ts';
 import { CELL_SELECTOR, readPost } from './post.ts';
 import { injectStyles } from './styles.ts';
 import {
@@ -303,16 +303,17 @@ const judgeAll = (): void => {
     if (!isExpandedByUser(cell)) reset(cell);
   }
   keepWordsReadable();
-  // Emphasis does not change the DOM, so merely changing a color does not wake the Observer
-  sweep();
+  // Emphasis does not change the DOM, so merely changing a color does not wake the Observer.
+  // Booked after the painting above, which replaces the old colour's ranges only then
+  atAQuietMoment(sweep);
 };
 
 /**
- * Looks at the words in posts highlighted this round, all together — held back until here
- * because reading a colour out of a page just written to is costly (`filter/readable.ts`).
+ * Looks at the words in posts highlighted or emphasized this round, all together — held back
+ * until here because reading a colour out of a page just written to is costly (`filter/readable.ts`).
  */
 const keepWordsReadable = (): void => {
-  // Put off until the browser has laid out and painted the page (`quiet.ts`). Both passes
+  // Put off until the browser has laid out and painted the page (`quiet.ts`). The passes
   // below read colours back, and doing that mid-round, with writes still pending, costs the
   // page its responsiveness. The trade-off: a colour arriving a frame or two late, unseeable.
   atAQuietMoment(() => {
@@ -330,9 +331,16 @@ const keepWordsReadable = (): void => {
         spentOn('· composing colours', words - ours);
       }
       const posts = markReadableWaiting();
+      const emphasis = performance.now();
       if (posts > 0) {
         counted('posts kept readable', posts);
-        spentOn('· keeping words readable', performance.now() - words);
+        spentOn('· keeping words readable', emphasis - words);
+      }
+      // Last: it reads the words' colours, which the pass above may just have changed
+      const emphasized = markWaiting();
+      if (emphasized > 0) {
+        counted('posts emphasized', emphasized);
+        spentOn('· painting emphasis', performance.now() - emphasis);
       }
     } finally {
       // Runs whatever the round did, however it ended. Measurements are cleared only where

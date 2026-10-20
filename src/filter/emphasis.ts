@@ -130,7 +130,18 @@ const markTarget = (target: MarkTarget, emphasis: Emphasis, taken: MarkRange[]):
   return pieces;
 };
 
+/**
+ * The posts whose words are to be painted at the end of the round, and what with. Painting
+ * readably reads colours — what is behind the post, and the words' own — and those have to
+ * be read once the highlight's colour (`composeWaiting`) and the words' markers
+ * (`markReadableWaiting`) are on, which both wait for that moment too. Read any earlier, a
+ * post highlighted for the first time is measured without its highlight.
+ */
+const waiting = new Map<Element, Emphasis[]>();
+
 export const unmark = (cell: Element): void => {
+  // Whatever it was waiting to be painted with, it is not being painted with it now
+  waiting.delete(cell);
   const added = marked.get(cell);
   if (!added) return;
   marked.delete(cell);
@@ -138,12 +149,47 @@ export const unmark = (cell: Element): void => {
 };
 
 /**
- * Paints the matched characters, removing what was painted before re-painting. Painting
- * follows list order, and where two overlap on the same characters the rule seen first takes it.
+ * Paints the matched characters, replacing what was painted before. Painting follows list
+ * order, and where two overlap on the same characters the rule seen first takes it. Keeping
+ * the words readable needs colours read back, so that waits for `markWaiting`; without it,
+ * nothing is read and the words are painted now.
  */
 export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolean): void => {
+  if (emphases.length === 0 || !supported()) {
+    unmark(cell);
+    return;
+  }
+  if (adjustContrast) {
+    /*
+     * What is painted now stays until then: taking it off here would blank every emphasis
+     * for a frame or two on each rule change, and the settings screen saves on every keystroke
+     */
+    waiting.set(cell, emphases);
+    return;
+  }
+  paint(cell, emphases, false);
+};
+
+/**
+ * Paints every post that was waiting, answering how many. Called once at the end of a round
+ * of judging, after the highlight colours and the words' markers are laid (`filter/engine.ts`).
+ */
+export const markWaiting = (): number => {
+  if (waiting.size === 0) return 0;
+  const posts = [...waiting];
+  waiting.clear();
+  let painted = 0;
+  for (const [cell, emphases] of posts) {
+    // Dropped by the virtual list meanwhile: there is nothing to read, and `sweep` takes what it held
+    if (!cell.isConnected) continue;
+    paint(cell, emphases, true);
+    painted += 1;
+  }
+  return painted;
+};
+
+const paint = (cell: Element, emphases: Emphasis[], adjustContrast: boolean): void => {
   unmark(cell);
-  if (emphases.length === 0 || !supported()) return;
 
   const added: Array<{ key: string; range: Range }> = [];
   /** The ranges already painted, per element. Kept to avoid overlaps */
@@ -170,6 +216,11 @@ export const mark = (cell: Element, emphases: Emphasis[], adjustContrast: boolea
       for (const { range, element } of markTarget(target, emphasis, here)) {
         // Plain text and links have different colors, so the target color is decided per piece
         const fg = adjustContrast ? fgFor(element, emphasis.color) : null;
+        /*
+         * Written between one post's reading and the next, unlike `readable.ts`: only a new
+         * colour pair rewrites the stylesheet and makes the next reading work styles out
+         * again, and a page holds a handful of pairs
+         */
         const ranges = setFor(emphasis.color, fg);
         if (!ranges) continue;
         ranges.add(range);

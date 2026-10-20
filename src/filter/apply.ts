@@ -220,8 +220,8 @@ export const apply = (
 
   /*
    * Emphasis does not change how a post is shown, so it is applied separately, collapsed posts
-   * included, and after the display is decided — making text readable measures the colour
-   * behind it, and painting first would measure the previous state's background.
+   * included. Painting readably measures the colour behind the words, highlight included,
+   * and so waits with the highlight's colour for the end of the round (`markWaiting`).
    */
   mark(cell, verdict.emphases, look.adjustContrast);
   spentOn('· emphasis', performance.now() - painted);
