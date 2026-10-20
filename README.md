@@ -22,7 +22,8 @@ The narrower scope wins, and a colour or size set by a wider one can be put back
 ## Filter
 
 Rules say what to do with a post that matches.
-The first rule that matches from the top is applied, and each rule can be switched off without being deleted.
+The first rule that matches from the top is applied, except for emphasis: every emphasis that matches applies, on top of whatever else does.
+Each rule can be switched off without being deleted.
 
 Conditions:
 

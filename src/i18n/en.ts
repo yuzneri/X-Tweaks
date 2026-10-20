@@ -616,6 +616,7 @@ export const en = {
     orderScopes: { pro: 'column', x: 'view', both: 'column or view' },
     orderHint: (scope: string) =>
       'Rules are read from the top, and the first one that matches is used. ' +
+      'Emphasis is the exception: every one that matches applies, on top of the rest. ' +
       `Narrower scopes are read first (${scope} → account on this site → site → account → global). ` +
       '“Do nothing” ends the decision right there.',
     moveUp: (label: string) => `Move ${label} up`,
