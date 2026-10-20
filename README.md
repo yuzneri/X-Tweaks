@@ -38,7 +38,7 @@ Actions:
 
 - **Collapse**: folds the post into a single line (press “Show” to bring it back)
 - **Hide**: removes the post entirely
-- **Highlight**: tints the post’s background
+- **Highlight**: tints the post’s background (tick “Emphasize the matched text too” to emphasize as well, in the same rule)
 - **Emphasize**: tints only the matched text
 - **Do nothing**: stops every setting for that post, including those of wider scopes
 
