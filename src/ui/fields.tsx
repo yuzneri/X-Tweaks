@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'preact/hooks';
 import {
   ACTIONS,
+  DEFAULT_EMPHASIS_COLOR,
   DEFAULT_HIGHLIGHT_COLOR,
   defaultColorFor,
   usesColor,
   type Action,
+  type Rule,
 } from '../settings/schema.ts';
 import type { Messages } from '../i18n/index.ts';
 import { parseColorInput } from './color.ts';
@@ -15,6 +17,10 @@ import type { PaletteKind } from './palettes.ts';
 
 /** An action's name; dictionary keys match `ACTIONS`' values, so it is looked up directly */
 const actionLabel = (m: Messages, action: Action): string => m.actions[action];
+
+/** What a saved rule does, as the lists name it: a highlight that also emphasizes says both */
+export const ruleActionLabel = (m: Messages, rule: Pick<Rule, 'action' | 'alsoEmphasize'>): string =>
+  rule.alsoEmphasize ? m.highlightAndEmphasize : actionLabel(m, rule.action);
 
 /** The actions selectable on a rule; "Do nothing" cancels an upper tier's settings */
 export const RULE_ACTIONS = [
@@ -455,28 +461,37 @@ export const ActionSelect = <A extends Action>({
   );
 };
 
+/** One colour on a badge. With none set, the default stands in and says so */
+const BadgeSwatch = ({ color, fallback }: { color: string | null; fallback: string }) => {
+  const m = useMessages();
+  return (
+    <span
+      class="swatch"
+      style={{ backgroundColor: color ?? fallback }}
+      title={color ?? m.color.fallback(fallback)}
+    />
+  );
+};
+
 export const ActionBadge = ({
-  action,
-  color,
+  rule,
   fallback,
 }: {
-  action: Action;
-  color: string | null;
+  rule: Pick<Rule, 'action' | 'color' | 'alsoEmphasize' | 'emphasisColor'>;
   /** The color used for a rule with none set; the action's default when omitted */
   fallback?: string;
 }) => {
   const m = useMessages();
-  const shown = fallback ?? defaultColorFor(action);
   return (
     <span class="action-badge">
-      {usesColor(action) && (
-        <span
-          class="swatch"
-          style={{ backgroundColor: color ?? shown }}
-          title={color ?? m.color.fallback(shown)}
-        />
+      {usesColor(rule.action) && (
+        <BadgeSwatch color={rule.color} fallback={fallback ?? defaultColorFor(rule.action)} />
       )}
-      {actionLabel(m, action)}
+      {/* After the background's, as the label names them */}
+      {rule.alsoEmphasize && (
+        <BadgeSwatch color={rule.emphasisColor} fallback={DEFAULT_EMPHASIS_COLOR} />
+      )}
+      {ruleActionLabel(m, rule)}
     </span>
   );
 };

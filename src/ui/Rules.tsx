@@ -806,7 +806,7 @@ export const Rules = ({ rules, order, onChange }: Props) => {
                 <span class="rule-name">{ruleName(rule, m)}</span>
                 {/* Only a named rule has anything here; left out when empty */}
                 {detailOf(rule, m) && <span class="rule-meta">{detailOf(rule, m)}</span>}
-                <ActionBadge action={rule.action} color={rule.color} />
+                <ActionBadge rule={rule} />
               </div>
               {/* The controls are gathered into one; if they do not fit the row's width, the
                   whole group wraps to the next line's right end (`flex-wrap` in panel.css) */}

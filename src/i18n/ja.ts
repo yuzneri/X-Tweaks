@@ -103,6 +103,8 @@ export const ja: Messages = {
     nothing: '何もしない',
   },
 
+  highlightAndEmphasize: 'ハイライト＋強調',
+
   showMore: 'さらに表示',
 
   placeholder: {

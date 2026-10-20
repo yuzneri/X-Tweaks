@@ -133,6 +133,9 @@ export const en = {
     nothing: 'Do nothing',
   },
 
+  /** A highlight rule that also emphasizes, as named in the lists. Not an action of its own (`alsoEmphasize`) */
+  highlightAndEmphasize: 'Highlight + Emphasize',
+
   /** The button shown under a post cut off by the line limit. It follows X's wording */
   showMore: 'Show more',
 

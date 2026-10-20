@@ -27,6 +27,7 @@ import {
 } from '../settings/resolve.ts';
 import type { Messages } from '../i18n/index.ts';
 import { COLOR_ORDER, isAccountColor, isColumnColor, isXOnlyColor } from './Appearance.tsx';
+import { ruleActionLabel } from './fields.tsx';
 import type { Site } from './ScopeList.tsx';
 import { useMessages } from './messages.tsx';
 
@@ -215,7 +216,7 @@ export const Effective = ({ settings, scope, site }: Props) => {
             {rules.map((rule) => (
               <li key={rule.id} class={rule.enabled ? undefined : 'off'}>
                 <span class="effective-label">{ruleName(rule, m)}</span>
-                <span class="action-badge">{m.actions[rule.action]}</span>
+                <span class="action-badge">{ruleActionLabel(m, rule)}</span>
                 {/* Rules stopped rather than deleted are shown too, this being the screen for tracing "why is this not applying" */}
                 {!rule.enabled && <span class="rule-meta">{m.effective.disabled}</span>}
                 <From tier={ruleSourceOf(settings, scope, rule.id)} site={site} />
