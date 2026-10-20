@@ -8,6 +8,8 @@ import {
   type CountCondition,
   type CountMetric,
   defaultColorFor,
+  emphasisColorOf,
+  emphasizes,
   filterApplies,
   isScreenNameTarget,
   isSelfMode,
@@ -104,8 +106,8 @@ type CompiledRule = {
   color: string;
   label: string;
   /**
-   * Where to paint, one entry per text condition of that rule; empty unless the action is
-   * emphasis. Conditions with nothing to paint (negated ones, unpaintable targets) are left out.
+   * Where to paint, one entry per text condition of that rule; empty unless the rule emphasizes
+   * (`emphasizes`). Conditions with nothing to paint (negated ones, unpaintable targets) are left out.
    */
   emphases: Emphasis[];
 };
@@ -312,13 +314,12 @@ export const compileFilter = (
     // That switch is for stopping a rule temporarily rather than deleting it
     if (!rule.enabled) continue;
     if (options.withoutText && readsText(rule)) continue;
-    const color = rule.color ?? defaultColorFor(rule.action);
     byId.set(rule.id, {
       matches: ruleMatcher(rule),
       action: rule.action,
-      color,
+      color: rule.color ?? defaultColorFor(rule.action),
       label: ruleName(rule, messages),
-      emphases: rule.action === ACTIONS.EMPHASIZE ? emphasesOf(rule, color) : [],
+      emphases: emphasizes(rule) ? emphasesOf(rule, emphasisColorOf(rule)) : [],
     });
   }
 
@@ -343,10 +344,9 @@ export const decide = (post: Post, filter: CompiledFilter): Verdict => {
 
     if (rule.action === ACTIONS.NOTHING) return { decision: null, emphases: [] };
 
-    if (rule.action === ACTIONS.EMPHASIZE) {
-      verdict.emphases.push(...rule.emphases);
-      continue;
-    }
+    // Taken from a highlight too, which may come after how the post is shown was decided
+    verdict.emphases.push(...rule.emphases);
+    if (rule.action === ACTIONS.EMPHASIZE) continue;
 
     // How it is shown has already been decided
     if (verdict.decision) continue;

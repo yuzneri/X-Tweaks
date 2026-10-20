@@ -13,6 +13,8 @@ const rule = (id: string, pattern: string): Rule => ({
   ],
   action: ACTIONS.COLLAPSE,
   color: null,
+  alsoEmphasize: false,
+  emphasisColor: null,
   label: '',
   enabled: true,
 });

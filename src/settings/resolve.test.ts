@@ -32,6 +32,8 @@ const keyword = (pattern: string, patch: Partial<Rule> = {}): Rule => ({
   ],
   action: ACTIONS.COLLAPSE,
   color: null,
+  alsoEmphasize: false,
+  emphasisColor: null,
   label: '',
   enabled: true,
   ...patch,

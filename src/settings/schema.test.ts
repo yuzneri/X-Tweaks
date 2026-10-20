@@ -2,8 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ACTIONS,
+  DEFAULT_EMPHASIS_COLOR,
   SCHEMA_VERSION,
   adjustsContrast,
+  emphasisColorOf,
+  emphasizes,
   ACCOUNT_COLORS,
   COLUMN_COLORS,
   X_ONLY_COLORS,
@@ -294,6 +297,68 @@ test('有効／無効を持たないルールは有効として読む。止め�
 test('動作が読めないルールは、折りたたむとして読む', () => {
   const node = fillNode({ filter: { rules: [ruleOf({ action: 'そんな動作は無い' })] } });
   assert.equal(node.filter.rules[0]?.action, ACTIONS.COLLAPSE);
+});
+
+test('ハイライトのルールは、一致した文字の強調とその色を保存の往復で保つ', () => {
+  const node = fillNode({
+    filter: {
+      rules: [
+        ruleOf({ action: 'highlight', alsoEmphasize: true, emphasisColor: '#ABCDEF66' }),
+        ruleOf({ id: 'r2', action: 'highlight', alsoEmphasize: true }),
+      ],
+    },
+  });
+  const [colored, plain] = node.filter.rules;
+  assert.equal(colored?.alsoEmphasize, true);
+  assert.equal(colored?.emphasisColor, '#abcdef66');
+  // No colour of its own means the emphasis default
+  assert.equal(plain?.alsoEmphasize, true);
+  assert.equal(plain?.emphasisColor, null);
+});
+
+test('強調も付けるかを持たないルールは、付けないとして読む。前の版で保存したルールがそれに当たる', () => {
+  const read = (v: unknown) =>
+    fillNode({ filter: { rules: [ruleOf({ action: 'highlight', alsoEmphasize: v })] } }).filter.rules[0];
+  assert.equal(read(undefined)?.alsoEmphasize, false);
+  assert.equal(read('yes')?.alsoEmphasize, false);
+  assert.equal(read(true)?.alsoEmphasize, true);
+});
+
+test('ハイライト以外のルールでは、強調も付ける指定とその色を落とす', () => {
+  // Left in place, judging and the screen would each have to agree on ignoring them
+  for (const action of ['collapse', 'hide', 'emphasize', 'nothing']) {
+    const read = fillNode({
+      filter: { rules: [ruleOf({ action, alsoEmphasize: true, emphasisColor: '#abcdef66' })] },
+    }).filter.rules[0];
+    assert.equal(read?.alsoEmphasize, false, action);
+    assert.equal(read?.emphasisColor, null, action);
+  }
+});
+
+test('強調も付けないハイライトでは、強調の色を落とす', () => {
+  const read = fillNode({
+    filter: { rules: [ruleOf({ action: 'highlight', alsoEmphasize: false, emphasisColor: '#abcdef66' })] },
+  }).filter.rules[0];
+  assert.equal(read?.emphasisColor, null);
+});
+
+test('一致した文字を塗るのは、強調のルールと、強調も付けるハイライト', () => {
+  const shape = (action: Rule['action'], alsoEmphasize: boolean) => ({ action, alsoEmphasize });
+  assert.equal(emphasizes(shape(ACTIONS.EMPHASIZE, false)), true);
+  assert.equal(emphasizes(shape(ACTIONS.HIGHLIGHT, true)), true);
+  assert.equal(emphasizes(shape(ACTIONS.HIGHLIGHT, false)), false);
+  // A draft on the settings screen can hold the switch while another action is chosen
+  assert.equal(emphasizes(shape(ACTIONS.COLLAPSE, true)), false);
+});
+
+test('文字を塗る色は、強調のルールなら color、ハイライトなら emphasisColor から取る', () => {
+  const of = (action: Rule['action'], color: string | null, emphasisColor: string | null) =>
+    emphasisColorOf({ action, color, emphasisColor });
+  assert.equal(of(ACTIONS.EMPHASIZE, '#11223344', '#55667788'), '#11223344');
+  assert.equal(of(ACTIONS.HIGHLIGHT, '#11223344', '#55667788'), '#55667788');
+  // Not the highlight's own colour: that one is the background, at a different strength
+  assert.equal(of(ACTIONS.HIGHLIGHT, '#11223344', null), DEFAULT_EMPHASIS_COLOR);
+  assert.equal(of(ACTIONS.EMPHASIZE, null, null), DEFAULT_EMPHASIS_COLOR);
 });
 
 test('id が欠けたルールには id を振り直す。並びと削除が個体を参照するため', () => {
@@ -621,6 +686,8 @@ test('フィルタでも外観でも、何か指定していれば空ではな�
     conditions: [condition],
     action: ACTIONS.COLLAPSE,
     color: null,
+    alsoEmphasize: false,
+    emphasisColor: null,
     label: '',
     enabled: true,
   };
@@ -687,6 +754,8 @@ test('ルールの呼び名は、表示名があればそれ、無ければ条�
     conditions: [],
     action: ACTIONS.COLLAPSE,
     color: null,
+    alsoEmphasize: false,
+    emphasisColor: null,
     label: '',
     enabled: true,
     ...patch,
@@ -742,6 +811,8 @@ test('並びを実在するルールに揃える（設定画面がルールを�
     conditions: [{ kind: 'trait', trait: 'repost', negate: false }],
     action: ACTIONS.COLLAPSE,
     color: null,
+    alsoEmphasize: false,
+    emphasisColor: null,
     label: '',
     enabled: true,
   });

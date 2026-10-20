@@ -574,6 +574,8 @@ export const ja: Messages = {
     modeLabel: '一致方法',
     traitLabel: '投稿の種類',
     actionLabel: '一致したときの動作',
+    alsoEmphasize: '一致した文字も強調',
+    emphasisColor: '強調の色',
     namePlaceholder: 'ルール名（省略可）',
     caseSensitive: '大文字小文字を区別',
     openForm: 'ルールを追加',

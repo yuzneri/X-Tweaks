@@ -53,6 +53,18 @@ export const usesColor = (action: Action): boolean =>
 export const defaultColorFor = (action: Action): string =>
   action === ACTIONS.EMPHASIZE ? DEFAULT_EMPHASIS_COLOR : DEFAULT_HIGHLIGHT_COLOR;
 
+/** Whether the rule paints the matched characters: an emphasis rule, or a highlight that also emphasizes */
+export const emphasizes = (rule: { action: Action; alsoEmphasize: boolean }): boolean =>
+  rule.action === ACTIONS.EMPHASIZE || (rule.action === ACTIONS.HIGHLIGHT && rule.alsoEmphasize);
+
+/** The colour the matched characters are painted in. An emphasis rule keeps it in `color`, a highlight in `emphasisColor` */
+export const emphasisColorOf = (rule: {
+  action: Action;
+  color: string | null;
+  emphasisColor: string | null;
+}): string =>
+  (rule.action === ACTIONS.EMPHASIZE ? rule.color : rule.emphasisColor) ?? DEFAULT_EMPHASIS_COLOR;
+
 /*
  * What happens when no tier sets anything, consulted by both judging and the settings
  * screen — a changed default not updated in both would leave the screen silently stale.
@@ -355,6 +367,16 @@ export type Rule = {
   conditions: Condition[];
   action: Action;
   color: string | null;
+  /**
+   * A highlight that also paints the matched characters, as an emphasis rule would. Kept
+   * beside the action rather than as an action of its own: an earlier version reads an action
+   * it does not know as collapsing, and would fold away posts meant to be coloured, while a
+   * key it does not know is just dropped, leaving a plain highlight. Only ever true on a
+   * highlight (`rule` below), so judging and the settings screen cannot disagree.
+   */
+  alsoEmphasize: boolean;
+  /** The colour of that emphasis; null for the emphasis default. Only ever set with `alsoEmphasize` */
+  emphasisColor: string | null;
   /** The name shown in the list. When empty, the conditions are listed instead */
   label: string;
   /** A switch for stopping a rule temporarily rather than deleting it. A disabled rule takes no part in judging */
@@ -890,11 +912,15 @@ const rule = (v: unknown): Rule | null => {
   const conditions = arr(o.conditions).map(condition).filter(isPresent);
   if (conditions.length === 0) return null;
 
+  const action = isAction(o.action) ? o.action : ACTIONS.COLLAPSE;
+  const alsoEmphasize = action === ACTIONS.HIGHLIGHT && bool(o.alsoEmphasize) === true;
   return {
     id: str(o.id) ?? newRuleId(),
     conditions,
-    action: isAction(o.action) ? o.action : ACTIONS.COLLAPSE,
+    action,
     color: hexColor(o.color),
+    alsoEmphasize,
+    emphasisColor: alsoEmphasize ? hexColor(o.emphasisColor) : null,
     label: str(o.label) ?? '',
     // No stored on/off means never meant to be stopped, so it is enabled
     enabled: bool(o.enabled) ?? true,

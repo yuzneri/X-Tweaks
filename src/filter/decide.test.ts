@@ -123,6 +123,8 @@ const rule = (patch: Partial<Rule> = {}): Rule => ({
   conditions: [text()],
   action: ACTIONS.COLLAPSE,
   color: null,
+  alsoEmphasize: false,
+  emphasisColor: null,
   label: '',
   enabled: true,
   ...patch,
@@ -215,6 +217,48 @@ test('折りたたむルールが先に一致しても、強調は集まる', ()
     ],
   });
   const p = post({ text: 'これは宣伝です' });
+  assert.equal(judge(p, f)?.action, ACTIONS.COLLAPSE);
+  assert.equal(emphasesOf(p, f).length, 1);
+});
+
+test('強調も付けるハイライトは、投稿の背景と一致した文字の両方に色を付ける', () => {
+  const f = filter({
+    rules: [rule({ action: ACTIONS.HIGHLIGHT, color: '#00ba7c26', alsoEmphasize: true })],
+  });
+  const p = post({ text: 'これは宣伝です' });
+  assert.equal(colorOf(judge(p, f)), '#00ba7c26');
+  const [emphasis] = emphasesOf(p, f);
+  assert.equal(emphasis?.target, 'text');
+  // Not the highlight's colour: that one is meant for a whole post, and is too faint for a few characters
+  assert.equal(emphasis?.color, DEFAULT_EMPHASIS_COLOR);
+  assert.deepEqual(markedTexts(f.rules[0]!, p, 'これは宣伝です'), ['宣伝']);
+});
+
+test('強調も付けるハイライトは、強調の色を指定すればその色で文字を塗る', () => {
+  const f = filter({
+    rules: [
+      rule({ action: ACTIONS.HIGHLIGHT, alsoEmphasize: true, emphasisColor: '#11223344' }),
+    ],
+  });
+  assert.equal(emphasesOf(post({ text: 'これは宣伝です' }), f)[0]?.color, '#11223344');
+});
+
+test('強調を付けないハイライトは、文字を塗らない', () => {
+  const f = filter({ rules: [rule({ action: ACTIONS.HIGHLIGHT })] });
+  const p = post({ text: 'これは宣伝です' });
+  assert.equal(judge(p, f)?.action, ACTIONS.HIGHLIGHT);
+  assert.deepEqual(emphasesOf(p, f), []);
+});
+
+test('先のルールで見せ方が決まっていても、強調も付けるハイライトの強調は効く', () => {
+  const f = filter({
+    rules: [
+      rule({ id: 'c1', conditions: [traitOf('repost')], action: ACTIONS.COLLAPSE }),
+      rule({ id: 'h1', action: ACTIONS.HIGHLIGHT, alsoEmphasize: true }),
+    ],
+  });
+  const p = post({ text: 'これは宣伝です', isRepost: true });
+  // The same outcome as two rules, one highlighting and one emphasizing, would give
   assert.equal(judge(p, f)?.action, ACTIONS.COLLAPSE);
   assert.equal(emphasesOf(p, f).length, 1);
 });
@@ -585,6 +629,18 @@ test('「何もしない」より前に集めた強調も捨てる', () => {
     ],
   });
   assert.deepEqual(emphasesOf(post({ text: 'これは宣伝です', isRepost: true }), f), []);
+});
+
+test('「何もしない」は、強調も付けるハイライトの強調も捨てる', () => {
+  const f = filter({
+    rules: [
+      rule({ id: 'h1', action: ACTIONS.HIGHLIGHT, alsoEmphasize: true }),
+      rule({ id: 'skip', conditions: [traitOf('repost')], action: ACTIONS.NOTHING }),
+    ],
+  });
+  const p = post({ text: 'これは宣伝です', isRepost: true });
+  assert.equal(judge(p, f), null);
+  assert.deepEqual(emphasesOf(p, f), []);
 });
 
 test('無効にしたルールは判定に加わらない', () => {

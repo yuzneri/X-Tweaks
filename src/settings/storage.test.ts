@@ -56,6 +56,8 @@ test('保存した設定を読み戻せる', async () => {
     ],
     action: 'collapse',
     color: null,
+    alsoEmphasize: false,
+    emphasisColor: null,
     label: '',
     enabled: true,
   });

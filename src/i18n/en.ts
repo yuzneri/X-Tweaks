@@ -676,6 +676,10 @@ export const en = {
     modeLabel: 'How to match',
     traitLabel: 'What the post is',
     actionLabel: 'What to do on a match',
+    /** The switch beside a highlight's colour: the matched text gets painted as well, as Emphasize would */
+    alsoEmphasize: 'Emphasize the matched text too',
+    /** The name of that emphasis's colour box, standing beside the highlight's own */
+    emphasisColor: 'Emphasis color',
     namePlaceholder: 'rule name (optional)',
     caseSensitive: 'Match case',
     /** The button opening the add form. No input boxes are shown until it is pressed */

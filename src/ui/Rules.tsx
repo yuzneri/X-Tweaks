@@ -10,7 +10,9 @@ import {
   COUNT_DIRECTIONS,
   COUNT_METRICS,
   canEmphasizeWith,
+  DEFAULT_EMPHASIS_COLOR,
   describeCondition,
+  emphasizes,
   canCompareToSelf,
   isScreenNameTarget,
   isSelfMode,
@@ -78,6 +80,12 @@ type Draft = {
   counts: Partial<Record<CountMetric, CountInput>>;
   action: Action;
   color: string | null;
+  /**
+   * Kept while another action is picked, so going back to highlight finds the switch as it
+   * was; dropped on save unless the rule is a highlight (`validate`)
+   */
+  alsoEmphasize: boolean;
+  emphasisColor: string | null;
   label: string;
   enabled: boolean;
 };
@@ -100,6 +108,8 @@ const emptyDraft = (): Draft => ({
   counts: {},
   action: ACTIONS.COLLAPSE,
   color: null,
+  alsoEmphasize: false,
+  emphasisColor: null,
   label: '',
   enabled: true,
 });
@@ -137,6 +147,8 @@ const toDraft = (rule: Rule): Draft => {
       : emptyAge(),
     action: rule.action,
     color: rule.color,
+    alsoEmphasize: rule.alsoEmphasize,
+    emphasisColor: rule.emphasisColor,
     label: rule.label,
     enabled: rule.enabled,
   };
@@ -262,25 +274,26 @@ const validate = (
 
   // Emphasis paints the matched characters, needing a condition saying where; negated
   // conditions ("does not contain ●●") and targets with nothing to paint cannot be chosen
-  if (
-    draft.action === ACTIONS.EMPHASIZE &&
-    !conditions.some(canEmphasizeWith)
-  ) {
+  if (emphasizes(draft) && !conditions.some(canEmphasizeWith)) {
     return { error: m.rules.errors.noEmphasisTarget };
   }
 
-  // Exactly the same conditions cannot be created twice: with only the action differing,
-  // only the earlier one applies
+  // Exactly the same conditions cannot be created twice: with only the action differing, only
+  // the earlier one decides how the post is shown. A highlight wanting its words painted as
+  // well says so on itself (`alsoEmphasize`)
   const key = conditionsKey(conditions);
   if (existing.some((rule) => conditionsKey(rule.conditions) === key)) {
     return { error: m.rules.errors.duplicate };
   }
 
+  const alsoEmphasize = draft.action === ACTIONS.HIGHLIGHT && draft.alsoEmphasize;
   return {
     rule: {
       conditions,
       action: draft.action,
       color: usesColor(draft.action) ? draft.color : null,
+      alsoEmphasize,
+      emphasisColor: alsoEmphasize ? draft.emphasisColor : null,
       label: draft.label.trim(),
       enabled: draft.enabled,
     },
@@ -577,6 +590,23 @@ const RuleForm = ({
           fallback={defaultColorFor(draft.action)}
           value={draft.color}
           onChange={(color) => onDraftChange({ ...draft, color })}
+        />
+        <label class="inline" hidden={draft.action !== ACTIONS.HIGHLIGHT}>
+          <input
+            type="checkbox"
+            checked={draft.alsoEmphasize}
+            onChange={(e) => onDraftChange({ ...draft, alsoEmphasize: e.currentTarget.checked })}
+          />{' '}
+          {m.rules.alsoEmphasize}
+        </label>
+        <ColorField
+          hidden={!(draft.action === ACTIONS.HIGHLIGHT && draft.alsoEmphasize)}
+          // Two colour boxes stand side by side here, so this one says which it is
+          label={m.rules.emphasisColor}
+          kind="strong"
+          fallback={DEFAULT_EMPHASIS_COLOR}
+          value={draft.emphasisColor}
+          onChange={(emphasisColor) => onDraftChange({ ...draft, emphasisColor })}
         />
         <button type="button" onClick={onSubmit}>
           {mode === 'add' ? m.rules.add : m.rules.save}
