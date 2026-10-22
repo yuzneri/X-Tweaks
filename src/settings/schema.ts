@@ -183,6 +183,18 @@ export const cardStyleOf = (value: AttachmentStyle | null): AttachmentStyle => v
  */
 export const quoteStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
 
+/**
+ * Whether one of the buttons under a post — like, repost, bookmark — is shown. `show` is X's
+ * own display, held as a value for the same undo reason as `relative`. Hiding stops where a
+ * post is opened to be read (`OPENED_ATTR`), the place its buttons are there to be pressed.
+ */
+export const BUTTON_STYLES = ['show', 'hidden'] as const;
+export type ButtonStyle = (typeof BUTTON_STYLES)[number];
+
+const isButtonStyle = (v: unknown): v is ButtonStyle => BUTTON_STYLES.includes(v as ButtonStyle);
+
+export const buttonStyleOf = (value: ButtonStyle | null): ButtonStyle => value ?? 'show';
+
 export const appearanceApplies = (enabled: boolean | null): boolean => enabled !== false;
 
 /** Reposter and reply-target are user IDs only, since their display names are either off-screen or run together with boilerplate, and pulling them out would assume a UI language */
@@ -513,6 +525,10 @@ export type AppearanceNode = {
   cardStyle: AttachmentStyle | null;
   /** How a quoted post is shown. Unset keeps X Pro's own */
   quoteStyle: AttachmentStyle | null;
+  /** Whether the like, repost and bookmark buttons are shown. Unset keeps X's own */
+  likeButton: ButtonStyle | null;
+  repostButton: ButtonStyle | null;
+  bookmarkButton: ButtonStyle | null;
   /**
    * Items this tier puts back to "as X shows it", overriding whatever an upper tier set
    * (`CLEARABLE_ITEMS`). Empty when nothing is cancelled. Different from leaving an item
@@ -1019,6 +1035,9 @@ export const fillNode = (v: unknown): SettingsNode => {
       timeFormat: isTimeFormat(appearance.timeFormat) ? appearance.timeFormat : null,
       cardStyle: isAttachmentStyle(appearance.cardStyle) ? appearance.cardStyle : null,
       quoteStyle: isAttachmentStyle(appearance.quoteStyle) ? appearance.quoteStyle : null,
+      likeButton: isButtonStyle(appearance.likeButton) ? appearance.likeButton : null,
+      repostButton: isButtonStyle(appearance.repostButton) ? appearance.repostButton : null,
+      bookmarkButton: isButtonStyle(appearance.bookmarkButton) ? appearance.bookmarkButton : null,
       autoContrast: bool(appearance.autoContrast),
       highlightBase: isHighlightBase(appearance.highlightBase) ? appearance.highlightBase : null,
       cleared: fillCleared(appearance.cleared),
@@ -1253,6 +1272,9 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.timeFormat !== null ||
   appearance.cardStyle !== null ||
   appearance.quoteStyle !== null ||
+  appearance.likeButton !== null ||
+  appearance.repostButton !== null ||
+  appearance.bookmarkButton !== null ||
   appearance.autoContrast !== null ||
   appearance.highlightBase !== null ||
   // Putting an item back to "as X shows it" is a setting too — overlooked here, a tier

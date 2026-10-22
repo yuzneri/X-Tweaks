@@ -87,6 +87,9 @@ const fullNode = () => ({
     timeFormat: 'both',
     cardStyle: 'text',
     quoteStyle: 'mark',
+    likeButton: 'hidden',
+    repostButton: 'show',
+    bookmarkButton: 'hidden',
     cleared: ['fontSize', 'colors.background'],
   },
 });

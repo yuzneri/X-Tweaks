@@ -105,6 +105,9 @@ const mergeAppearance = (tiers: SettingsNode[]): AppearanceNode => ({
   timeFormat: inherit(tiers, (node) => node.appearance.timeFormat),
   cardStyle: inherit(tiers, (node) => node.appearance.cardStyle),
   quoteStyle: inherit(tiers, (node) => node.appearance.quoteStyle),
+  likeButton: inherit(tiers, (node) => node.appearance.likeButton),
+  repostButton: inherit(tiers, (node) => node.appearance.repostButton),
+  bookmarkButton: inherit(tiers, (node) => node.appearance.bookmarkButton),
   autoContrast: inherit(tiers, (node) => node.appearance.autoContrast),
   highlightBase: inherit(tiers, (node) => node.appearance.highlightBase),
   /*
