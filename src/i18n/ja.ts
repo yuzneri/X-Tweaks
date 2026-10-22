@@ -704,6 +704,13 @@ export const ja: Messages = {
       mark: 'マーク',
       hidden: '表示しない',
     },
+    likeButton: 'いいねボタンの表示',
+    repostButton: 'リポストボタンの表示',
+    bookmarkButton: 'ブックマークボタンの表示',
+    buttonStyles: {
+      show: 'そのまま',
+      hidden: '表示しない',
+    },
     cardParens: { open: '（', close: '）' },
   },
 

@@ -880,6 +880,14 @@ export const en = {
       mark: 'A mark',
       hidden: 'Not shown',
     } as { show: string; text: string; mark: string; hidden: string },
+    /** The buttons under a post, one setting each. Not applied where a post is opened to be read */
+    likeButton: 'Like button',
+    repostButton: 'Repost button',
+    bookmarkButton: 'Bookmark button',
+    buttonStyles: {
+      show: 'As it is',
+      hidden: 'Not shown',
+    } as { show: string; hidden: string },
     /**
      * What wraps the domain written after a card's headline. Fullwidth in Japanese,
      * where they carry their own spacing, so the values differ by language

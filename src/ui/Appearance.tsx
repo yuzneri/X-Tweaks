@@ -6,6 +6,8 @@ import {
   adjustsContrast,
   appearanceApplies,
   ATTACHMENT_STYLES,
+  BUTTON_STYLES,
+  buttonStyleOf,
   cardStyleOf,
   ACCOUNT_COLORS,
   collapsesNewlines,
@@ -437,6 +439,44 @@ export const Appearance = ({
             labels={m.appearance.attachmentStyles}
             onChange={(quoteStyle) => patch({ quoteStyle })}
             label={m.appearance.quoteStyle}
+          />
+        </label>
+
+        {/* The buttons under a post, below everything that hangs off it */}
+        <label class="row">
+          <span>{m.appearance.likeButton}</span>
+          <ChoiceSelect
+            value={node.likeButton}
+            // Unset keeps X's own display (schema.ts)
+            effective={buttonStyleOf(above.likeButton)}
+            options={BUTTON_STYLES}
+            labels={m.appearance.buttonStyles}
+            onChange={(likeButton) => patch({ likeButton })}
+            label={m.appearance.likeButton}
+          />
+        </label>
+
+        <label class="row">
+          <span>{m.appearance.repostButton}</span>
+          <ChoiceSelect
+            value={node.repostButton}
+            effective={buttonStyleOf(above.repostButton)}
+            options={BUTTON_STYLES}
+            labels={m.appearance.buttonStyles}
+            onChange={(repostButton) => patch({ repostButton })}
+            label={m.appearance.repostButton}
+          />
+        </label>
+
+        <label class="row">
+          <span>{m.appearance.bookmarkButton}</span>
+          <ChoiceSelect
+            value={node.bookmarkButton}
+            effective={buttonStyleOf(above.bookmarkButton)}
+            options={BUTTON_STYLES}
+            labels={m.appearance.buttonStyles}
+            onChange={(bookmarkButton) => patch({ bookmarkButton })}
+            label={m.appearance.bookmarkButton}
           />
         </label>
 

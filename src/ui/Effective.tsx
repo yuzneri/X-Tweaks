@@ -4,6 +4,7 @@
  */
 import {
   appearanceApplies,
+  buttonStyleOf,
   cardStyleOf,
   collapsesNewlines,
   showsRawCounts,
@@ -158,6 +159,21 @@ const appearanceRows = (
       label: m.appearance.quoteStyle,
       value: m.appearance.attachmentStyles[quoteStyleOf(effective.quoteStyle)],
       tier: of((n) => n.appearance.quoteStyle),
+    },
+    {
+      label: m.appearance.likeButton,
+      value: m.appearance.buttonStyles[buttonStyleOf(effective.likeButton)],
+      tier: of((n) => n.appearance.likeButton),
+    },
+    {
+      label: m.appearance.repostButton,
+      value: m.appearance.buttonStyles[buttonStyleOf(effective.repostButton)],
+      tier: of((n) => n.appearance.repostButton),
+    },
+    {
+      label: m.appearance.bookmarkButton,
+      value: m.appearance.buttonStyles[buttonStyleOf(effective.bookmarkButton)],
+      tier: of((n) => n.appearance.bookmarkButton),
     },
     /*
      * Colors are listed in the same order as on the editing surface, so the two can be compared.
