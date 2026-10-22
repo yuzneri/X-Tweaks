@@ -58,13 +58,14 @@ The same items can also be set in any wider scope.
 - **Largest thumbnail height**
 - **Link cards, articles and trend cards**: as they are / as text (🔗 📄 📈) / as a mark / not shown at all
 - **Quoted posts**: the same four ways (as text it reads “💬 what the quote says (name @id)”)
+- **Like, repost and bookmark buttons**: each shown as it is or not shown. A hidden like or repost also goes from beside the name when the posts are packed
 - **Time display**: as it is / the date and time / both
 - **Colors**: behind the column name, the timeline background, everything outside the timeline (x.com only), the compose form background, the column name, the author name, the post text, secondary text, links, and the line between posts
 - **What highlights blend over**: the timeline background, or X’s own
 - **When a highlight makes text unreadable**: whether the text color is fixed automatically
 
 Anything left unset keeps the way the site itself shows it.
-Where a post is open to be read, the packing, the line limit, the folding of line breaks and the hiding of cards and photos do not apply.
+Where a post is open to be read, the packing, the line limit, the folding of line breaks and the hiding of cards, photos and buttons do not apply.
 
 The compose form background is decided by the account the post will go out as and by the site.
 Setting it per account tells you at a glance which account you are about to post as.

@@ -48,6 +48,7 @@ Rules can be put in any order, and the first rule that matches is applied.
 - Remove the line breaks in a post, so each one takes less room
 - Show photos, videos, link cards, articles, trend cards and quoted posts as they are, as a mark, as text, or not at all
 - Show the counts X rounds off ("221.3K") as the number itself ("221,250")
+- Hide the like, repost and bookmark buttons in the timeline, keeping them on a post opened to be read
 - Change the text size, the largest thumbnail height and the column width (X Pro only)
 - Change ten colors: the background, the author name, the post text, the secondary text, links, the line between posts, and more
 - Colour the compose form by the account it will post as, so you can see at a glance who you are posting as
