@@ -33,7 +33,7 @@ A post that matches can be collapsed, hidden, tinted, or have only the matched w
 
 A rule can look at:
 - Text: the post text, the quoted text and its author, the user ID, the display name, the reposter's ID, the reply-to ID, a poll choice, the link domain, the card headline, the Space name, the article or trend headline, the post's language, a picture's description, and more. Matched by Contains, Matches exactly, Regular expression or Is the author
-- What the post is: repost, quote, reply, poll, link card, Space, article, trend card, ad or promoted post, with a photo or video, a photo or video nobody described, verified account, a link in the text, with a Community Note, with a Community Note to rate
+- What the post is: repost, quote, reply, poll, link card, Space, article, trend card, ad or promoted post, with a photo or video, a photo or video nobody described, verified account, a link in the text, with a Community Note, with a Community Note to rate, liked by you, reposted by you
 - How old it is: written as "older than 1 hour"
 - How many: the counts (replies, reposts, likes, views), and the characters, hashtags and mentions in the text, written as "100 or more" or "5 or fewer"
 
