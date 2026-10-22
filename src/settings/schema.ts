@@ -38,6 +38,9 @@ export const TRAIT_KEYS = [
   'mediaWithoutAlt',
   'verified',
   'link',
+  // What the reader did, not what the post is — as it showed when read (`Post.likedByReader`)
+  'likedByReader',
+  'repostedByReader',
 ] as const;
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
@@ -258,6 +261,8 @@ export const TARGETS_BY_TRAIT = {
   mediaWithoutAlt: ['altText'],
   verified: [],
   link: [],
+  likedByReader: [],
+  repostedByReader: [],
 } as const satisfies Record<TraitKey, readonly MatchTarget[]>;
 
 export const targetsFor = (trait: TraitKey | null): readonly MatchTarget[] =>

@@ -790,6 +790,20 @@ test('ルールの呼び名は、表示名があればそれ、無ければ条�
     '広告ではない かつ 返信先のIDが「alice」と一致しない'
   );
 
+  // 読んでいる人がしたことも、投稿の性質と同じ言い方で否定される
+  assert.equal(
+    ruleName(
+      rule({
+        conditions: [
+          { kind: 'trait', trait: 'likedByReader', negate: true },
+          { kind: 'text', target: 'text', mode: 'contains', pattern: '宣伝', caseSensitive: false, negate: false },
+        ],
+      }),
+      m
+    ),
+    'いいね済みではない かつ 本文が「宣伝」を含む'
+  );
+
   // 件数は向きと否定の組み合わせが4通りある
   assert.equal(
     ruleName(

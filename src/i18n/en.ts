@@ -71,6 +71,9 @@ export const en = {
     verified: 'Verified account',
     /** A URL in the text, which is a different thing from the card X may draw under it */
     link: 'With a link in the text',
+    /** "You" is whoever is reading, not the post's author (whom `self` means) */
+    likedByReader: 'Liked by you',
+    repostedByReader: 'Reposted by you',
   },
 
   /**

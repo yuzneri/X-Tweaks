@@ -322,6 +322,13 @@ type Reaction = keyof typeof COUNT_MARKERS;
 const REACTIONS = Object.keys(COUNT_MARKERS) as Reaction[];
 
 /**
+ * The marker a two-state button carries once the reader has pressed it. Only the marker
+ * tells: the label says it too ("いいねしました"), but in the language shown.
+ */
+const PRESSED = { repost: 'unretweet', like: 'unlike' } as const;
+type Pressable = keyof typeof PRESSED;
+
+/**
  * The row of buttons under a post, where every count it shows sits. Named by the reply
  * button, not the role alone — an ad's second `group`, around the pictures, comes first
  * (`test/pro_ad.htm`: 2 of 99 posts); the appearance names the row the same way
@@ -477,23 +484,22 @@ const barIn = (tweet: Element, quote: Element | null): Element | null =>
   ownIn(tweet, quote, ACTION_BAR);
 
 /**
- * What there is to count about the post. Reactions are read off the labels; the quote frame
- * is left out as `postedAtOf` leaves it out — a quoted post's own action bar holds its own
- * numbers. Body counts come from the text this post wrote, which is why an empty body is 0
- * rather than "cannot be read".
+ * What the buttons under the post say: the numbers, read off the labels, and which of them the
+ * reader has pressed. The quote frame is left out as `postedAtOf` leaves it out — a quoted
+ * post's own action bar holds its own numbers. A post with no such button reads as not
+ * pressed, there being nothing to tell "not pressed" from "cannot be told".
  */
-const countsOf = (
+const buttonsOf = (
   tweet: Element,
-  quote: Element | null,
-  bodies: Bodies,
-  inBody: { hashtag: number; mention: number }
-): Record<CountMetric, number | null> => {
+  quote: Element | null
+): { reactions: Record<Reaction, number | null>; pressed: Record<Pressable, boolean> } => {
   const reactions: Record<Reaction, number | null> = {
     reply: null,
     repost: null,
     like: null,
     view: null,
   };
+  const pressed: Record<Pressable, boolean> = { repost: false, like: false };
   /*
    * The four numbers sit side by side in the button row, searched in one pass and sorted
    * afterwards — asked one marker at a time against the whole post, reading them walked
@@ -509,18 +515,31 @@ const countsOf = (
       if (read.has(metric) || !marked.matches(COUNT_MARKERS[metric])) continue;
       read.add(metric);
       reactions[metric] = countInLabel(marked.getAttribute('aria-label'));
+      if (metric === 'repost' || metric === 'like') {
+        pressed[metric] = marked.getAttribute('data-testid') === PRESSED[metric];
+      }
       // One element is one count: the markers name different buttons
       break;
     }
   }
-  return {
-    ...reactions,
-    // The characters X itself wrote, counted the same way the text conditions read them
-    textLength: bodies.ownLength,
-    hashtag: inBody.hashtag,
-    mention: inBody.mention,
-  };
+  return { reactions, pressed };
 };
+
+/**
+ * What there is to count about the post. Body counts come from the text this post wrote,
+ * which is why an empty body is 0 rather than "cannot be read".
+ */
+const countsOf = (
+  reactions: Record<Reaction, number | null>,
+  bodies: Bodies,
+  inBody: { hashtag: number; mention: number }
+): Record<CountMetric, number | null> => ({
+  ...reactions,
+  // The characters X itself wrote, counted the same way the text conditions read them
+  textLength: bodies.ownLength,
+  hashtag: inBody.hashtag,
+  mention: inBody.mention,
+});
 
 /**
  * The quote frame, found by the avatar rather than the body text, so it is found even when
@@ -831,6 +850,8 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
   // says. The first of them, X hanging one card at most off a post — and a search that stops
   // at the first is a search that need not walk the rest of the post
   const trend = tweet.querySelector(TREND_CARD_LINK);
+  // And the button row: it answers both how many reacted and whether the reader did
+  const buttons = buttonsOf(tweet, quote);
 
   return {
     values: {
@@ -867,7 +888,9 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
     // A post with no picture is not one: the trait is about a picture with nothing said about it
     hasUndescribedMedia: described.some((text) => text === null),
     hasBodyLink: inBody.link > 0,
+    likedByReader: buttons.pressed.like,
+    repostedByReader: buttons.pressed.repost,
     postedAt: postedAtOf(tweet, quote),
-    counts: countsOf(tweet, quote, bodies, inBody),
+    counts: countsOf(buttons.reactions, bodies, inBody),
   };
 };

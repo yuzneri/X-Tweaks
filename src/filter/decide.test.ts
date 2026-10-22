@@ -82,6 +82,8 @@ const post = (patch: PostPatch = {}): Post => ({
   isVerified: patch.isVerified ?? false,
   hasUndescribedMedia: patch.hasUndescribedMedia ?? false,
   hasBodyLink: patch.hasBodyLink ?? false,
+  likedByReader: patch.likedByReader ?? false,
+  repostedByReader: patch.repostedByReader ?? false,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
   counts: {
@@ -395,6 +397,28 @@ test('認証済みと本文のリンクは、それぞれ独立した性質', ()
   assert.ok(judge(post({ hasBodyLink: true }), link));
   // リンクカードは別物。カードの出ないリンクを捕まえるための性質
   assert.equal(judge(post({ hasLinkCard: true }), link), null);
+});
+
+test('いいね済み・リポスト済みは、読んでいる人が押した投稿にだけ当たる', () => {
+  const liked = filter({ rules: [rule({ conditions: [traitOf('likedByReader')] })] });
+  const reposted = filter({ rules: [rule({ conditions: [traitOf('repostedByReader')] })] });
+  assert.equal(judge(post({ likedByReader: true }), liked)?.label, m.traits.likedByReader);
+  assert.equal(judge(post(), liked), null);
+  // いいねとリポストは別々に押すもの
+  assert.equal(judge(post({ likedByReader: true }), reposted), null);
+  assert.ok(judge(post({ repostedByReader: true }), reposted));
+  // 「リポスト」（誰かがリポストして流れてきた投稿）とは別物
+  assert.equal(judge(post({ isRepost: true }), reposted), null);
+  assert.equal(
+    judge(post({ repostedByReader: true }), filter({ rules: [rule({ conditions: [traitOf('repost')] })] })),
+    null
+  );
+});
+
+test('「いいね済みではない」は、まだいいねしていない投稿に当たる', () => {
+  const f = filter({ rules: [rule({ conditions: [traitOf('likedByReader', true)] })] });
+  assert.ok(judge(post(), f));
+  assert.equal(judge(post({ likedByReader: true }), f), null);
 });
 
 /* --- 反応の件数 --- */

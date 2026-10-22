@@ -54,6 +54,12 @@ export type Post = {
   /** Whether the text holds a pasted URL, whether or not X drew a card under it */
   hasBodyLink: boolean;
   /**
+   * Whether the reader has liked it and reposted it, as its buttons showed when read. Pressing
+   * one later changes nothing until the post is judged again (`filter/engine.ts`), as with counts.
+   */
+  likedByReader: boolean;
+  repostedByReader: boolean;
+  /**
    * When it was posted (epoch milliseconds), null when unreadable. The post's own time
    * rather than the quoted post's, and on a repost the original post's.
    */
@@ -215,6 +221,8 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
   mediaWithoutAlt: (post) => post.hasUndescribedMedia,
   verified: (post) => post.isVerified,
   link: (post) => post.hasBodyLink,
+  likedByReader: (post) => post.likedByReader,
+  repostedByReader: (post) => post.repostedByReader,
 };
 
 /**

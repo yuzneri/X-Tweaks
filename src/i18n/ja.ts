@@ -57,6 +57,8 @@ export const ja: Messages = {
     mediaWithoutAlt: '説明のない画像・動画',
     verified: '認証済みアカウント',
     link: '本文にリンクあり',
+    likedByReader: 'いいね済み',
+    repostedByReader: 'リポスト済み',
   },
 
   countMetrics: {
