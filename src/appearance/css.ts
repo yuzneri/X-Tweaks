@@ -14,6 +14,7 @@ import {
 import { ATTACHMENT_CLASS, ATTACHMENT_WORDS_CLASS } from './card.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import {
+  buttonStyleOf,
   cardStyleOf,
   collapsesNewlines,
   isCompact,
@@ -164,11 +165,11 @@ const COMPACT_AVATAR_SIZE = 24;
 const COMPACT_ACTIONS_RIGHT = 24;
 
 /**
- * The room opened left of the "…" for those buttons, as a margin on the "…" itself, pushing
- * the name and time aside. X already ellipsis-cuts a long name to fit the width given, so too
- * much room cuts it a little early, too little lets the name run under the buttons.
+ * The room opened left of the "…" for each of those buttons, as a margin on the "…" itself,
+ * pushing the name and time aside. X already ellipsis-cuts a long name to fit the width given,
+ * so too much room cuts it a little early, too little lets the name run under the buttons.
  */
-const COMPACT_ACTIONS_ROOM = 72;
+const COMPACT_ACTION_ROOM = 36;
 
 /** The button that opens a post's menu, at the right end of the name row */
 const POST_MENU = 'button[data-testid="caret"]';
@@ -181,6 +182,23 @@ const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
  * one swaps its marker (`like` becomes `unlike`) and would otherwise hide it.
  */
 const KEPT_ACTIONS = `${COUNT_MARKERS.repost}, ${COUNT_MARKERS.like}`;
+
+/**
+ * The bookmark button, in both states. `removeBookmark` is taken from X Pro's script
+ * (`ActionBookmark`): no saved page holds a bookmarked post.
+ */
+const BOOKMARK_BUTTON = '[data-testid="bookmark"], [data-testid="removeBookmark"]';
+
+/**
+ * One button of that row with what holds it, written for both shapes as `otherActions` is.
+ * The holder is asked for its children only: `*:has(…)` searching all the way down is weighed
+ * against every element styled, and made a stylesheet with it take several times as long to
+ * apply on a real page (`pro_ad.htm`: 78ms → 477ms; 117ms with `>`).
+ */
+const actionButton = (marker: string): string[] => [
+  `${ACTION_BAR} > *:has(> :is(${marker}))`,
+  `${ACTION_BAR} > :is(${marker})`,
+];
 
 /** What the 10px above and below a post shrinks to when packed */
 const COMPACT_GAP = 2;
@@ -289,6 +307,9 @@ const TARGETS = {
   otherActions: [
     `${ACTION_BAR} > *:not(:has(${KEPT_ACTIONS})):not(${KEPT_ACTIONS})`,
   ],
+  likeButton: actionButton(COUNT_MARKERS.like),
+  repostButton: actionButton(COUNT_MARKERS.repost),
+  bookmarkButton: actionButton(BOOKMARK_BUTTON),
   divider: ['[data-testid="cellInnerDiv"] > div'],
   photo: ['[data-testid="tweetPhoto"] img'],
   media: MEDIA_TARGETS,
@@ -351,6 +372,10 @@ const columnRules = (
   /** The scope with no post opened; skimming-only rules are confined to it (`OPENED_ATTR`) */
   const skimming = `${scope}:not([${OPENED_ATTR}])`;
 
+  const like = buttonStyleOf(appearance.likeButton);
+  const repost = buttonStyleOf(appearance.repostButton);
+  const bookmark = buttonStyleOf(appearance.bookmarkButton);
+
   if (isCompact(appearance.compact)) {
     /*
      * The band above a post carries the padding separating it from the post above. Which
@@ -407,10 +432,15 @@ const columnRules = (
     /*
      * Opens room for them by pushing the "…" away from the name. Padding on the name row
      * would not do, since the "…" lives inside it and would strand the buttons to its right.
+     * Only as much as the buttons left there take: a hidden like or repost goes from beside
+     * the name too (below), and the room it leaves would cut the name short for nothing.
      */
-    rules.push(
-      rule(within(skimming, [TARGETS.postMenu]), `margin-left: ${COMPACT_ACTIONS_ROOM}px !important;`)
-    );
+    const kept = [like, repost].filter((style) => style === 'show').length;
+    if (kept > 0) {
+      rules.push(
+        rule(within(skimming, [TARGETS.postMenu]), `margin-left: ${COMPACT_ACTION_ROOM * kept}px !important;`)
+      );
+    }
 
     /*
      * X's own "Show more" goes too, matching why the extension's own is not shown while packed
@@ -418,6 +448,19 @@ const columnRules = (
      * readable by opening the post.
      */
     rules.push(rule(within(skimming, [TARGETS.xShowMore]), 'display: none !important;'));
+  }
+
+  /*
+   * The buttons hidden one by one, with the room each took given to the rest. Packing keeps
+   * the like and the repost beside the name; hiding still takes them from there, being asked
+   * of the button wherever it sits.
+   */
+  const hiddenButtons: string[][] = [];
+  if (like === 'hidden') hiddenButtons.push(TARGETS.likeButton);
+  if (repost === 'hidden') hiddenButtons.push(TARGETS.repostButton);
+  if (bookmark === 'hidden') hiddenButtons.push(TARGETS.bookmarkButton);
+  if (hiddenButtons.length > 0) {
+    rules.push(rule(within(skimming, hiddenButtons), 'display: none !important;'));
   }
 
   if (appearance.maxLines !== null) {

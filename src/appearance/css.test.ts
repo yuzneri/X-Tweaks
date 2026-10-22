@@ -420,9 +420,114 @@ test('入れ子の :has() を書かない。規則ごと捨てられるため', 
           a.compact = true;
           a.collapseNewlines = true;
           a.maxLines = 3;
+          a.likeButton = 'hidden';
+          a.bookmarkButton = 'hidden';
         }),
       },
     ])
+  );
+});
+
+test('ボタンは選んだものだけが、包む要素ごと消える', () => {
+  const hiddenLine = (patch: (a: AppearanceNode) => void): string | undefined =>
+    cssOf([{ key: '0', appearance: appearanceOf(patch) }])
+      .split('\n')
+      .find((line) => line.includes('display: none'));
+
+  const like = hiddenLine((a) => (a.likeButton = 'hidden'))!;
+  // Both shapes: the button wrapped in a container, or sitting in the row directly
+  assert.ok(like.includes('[role="group"]:has([data-testid="reply"]) > *:has(> :is([data-testid="like"], [data-testid="unlike"]))'));
+  assert.ok(like.includes('[role="group"]:has([data-testid="reply"]) > :is([data-testid="like"], [data-testid="unlike"])'));
+  // The other buttons are left alone
+  assert.equal(like.includes('retweet'), false);
+  assert.equal(like.includes('bookmark'), false);
+
+  // Pressed ones too: pressing swaps the marker, and the button would come back with it
+  const repost = hiddenLine((a) => (a.repostButton = 'hidden'))!;
+  assert.ok(repost.includes('[data-testid="retweet"], [data-testid="unretweet"]'));
+  const bookmark = hiddenLine((a) => (a.bookmarkButton = 'hidden'))!;
+  assert.ok(bookmark.includes('[data-testid="bookmark"], [data-testid="removeBookmark"]'));
+
+  // Several hidden go out as one rule
+  const three = cssOf([
+    {
+      key: '0',
+      appearance: appearanceOf((a) => {
+        a.likeButton = 'hidden';
+        a.repostButton = 'hidden';
+        a.bookmarkButton = 'hidden';
+      }),
+    },
+  ]).split('\n');
+  assert.equal(three.length, 1);
+  assert.ok(three[0]!.includes('unlike') && three[0]!.includes('unretweet') && three[0]!.includes('removeBookmark'));
+
+  // "As X shows it", picked to undo an upper tier, writes nothing
+  assert.equal(
+    cssOf([
+      {
+        key: '0',
+        appearance: appearanceOf((a) => {
+          a.likeButton = 'show';
+          a.repostButton = 'show';
+          a.bookmarkButton = 'show';
+        }),
+      },
+    ]),
+    ''
+  );
+});
+
+test('ポストを開いているカラムでは、ボタンを隠さない', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.likeButton = 'hidden')) }]);
+  // Opened to be read and replied to: the buttons are there to be pressed. Every selector
+  // in the rule starts with the scope, so each mention of it is checked
+  const scoped = css.split('[data-xpro-column="0"]').slice(1);
+  assert.equal(scoped.length, 2);
+  for (const rest of scoped) assert.ok(rest.startsWith(':not([data-xpro-opened]) '), rest);
+});
+
+test('詰めると、隠したボタンの分だけ名前の横を空けない', () => {
+  const roomOf = (patch: (a: AppearanceNode) => void): string | null =>
+    cssOf([
+      {
+        key: '0',
+        appearance: appearanceOf((a) => {
+          a.compact = true;
+          patch(a);
+        }),
+      },
+    ]).match(/margin-left: (\d+)px/)?.[1] ?? null;
+
+  const both = Number(roomOf(() => {}));
+  const one = Number(roomOf((a) => (a.likeButton = 'hidden')));
+  assert.ok(one > 0 && one < both);
+  assert.equal(Number(roomOf((a) => (a.repostButton = 'hidden'))), one);
+  // Nothing left beside the name, so no room is made for it
+  assert.equal(
+    roomOf((a) => {
+      a.likeButton = 'hidden';
+      a.repostButton = 'hidden';
+    }),
+    null
+  );
+  // The bookmark is not beside the name when packed, so hiding it takes no room away
+  assert.equal(Number(roomOf((a) => (a.bookmarkButton = 'hidden'))), both);
+
+  // A like hidden while packed goes from beside the name too
+  const css = cssOf([
+    {
+      key: '0',
+      appearance: appearanceOf((a) => {
+        a.compact = true;
+        a.likeButton = 'hidden';
+      }),
+    },
+  ]);
+  assert.ok(
+    css
+      .split('\n')
+      .some((line) => line.includes('display: none') && line.includes(':is([data-testid="like"], [data-testid="unlike"])'))
   );
 });
 
