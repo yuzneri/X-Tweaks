@@ -58,7 +58,7 @@ The same items can also be set in any wider scope.
 - **Largest thumbnail height**
 - **Link cards, articles and trend cards**: as they are / as text (🔗 📄 📈) / as a mark / not shown at all
 - **Quoted posts**: the same four ways (as text it reads “💬 what the quote says (name @id)”)
-- **Like, repost and bookmark buttons**: each shown as it is or not shown. A hidden like or repost also goes from beside the name when the posts are packed
+- **Like, repost and bookmark buttons**: each shown as it is or not shown. A hidden like or repost also goes from beside the name when the posts are packed. The bookmark can also be shown in narrow columns: X Pro leaves it out of any column narrower than “wide”. There, the row of buttons is widened to start under the avatar (not where a thread's line runs below it), and a button with a longer count takes more of the row; counts too long for it run past the row's right end, and hiding the like or repost makes room. Packed posts still go without it
 - **Time display**: as it is / the date and time / both
 - **Colors**: behind the column name, the timeline background, everything outside the timeline (x.com only), the compose form background, the column name, the author name, the post text, secondary text, links, and the line between posts
 - **What highlights blend over**: the timeline background, or X’s own
