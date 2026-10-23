@@ -11,6 +11,7 @@ import {
   BUTTON_STYLES,
   buttonStyleOf,
   type BookmarkStyle,
+  type ButtonItem,
   cardStyleOf,
   ACCOUNT_COLORS,
   collapsesNewlines,
@@ -217,6 +218,22 @@ export const Appearance = ({
     isPlainColor(key) &&
     !(oneColumn && isAccountColor(key)) &&
     !(site === 'pro' && isXOnlyColor(key));
+
+  /** One of the buttons under a post, shown or not. The bookmark, with a way more, has its own row */
+  const buttonRow = (item: ButtonItem) => (
+    <label class="row" key={item}>
+      <span>{m.appearance[item]}</span>
+      <ChoiceSelect
+        value={node[item]}
+        // Unset keeps X's own display (schema.ts)
+        effective={buttonStyleOf(above[item])}
+        options={BUTTON_STYLES}
+        labels={m.appearance.buttonStyles}
+        onChange={(style) => patch({ [item]: style })}
+        label={m.appearance[item]}
+      />
+    </label>
+  );
 
   const colorRow = (key: ColorKey) => {
     const label = m.appearance.colors[key];
@@ -447,31 +464,11 @@ export const Appearance = ({
           />
         </label>
 
-        {/* The buttons under a post, below everything that hangs off it */}
-        <label class="row">
-          <span>{m.appearance.likeButton}</span>
-          <ChoiceSelect
-            value={node.likeButton}
-            // Unset keeps X's own display (schema.ts)
-            effective={buttonStyleOf(above.likeButton)}
-            options={BUTTON_STYLES}
-            labels={m.appearance.buttonStyles}
-            onChange={(likeButton) => patch({ likeButton })}
-            label={m.appearance.likeButton}
-          />
-        </label>
-
-        <label class="row">
-          <span>{m.appearance.repostButton}</span>
-          <ChoiceSelect
-            value={node.repostButton}
-            effective={buttonStyleOf(above.repostButton)}
-            options={BUTTON_STYLES}
-            labels={m.appearance.buttonStyles}
-            onChange={(repostButton) => patch({ repostButton })}
-            label={m.appearance.repostButton}
-          />
-        </label>
+        {/* The buttons under a post, below everything that hangs off it, in the row's order */}
+        {buttonRow('replyButton')}
+        {buttonRow('repostButton')}
+        {buttonRow('likeButton')}
+        {buttonRow('viewsButton')}
 
         {/*
           Drawn in narrow columns too is X Pro's alone, so x.com's page neither offers it nor
@@ -488,6 +485,7 @@ export const Appearance = ({
             label={m.appearance.bookmarkButton}
           />
         </label>
+        {buttonRow('shareButton')}
 
         <label class="row">
           <span>{m.appearance.timeFormat}</span>

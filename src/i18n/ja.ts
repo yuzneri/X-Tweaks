@@ -704,9 +704,12 @@ export const ja: Messages = {
       mark: 'マーク',
       hidden: '表示しない',
     },
+    replyButton: 'リプライボタンの表示',
     likeButton: 'いいねボタンの表示',
     repostButton: 'リポストボタンの表示',
+    viewsButton: '表示数ボタンの表示',
     bookmarkButton: 'ブックマークボタンの表示',
+    shareButton: '共有ボタンの表示',
     buttonStyles: {
       show: 'そのまま',
       hidden: '表示しない',

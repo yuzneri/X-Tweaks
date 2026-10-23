@@ -881,9 +881,12 @@ export const en = {
       hidden: 'Not shown',
     } as { show: string; text: string; mark: string; hidden: string },
     /** The buttons under a post, one setting each. Not applied where a post is opened to be read */
+    replyButton: 'Reply button',
     likeButton: 'Like button',
     repostButton: 'Repost button',
+    viewsButton: 'Views button',
     bookmarkButton: 'Bookmark button',
+    shareButton: 'Share button',
     buttonStyles: {
       show: 'As it is',
       hidden: 'Not shown',

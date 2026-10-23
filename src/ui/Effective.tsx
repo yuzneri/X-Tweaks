@@ -17,6 +17,7 @@ import {
   withoutColumnItems,
   colorItem,
   type AppearanceNode,
+  type ButtonItem,
   type ClearableItem,
   type SettingsNode,
   type Settings,
@@ -96,6 +97,12 @@ const appearanceRows = (
    * (`withoutColumnItems`), so listing them would name a value not in effect on the surface for reading what is
    */
   const columns = site !== 'x';
+  /** One of the buttons under a post, shown or not. The bookmark, with a way more, is listed on its own */
+  const buttonRow = (item: ButtonItem) => ({
+    label: m.appearance[item],
+    value: m.appearance.buttonStyles[buttonStyleOf(effective[item])],
+    tier: of((n) => n.appearance[item]),
+  });
   return [
     ...(columns
       ? [
@@ -162,16 +169,8 @@ const appearanceRows = (
       value: m.appearance.attachmentStyles[quoteStyleOf(effective.quoteStyle)],
       tier: of((n) => n.appearance.quoteStyle),
     },
-    {
-      label: m.appearance.likeButton,
-      value: m.appearance.buttonStyles[buttonStyleOf(effective.likeButton)],
-      tier: of((n) => n.appearance.likeButton),
-    },
-    {
-      label: m.appearance.repostButton,
-      value: m.appearance.buttonStyles[buttonStyleOf(effective.repostButton)],
-      tier: of((n) => n.appearance.repostButton),
-    },
+    // The buttons under a post, in the row's order as on the editing surface
+    ...(['replyButton', 'repostButton', 'likeButton', 'viewsButton'] as const).map(buttonRow),
     {
       label: m.appearance.bookmarkButton,
       // Read as the applying side reads it: a narrow column's bookmark means nothing on x.com
@@ -180,6 +179,7 @@ const appearanceRows = (
       ],
       tier: of((n) => n.appearance.bookmarkButton),
     },
+    buttonRow('shareButton'),
     /*
      * Colors are listed in the same order as on the editing surface, so the two can be compared.
      * Left out are the ones this scope does not decide: a column's on a site with no columns, the
