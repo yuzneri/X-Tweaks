@@ -329,6 +329,13 @@ const PRESSED = { repost: 'unretweet', like: 'unlike' } as const;
 type Pressable = keyof typeof PRESSED;
 
 /**
+ * The bookmark button, in both states: `removeBookmark` once the reader has bookmarked the
+ * post. Taken from X Pro's script (`ActionBookmark`): no saved page holds a bookmarked post.
+ */
+export const BOOKMARK_MARKER = '[data-testid="bookmark"], [data-testid="removeBookmark"]';
+const BOOKMARKED = 'removeBookmark';
+
+/**
  * The row of buttons under a post, where every count it shows sits. Named by the reply
  * button, not the role alone — an ad's second `group`, around the pictures, comes first
  * (`test/pro_ad.htm`: 2 of 99 posts); the appearance names the row the same way
@@ -486,13 +493,18 @@ const barIn = (tweet: Element, quote: Element | null): Element | null =>
 /**
  * What the buttons under the post say: the numbers, read off the labels, and which of them the
  * reader has pressed. The quote frame is left out as `postedAtOf` leaves it out — a quoted
- * post's own action bar holds its own numbers. A post with no such button reads as not
- * pressed, there being nothing to tell "not pressed" from "cannot be told".
+ * post's own action bar holds its own numbers. A post with no like or repost button reads as
+ * not pressed, there being nothing to tell "not pressed" from "cannot be told"; with no
+ * bookmark button, which X Pro leaves out of a narrow column, as unknown (`Post.bookmarkedByReader`).
  */
 const buttonsOf = (
   tweet: Element,
   quote: Element | null
-): { reactions: Record<Reaction, number | null>; pressed: Record<Pressable, boolean> } => {
+): {
+  reactions: Record<Reaction, number | null>;
+  pressed: Record<Pressable, boolean>;
+  bookmarked: boolean | null;
+} => {
   const reactions: Record<Reaction, number | null> = {
     reply: null,
     repost: null,
@@ -500,6 +512,7 @@ const buttonsOf = (
     view: null,
   };
   const pressed: Record<Pressable, boolean> = { repost: false, like: false };
+  let bookmarked: boolean | null = null;
   /*
    * The four numbers sit side by side in the button row, searched in one pass and sorted
    * afterwards — asked one marker at a time against the whole post, reading them walked
@@ -508,8 +521,13 @@ const buttonsOf = (
    */
   const within = barIn(tweet, quote) ?? tweet;
   const read = new Set<Reaction>();
-  for (const marked of within.querySelectorAll(COUNT_TARGETS)) {
+  // The bookmark in the same pass, though it carries no count
+  for (const marked of within.querySelectorAll(`${COUNT_TARGETS}, ${BOOKMARK_MARKER}`)) {
     if (quote !== null && quote.contains(marked)) continue;
+    if (marked.matches(BOOKMARK_MARKER)) {
+      bookmarked ??= marked.getAttribute('data-testid') === BOOKMARKED;
+      continue;
+    }
     for (const metric of REACTIONS) {
       // The first of each is the post's own: a marker met again belongs to something nested
       if (read.has(metric) || !marked.matches(COUNT_MARKERS[metric])) continue;
@@ -522,7 +540,7 @@ const buttonsOf = (
       break;
     }
   }
-  return { reactions, pressed };
+  return { reactions, pressed, bookmarked };
 };
 
 /**
@@ -890,6 +908,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
     hasBodyLink: inBody.link > 0,
     likedByReader: buttons.pressed.like,
     repostedByReader: buttons.pressed.repost,
+    bookmarkedByReader: buttons.bookmarked,
     postedAt: postedAtOf(tweet, quote),
     counts: countsOf(buttons.reactions, bodies, inBody),
   };

@@ -59,6 +59,7 @@ export const ja: Messages = {
     link: '本文にリンクあり',
     likedByReader: 'いいね済み',
     repostedByReader: 'リポスト済み',
+    bookmarkedByReader: 'ブックマーク済み',
   },
 
   countMetrics: {

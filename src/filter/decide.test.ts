@@ -84,6 +84,7 @@ const post = (patch: PostPatch = {}): Post => ({
   hasBodyLink: patch.hasBodyLink ?? false,
   likedByReader: patch.likedByReader ?? false,
   repostedByReader: patch.repostedByReader ?? false,
+  bookmarkedByReader: patch.bookmarkedByReader === undefined ? false : patch.bookmarkedByReader,
   // The default is "posted just now", which changes nothing for tests that ignore age
   postedAt: patch.postedAt === undefined ? Date.now() : patch.postedAt,
   counts: {
@@ -419,6 +420,22 @@ test('「いいね済みではない」は、まだいいねしていない投�
   const f = filter({ rules: [rule({ conditions: [traitOf('likedByReader', true)] })] });
   assert.ok(judge(post(), f));
   assert.equal(judge(post({ likedByReader: true }), f), null);
+});
+
+test('ブックマーク済みは、読んでいる人がブックマークした投稿にだけ当たる', () => {
+  const f = filter({ rules: [rule({ conditions: [traitOf('bookmarkedByReader')] })] });
+  assert.equal(judge(post({ bookmarkedByReader: true }), f)?.label, m.traits.bookmarkedByReader);
+  assert.equal(judge(post({ bookmarkedByReader: false }), f), null);
+  // ボタンが無くて分からない投稿（X Pro の狭いカラム）には当たらない
+  assert.equal(judge(post({ bookmarkedByReader: null }), f), null);
+});
+
+test('「ブックマーク済みではない」は、していないと分かる投稿にだけ当たる', () => {
+  const f = filter({ rules: [rule({ conditions: [traitOf('bookmarkedByReader', true)] })] });
+  assert.ok(judge(post({ bookmarkedByReader: false }), f));
+  assert.equal(judge(post({ bookmarkedByReader: true }), f), null);
+  // 分からないのは「していない」ではない。当てると、狭いカラムの投稿がすべて当たる
+  assert.equal(judge(post({ bookmarkedByReader: null }), f), null);
 });
 
 /* --- 反応の件数 --- */

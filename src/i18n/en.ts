@@ -74,6 +74,7 @@ export const en = {
     /** "You" is whoever is reading, not the post's author (whom `self` means) */
     likedByReader: 'Liked by you',
     repostedByReader: 'Reposted by you',
+    bookmarkedByReader: 'Bookmarked by you',
   },
 
   /**

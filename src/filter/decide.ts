@@ -60,6 +60,12 @@ export type Post = {
   likedByReader: boolean;
   repostedByReader: boolean;
   /**
+   * Whether the reader has bookmarked it, likewise. Null where the row has no bookmark button
+   * to tell by, which X Pro leaves out of a narrow column: unlike the like, a missing button
+   * is common, and read as "not bookmarked" it would be every post there.
+   */
+  bookmarkedByReader: boolean | null;
+  /**
    * When it was posted (epoch milliseconds), null when unreadable. The post's own time
    * rather than the quoted post's, and on a repost the original post's.
    */
@@ -204,7 +210,8 @@ const rangeFinder = (
 const sameUser = (a: string, b: string | undefined): boolean =>
   b !== undefined && a.toLowerCase() === b.toLowerCase();
 
-const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
+/** Whether the post has the trait. Null where that cannot be told, which no condition matches */
+const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean | null> = {
   repost: (post) => post.isRepost,
   quote: (post) => post.isQuote,
   reply: (post) => post.isReply,
@@ -223,6 +230,7 @@ const TRAIT_MATCHERS: Record<TraitKey, (post: Post) => boolean> = {
   link: (post) => post.hasBodyLink,
   likedByReader: (post) => post.likedByReader,
   repostedByReader: (post) => post.repostedByReader,
+  bookmarkedByReader: (post) => post.bookmarkedByReader,
 };
 
 /**
@@ -254,9 +262,15 @@ const conditionMatcher = (condition: Condition): ((post: Post) => boolean) => {
   // Neither a count nor an age carries a negation to apply (see `Condition` in schema.ts)
   if (condition.kind === 'count') return countMatcher(condition);
   if (condition.kind === 'age') return ageMatcher(condition);
-  const test =
+  const test: (post: Post) => boolean | null =
     condition.kind === 'trait' ? TRAIT_MATCHERS[condition.trait] : textMatcher(condition);
-  return condition.negate ? (post) => !test(post) : test;
+  // Unknown matches neither way, as an unreadable count does: negated, it would match every
+  // post that cannot be told
+  return (post) => {
+    const found = test(post);
+    if (found === null) return false;
+    return condition.negate ? !found : found;
+  };
 };
 
 const ruleMatcher = (rule: Rule): ((post: Post) => boolean) => {

@@ -41,6 +41,7 @@ export const TRAIT_KEYS = [
   // What the reader did, not what the post is — as it showed when read (`Post.likedByReader`)
   'likedByReader',
   'repostedByReader',
+  'bookmarkedByReader',
 ] as const;
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
@@ -292,6 +293,7 @@ export const TARGETS_BY_TRAIT = {
   link: [],
   likedByReader: [],
   repostedByReader: [],
+  bookmarkedByReader: [],
 } as const satisfies Record<TraitKey, readonly MatchTarget[]>;
 
 export const targetsFor = (trait: TraitKey | null): readonly MatchTarget[] =>

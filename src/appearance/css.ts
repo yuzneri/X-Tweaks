@@ -2,6 +2,7 @@
 import {
   ARTICLE,
   CELL_SELECTOR,
+  BOOKMARK_MARKER,
   COUNT_MARKERS,
   LINK_CARD,
   PHOTO,
@@ -204,12 +205,6 @@ const ACTION_BAR = '[role="group"]:has([data-testid="reply"])';
 const KEPT_ACTIONS = `${COUNT_MARKERS.repost}, ${COUNT_MARKERS.like}`;
 
 /**
- * The bookmark button, in both states. `removeBookmark` is taken from X Pro's script
- * (`ActionBookmark`): no saved page holds a bookmarked post.
- */
-const BOOKMARK_BUTTON = '[data-testid="bookmark"], [data-testid="removeBookmark"]';
-
-/**
  * The share button, the one button in the row with no `data-testid`: told by the menu it opens
  * and its want of a marker, the repost opening a menu too but carrying one. It sits a level
  * further down than the others, X Pro wrapping it in a view of its own to wiggle it
@@ -349,7 +344,7 @@ const TARGETS = {
   repostButton: actionButton(COUNT_MARKERS.repost),
   /** A link into the post's analytics rather than a button, carrying the count */
   viewsButton: actionButton(COUNT_MARKERS.view),
-  bookmarkButton: actionButton(BOOKMARK_BUTTON),
+  bookmarkButton: actionButton(BOOKMARK_MARKER),
   shareButton: [...actionButton(SHARE_BUTTON), `${ACTION_BAR} > *:has(> * > ${SHARE_BUTTON})`],
   divider: ['[data-testid="cellInnerDiv"] > div'],
   photo: ['[data-testid="tweetPhoto"] img'],
