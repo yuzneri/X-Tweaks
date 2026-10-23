@@ -184,7 +184,8 @@ export const cardStyleOf = (value: AttachmentStyle | null): AttachmentStyle => v
 export const quoteStyleOf = (value: AttachmentStyle | null): AttachmentStyle => value ?? 'show';
 
 /**
- * Whether one of the buttons under a post — like, repost, bookmark — is shown. `show` is X's
+ * Whether one of the buttons under a post — reply, repost, like, views, bookmark, share — is
+ * shown. `show` is X's
  * own display, held as a value for the same undo reason as `relative`. Hiding stops where a
  * post is opened to be read (`OPENED_ATTR`), the place its buttons are there to be pressed.
  */
@@ -194,6 +195,9 @@ export type ButtonStyle = (typeof BUTTON_STYLES)[number];
 const isButtonStyle = (v: unknown): v is ButtonStyle => BUTTON_STYLES.includes(v as ButtonStyle);
 
 export const buttonStyleOf = (value: ButtonStyle | null): ButtonStyle => value ?? 'show';
+
+/** The appearance items choosing one of those buttons shown or not: all but the bookmark's (below) */
+export type ButtonItem = 'replyButton' | 'repostButton' | 'likeButton' | 'viewsButton' | 'shareButton';
 
 /**
  * The bookmark button takes one way more: `always`, drawn in X Pro's narrow columns too. X Pro
@@ -538,10 +542,13 @@ export type AppearanceNode = {
   cardStyle: AttachmentStyle | null;
   /** How a quoted post is shown. Unset keeps X Pro's own */
   quoteStyle: AttachmentStyle | null;
-  /** Whether the like, repost and bookmark buttons are shown. Unset keeps X's own */
+  /** Whether each of the buttons under a post is shown. Unset keeps X's own */
+  replyButton: ButtonStyle | null;
   likeButton: ButtonStyle | null;
   repostButton: ButtonStyle | null;
+  viewsButton: ButtonStyle | null;
   bookmarkButton: BookmarkStyle | null;
+  shareButton: ButtonStyle | null;
   /**
    * Items this tier puts back to "as X shows it", overriding whatever an upper tier set
    * (`CLEARABLE_ITEMS`). Empty when nothing is cancelled. Different from leaving an item
@@ -1048,9 +1055,12 @@ export const fillNode = (v: unknown): SettingsNode => {
       timeFormat: isTimeFormat(appearance.timeFormat) ? appearance.timeFormat : null,
       cardStyle: isAttachmentStyle(appearance.cardStyle) ? appearance.cardStyle : null,
       quoteStyle: isAttachmentStyle(appearance.quoteStyle) ? appearance.quoteStyle : null,
+      replyButton: isButtonStyle(appearance.replyButton) ? appearance.replyButton : null,
       likeButton: isButtonStyle(appearance.likeButton) ? appearance.likeButton : null,
       repostButton: isButtonStyle(appearance.repostButton) ? appearance.repostButton : null,
+      viewsButton: isButtonStyle(appearance.viewsButton) ? appearance.viewsButton : null,
       bookmarkButton: isBookmarkStyle(appearance.bookmarkButton) ? appearance.bookmarkButton : null,
+      shareButton: isButtonStyle(appearance.shareButton) ? appearance.shareButton : null,
       autoContrast: bool(appearance.autoContrast),
       highlightBase: isHighlightBase(appearance.highlightBase) ? appearance.highlightBase : null,
       cleared: fillCleared(appearance.cleared),
@@ -1287,9 +1297,12 @@ const hasAppearanceValues = (appearance: AppearanceNode): boolean =>
   appearance.timeFormat !== null ||
   appearance.cardStyle !== null ||
   appearance.quoteStyle !== null ||
+  appearance.replyButton !== null ||
   appearance.likeButton !== null ||
   appearance.repostButton !== null ||
+  appearance.viewsButton !== null ||
   appearance.bookmarkButton !== null ||
+  appearance.shareButton !== null ||
   appearance.autoContrast !== null ||
   appearance.highlightBase !== null ||
   // Putting an item back to "as X shows it" is a setting too — overlooked here, a tier

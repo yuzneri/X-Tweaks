@@ -705,9 +705,12 @@ test('フィルタでも外観でも、何か指定していれば空ではな�
     (n) => { n.appearance.highlightBase = 'theme'; },
     (n) => { n.appearance.cardStyle = 'hidden'; },
     (n) => { n.appearance.quoteStyle = 'mark'; },
+    (n) => { n.appearance.replyButton = 'hidden'; },
     (n) => { n.appearance.likeButton = 'hidden'; },
     (n) => { n.appearance.repostButton = 'hidden'; },
+    (n) => { n.appearance.viewsButton = 'hidden'; },
     (n) => { n.appearance.bookmarkButton = 'show'; },
+    (n) => { n.appearance.shareButton = 'hidden'; },
     // Putting an item back to "as X shows it" is a setting too. Counted as empty, a tier
     // that only cancels things would be dropped on save and the cancelling would be lost
     (n) => { n.appearance.cleared = ['colors.background']; },
@@ -1068,11 +1071,13 @@ test('ボタンの既定は「X の表示のまま」で、知らない値は未
   );
   assert.equal(bookmarkStyleOf(null), 'show');
   assert.equal(bookmarkStyleOf('always'), 'always');
-  // The three are read apart: one set leaves the others unset
-  const node = fillNode({ appearance: { repostButton: 'hidden', bookmarkButton: 'show' } }).appearance;
+  // Each is read apart: the ones set leave the others unset
+  const node = fillNode({
+    appearance: { repostButton: 'hidden', bookmarkButton: 'show', viewsButton: 'hidden', shareButton: 'bogus' },
+  }).appearance;
   assert.deepEqual(
-    [node.likeButton, node.repostButton, node.bookmarkButton],
-    [null, 'hidden', 'show']
+    [node.replyButton, node.repostButton, node.likeButton, node.viewsButton, node.bookmarkButton, node.shareButton],
+    [null, 'hidden', null, 'hidden', 'show', null]
   );
 });
 
@@ -1126,9 +1131,12 @@ test('落とすのはカラム専用の 3 つだけ', () => {
   node.timeFormat = 'absolute';
   node.cardStyle = 'mark';
   node.quoteStyle = 'hidden';
+  node.replyButton = 'hidden';
   node.likeButton = 'hidden';
   node.repostButton = 'hidden';
+  node.viewsButton = 'hidden';
   node.bookmarkButton = 'hidden';
+  node.shareButton = 'hidden';
   node.media = { maxThumbHeight: 120, style: 'mark' };
   for (const key of Object.keys(node.colors) as (keyof typeof node.colors)[]) {
     node.colors[key] = '#123456';
@@ -1234,8 +1242,8 @@ const LAYOUT_FIELDS = [
  * Left out of `layoutKey` on purpose. `enabled` and `cleared` are settled before the key
  * is asked for (`settings/resolve.ts` hands on an empty node where the appearance is off),
  * and the rest change what a post looks like without changing where anything sits. The
- * buttons move only each other: hiding one leaves the row, and the body above it, as tall
- * and as wide as before.
+ * buttons sit below everything measured, a body's lines and a picture's height: hiding them,
+ * even all of them and the row's height with them, leaves the body above as wide as before.
  */
 const NOT_LAYOUT = [
   'enabled',
@@ -1243,9 +1251,12 @@ const NOT_LAYOUT = [
   'colors',
   'autoContrast',
   'highlightBase',
+  'replyButton',
   'likeButton',
   'repostButton',
+  'viewsButton',
   'bookmarkButton',
+  'shareButton',
 ] as const;
 
 /** The media settings, which live a level down and are all of them about layout */

@@ -296,9 +296,12 @@ test('外観の項目は1つ残らず継承する。合成が項目を列挙し�
     highlightBase: 'theme',
     cardStyle: 'text',
     quoteStyle: 'mark',
+    replyButton: 'hidden',
     likeButton: 'hidden',
     repostButton: 'hidden',
+    viewsButton: 'hidden',
     bookmarkButton: 'hidden',
+    shareButton: 'hidden',
   };
   // Through normalization, so a value this test made up cannot slip past the schema
   const s = settings((s) => { s.global = fillNode({ appearance: filled }); });
