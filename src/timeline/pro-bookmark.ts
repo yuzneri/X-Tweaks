@@ -10,8 +10,8 @@
  * which stays as X Pro has it.
  *
  * A scope marked or unmarked has its posts drawn again, which is when the change shows. A post
- * arriving in a marked scope shows it when X Pro draws it again after measuring the row: the
- * first drawing has no element yet to tell which scope the post is in.
+ * arriving in a marked scope has it from its first drawing, the scope being told by what
+ * already stands on the page above the post: the filter reads it then (`filter/engine.ts`).
  *
  * Nothing names a module or an export, both renamed on every build of X Pro: the component is
  * found from a post's reply button by the method it has. Anything not found as expected leaves
@@ -20,8 +20,9 @@
 
 /**
  * The marker on a scope whose posts are to have the bookmark button drawn even in a narrow
- * column: set by the extension side (`appearance/apply.ts`) where the setting asks for it and
- * no post is opened, read here.
+ * column: set by the extension side (`appearance/apply.ts`) where no post is opened and the
+ * setting asks for it shown, or a rule asks whether a post is bookmarked (hidden then by the
+ * stylesheet), read here.
  */
 export const BOOKMARK_ATTR = 'data-xpro-bookmark-always';
 
@@ -64,11 +65,13 @@ export const postComponentAbove = (fiber: Fiber | null): PostComponent | null =>
 };
 
 /**
- * The first element a component has drawn. Null before it has drawn any. No cap on how far
- * down, for the same reason as above: the chain ends where nothing more is drawn
+ * The nearest element above a component that stands on the page: where the component is drawn.
+ * Asked upwards rather than of what the component drew, which does not exist yet while it draws
+ * for the first time; an element above that is drawn in the same pass has none yet either, and
+ * is passed over for one further up. No cap, as above: the walk ends at the root
  */
-export const elementBelow = (fiber: Fiber | null): Placed | null => {
-  for (let f = fiber; f; f = f.child ?? null) {
+export const elementAbove = (fiber: Fiber | null): Placed | null => {
+  for (let f = fiber?.return ?? null; f; f = f.return ?? null) {
     const node = f.stateNode as Partial<Placed> | null | undefined;
     if (typeof node?.closest === 'function') return node as Placed;
   }
@@ -167,6 +170,26 @@ const firstComponent = (buttons: Iterable<Element>): PostComponent | null => {
   return null;
 };
 
+/**
+ * How the page side stands, left on the root as `data-xpro-narrow-bookmark`. Three of them say
+ * a marked scope's posts will have the button: set up and watching for a marker, waiting for a
+ * post to find X Pro's component by, or that component wrapped. The rest say X Pro did not turn
+ * out as expected, and the button is not coming.
+ */
+const STATUS_READY = 'ready';
+const STATUS_WAITING = 'waiting';
+const STATUS_WRAPPED = 'wrapped';
+const COMING = new Set<string>([STATUS_READY, STATUS_WAITING, STATUS_WRAPPED]);
+
+/**
+ * Whether a cell's bookmark button is still to come: it sits in a marked scope and the page side
+ * is in a state to draw it. Asked by the extension side, which shares the page with this file but
+ * none of its state. No status at all is this file not running on the page.
+ */
+export const bookmarkComing = (cell: Element): boolean =>
+  cell.closest(`[${BOOKMARK_ATTR}]`) !== null &&
+  COMING.has(document.documentElement.dataset.xproNarrowBookmark ?? '');
+
 /** Only the marker is watched, until a component is still to be found (then posts arriving too) */
 const MARKERS: MutationObserverInit = { subtree: true, attributes: true, attributeFilter: [BOOKMARK_ATTR] };
 const MARKERS_AND_POSTS: MutationObserverInit = { ...MARKERS, childList: true };
@@ -177,7 +200,7 @@ export const installProBookmark = (): void => {
   const report = (status: string) => {
     if (root.dataset.xproNarrowBookmark !== status) root.dataset.xproNarrowBookmark = status;
   };
-  const wanted = (post: PostComponent) => !!elementBelow(post._reactInternals ?? null)?.closest(marked);
+  const wanted = (post: PostComponent) => !!elementAbove(post._reactInternals ?? null)?.closest(marked);
 
   let wrapped = false;
   /** Scopes marked or unmarked since their posts were last drawn again */
@@ -202,7 +225,7 @@ export const installProBookmark = (): void => {
            * Watched on even where posts are there and none was found: a reply button need not sit in a
            * post this component draws, and one that does may arrive later
            */
-          report(buttons.length === 0 ? 'waiting' : 'no-component');
+          report(buttons.length === 0 ? STATUS_WAITING : 'no-component');
           return;
         }
         if (!wrapRow(first, wanted, report)) {
@@ -217,7 +240,7 @@ export const installProBookmark = (): void => {
       }
       wrapped = true;
       observer.observe(root, MARKERS);
-      report('wrapped');
+      report(STATUS_WRAPPED);
     }
     const scopes = [...touched].filter((scope) => scope.isConnected);
     touched.clear();
@@ -231,4 +254,5 @@ export const installProBookmark = (): void => {
     if (touched.size > 0 && frame === null) frame = requestAnimationFrame(redraw);
   });
   observer.observe(root, MARKERS);
+  report(STATUS_READY);
 };

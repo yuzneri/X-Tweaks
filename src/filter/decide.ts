@@ -11,6 +11,7 @@ import {
   emphasisColorOf,
   emphasizes,
   filterApplies,
+  filterUsesTrait,
   isScreenNameTarget,
   isSelfMode,
   ruleName,
@@ -128,6 +129,11 @@ export type CompiledFilter = {
   enabled: boolean;
   /** In the configured order. Judging is just walking it in that order */
   rules: CompiledRule[];
+  /**
+   * Whether a rule asks whether a post is bookmarked (`filterUsesTrait`): where the button is
+   * still to be drawn, the judging waits for it (`filter/engine.ts`)
+   */
+  readsBookmark: boolean;
 };
 
 /**
@@ -349,6 +355,7 @@ export const compileFilter = (
     enabled: filterApplies(filter.enabled),
     // Normalization already matched the order against the rules that exist: an id missing here was disabled
     rules: filter.order.map((id) => byId.get(id)).filter(isPresent),
+    readsBookmark: filterUsesTrait(filter, 'bookmarkedByReader'),
   };
 };
 

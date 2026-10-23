@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  elementBelow,
+  elementAbove,
   postComponentAbove,
   withBookmark,
   wrapRow,
@@ -125,29 +125,31 @@ test('行を描く手順がプロトタイプに無ければ、何も変えな�
   assert.equal(own._renderTweetActions, before);
 });
 
-test('投稿の部品は要素から上へ、描いた要素は部品から下へ辿る', () => {
+test('投稿の部品も、それが描かれる場所も、上へ辿って見つける', () => {
   const post = new Post();
-  const host = { closest: () => null };
-  const component = { stateNode: post, child: { stateNode: null, child: { stateNode: host } } } as const;
+  const column = { closest: () => null };
+  // 同じ回に描かれる上の要素はまだ無いので、その先の、ページにある要素まで上る
+  const component = { stateNode: post, return: { stateNode: null, return: { stateNode: column } } } as const;
   const button = { stateNode: {}, return: { stateNode: null, return: component } };
   assert.equal(postComponentAbove(button), post);
-  assert.equal(elementBelow(component), host);
-  // Before the first drawing there is no element yet to ask
-  assert.equal(elementBelow({ stateNode: post, child: null }), null);
-  // Nothing of the kind above: not found rather than something else taken for it
+  assert.equal(elementAbove(component), column);
+  // 部品が描いたもの（下）は、描かれる場所ではない。初めて描く間はまだ無い
+  const drawn = { stateNode: post, child: { stateNode: { closest: () => null } }, return: null };
+  assert.equal(elementAbove(drawn), null);
+  // 上に何も無ければ見つからない。別のものを取り違えない
   assert.equal(postComponentAbove({ stateNode: {}, return: null }), null);
 });
 
-test('部品が何段上にあっても、描いた要素が何段下にあっても辿り着く', () => {
+test('部品が何段上にあっても、描かれる場所が何段上にあっても辿り着く', () => {
   // X Pro put the reply button 70 levels below the post component (2026-10-23), and its builds change that
-  type Link = { stateNode: unknown; child?: Link; return?: Link };
+  type Link = { stateNode: unknown; return?: Link };
   const post = new Post();
-  const host = { closest: () => null };
-  let component: Link = { stateNode: host };
-  for (let i = 0; i < 200; i++) component = { stateNode: null, child: component };
-  component = { stateNode: post, child: component };
+  const column = { closest: () => null };
+  let component: Link = { stateNode: column };
+  for (let i = 0; i < 200; i++) component = { stateNode: null, return: component };
+  component = { stateNode: post, return: component };
   let button: Link = component;
   for (let i = 0; i < 200; i++) button = { stateNode: {}, return: button };
   assert.equal(postComponentAbove(button), post);
-  assert.equal(elementBelow(component), host);
+  assert.equal(elementAbove(component), column);
 });

@@ -37,6 +37,7 @@ import { atAQuietMoment, sayWhatFellOver } from '../quiet.ts';
 import { counted, feltAsSlow, saidIfSlow, spentOn, timed } from '../diagnostics.ts';
 import { localeOf, messagesFor, type Messages } from '../i18n/index.ts';
 import { saveAdGuard, saveHealth } from '../settings/storage.ts';
+import { bookmarkComing } from '../timeline/pro-bookmark.ts';
 
 /**
  * Cells already judged. A WeakSet, so a detached cell drops out — needed because X's constant
@@ -219,24 +220,38 @@ const forgetTouchedReads = (): void => {
   }
 };
 
-/** true once judged. A cell still mid-render, or one that is not a judging target, gives false */
-const judge = (cell: Element): boolean => {
-  if (!current) return false;
+/**
+ * Cells judged before their bookmark button was drawn, to be judged again as it arrives
+ * (`judge`). Already counted in the ad watch and the tallies: counted on every rejudging, they
+ * would skew both, and the ad watch turns ad rules off on too high a share of ads.
+ */
+let awaiting = new WeakSet<Element>();
+
+/**
+ * What judging a cell came to: judged for good, judged until its bookmark button is drawn, or
+ * not judged — a cell still mid-render, or one that is not a judging target
+ */
+type Judged = 'final' | 'awaiting' | null;
+
+const judge = (cell: Element): Judged => {
+  if (!current) return null;
   // Timed apart: each part is different work — searching the post, matching rules against
   // it, writing the answer into the page — and which one a slow round cost is the question
   // (`diagnostics.ts`).
   const t0 = performance.now();
   const known = reads.get(cell);
   const post = known ?? readPost(cell, genericAlts);
-  if (!post) return false;
+  if (!post) return null;
   if (!known) {
     reads.set(cell, post);
     counted('posts read', 1);
     spentOn('· reading', performance.now() - t0);
   }
-  watchAd(post.isAd);
-  tally.posts++;
-  if (post.values.text.length > 0) tally.texts++;
+  if (!awaiting.has(cell)) {
+    watchAd(post.isAd);
+    tally.posts++;
+    if (post.values.text.length > 0) tally.texts++;
+  }
   // Once the detection counts as broken, treat everything as not an ad
   const seen = adBroken ? { ...post, isAd: false } : post;
   const t1 = performance.now();
@@ -247,7 +262,24 @@ const judge = (cell: Element): boolean => {
   // The placeholder names a single author (a post `readPost` could read always has one)
   apply(cell, verdict, seen.values.screenName[0] ?? null, messages, look);
   spentOn('· applying', performance.now() - t2);
-  return true;
+  /*
+   * A rule asks whether it is bookmarked, and the button is still to be drawn where X Pro left
+   * it out (`timeline/pro-bookmark.ts`): judged as unknown for now, and again when it arrives,
+   * its arriving being a change to the post. Judged once for good, it would stay unknown: on a
+   * rule change the page side draws the button only after this judging. The reply button, drawn
+   * in the same row, says there is a row for it to come into.
+   */
+  if (
+    filter.readsBookmark &&
+    post.bookmarkedByReader === null &&
+    post.counts.reply !== null &&
+    bookmarkComing(cell)
+  ) {
+    awaiting.add(cell);
+    return 'awaiting';
+  }
+  awaiting.delete(cell);
+  return 'final';
 };
 
 /**
@@ -264,7 +296,7 @@ const judgeNew = (changed: ReadonlySet<Element> | null, onlySettled = false): vo
   for (const cell of cells) {
     if (judged.has(cell)) continue;
     if (onlySettled && !surface().scopeSettled(cell)) continue;
-    if (judge(cell)) {
+    if (judge(cell) === 'final') {
       judged.add(cell);
       fresh += 1;
     }
@@ -286,6 +318,8 @@ const judgeNew = (changed: ReadonlySet<Element> | null, onlySettled = false): vo
  */
 const judgeAll = (): void => {
   judged = new WeakSet();
+  // Counted afresh below, with the ad watch reset
+  awaiting = new WeakSet();
   // Called here too, not just at a settling, since this also runs on a settings change,
   // which can land between the page changing a post and the settling that would notice —
   // otherwise the stale reading stands until the rules change again
@@ -295,10 +329,13 @@ const judgeAll = (): void => {
   const all = document.querySelectorAll(CELL_SELECTOR);
   counted('posts judged again', all.length);
   for (const cell of all) {
-    if (judge(cell)) {
+    const judgement = judge(cell);
+    if (judgement === 'final') {
       judged.add(cell);
       continue;
     }
+    // Judged until its bookmark arrives: what it was judged to stands meanwhile
+    if (judgement === 'awaiting') continue;
     // A cell opened by hand stays open
     if (!isExpandedByUser(cell)) reset(cell);
   }
