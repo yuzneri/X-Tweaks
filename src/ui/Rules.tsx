@@ -10,6 +10,7 @@ import {
   COUNT_DIRECTIONS,
   COUNT_METRICS,
   canEmphasizeWith,
+  canShareConditions,
   DEFAULT_EMPHASIS_COLOR,
   describeCondition,
   emphasizes,
@@ -278,11 +279,13 @@ const validate = (
     return { error: m.rules.errors.noEmphasisTarget };
   }
 
-  // Exactly the same conditions cannot be created twice: with only the action differing, only
-  // the earlier one decides how the post is shown. A highlight wanting its words painted as
-  // well says so on itself (`alsoEmphasize`)
+  // Exactly the same conditions cannot be created twice, unless both rules take effect
+  // (`canShareConditions`). A highlight wanting its words painted as well can say so on itself
+  // (`alsoEmphasize`)
   const key = conditionsKey(conditions);
-  if (existing.some((rule) => conditionsKey(rule.conditions) === key)) {
+  const clashes = (rule: Rule) =>
+    conditionsKey(rule.conditions) === key && !canShareConditions(rule.action, draft.action);
+  if (existing.some(clashes)) {
     return { error: m.rules.errors.duplicate };
   }
 
@@ -580,13 +583,27 @@ const RuleForm = ({
           label={m.rules.actionLabel}
           value={draft.action}
           actions={RULE_ACTIONS}
-          onChange={(action) => onDraftChange({ ...draft, action: action ?? ACTIONS.COLLAPSE })}
+          onChange={(action) => {
+            const next = action ?? ACTIONS.COLLAPSE;
+            /*
+             * A bar's colour is opaque and a highlight's faint: carried from one to the other, it
+             * would show as a bar too pale to see, or cover the post. It goes back to the default
+             */
+            const crossesBar = (next === ACTIONS.STRIPE) !== (draft.action === ACTIONS.STRIPE);
+            onDraftChange({ ...draft, action: next, ...(crossesBar ? { color: null } : {}) });
+          }}
         />
         <ColorField
           hidden={!usesColor(draft.action)}
-          /* Emphasis paints a few characters, highlight a whole post: colours of different
-             strength, as are their defaults */
-          kind={draft.action === ACTIONS.EMPHASIZE ? 'strong' : 'tint'}
+          /* Emphasis paints a few characters, highlight a whole post, a bar a strip at its edge:
+             colours of different strength, as are their defaults */
+          kind={
+            draft.action === ACTIONS.EMPHASIZE
+              ? 'strong'
+              : draft.action === ACTIONS.STRIPE
+                ? 'line'
+                : 'tint'
+          }
           fallback={defaultColorFor(draft.action)}
           value={draft.color}
           onChange={(color) => onDraftChange({ ...draft, color })}
