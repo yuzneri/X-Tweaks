@@ -888,6 +888,12 @@ export const en = {
       show: 'As it is',
       hidden: 'Not shown',
     } as { show: string; hidden: string },
+    /** X Pro leaves the bookmark out of a narrow column's row; the middle one puts it back */
+    bookmarkStyles: {
+      show: 'As it is',
+      always: 'Shown in narrow columns too',
+      hidden: 'Not shown',
+    } as { show: string; always: string; hidden: string },
     /**
      * What wraps the domain written after a card's headline. Fullwidth in Japanese,
      * where they carry their own spacing, so the values differ by language

@@ -6,8 +6,11 @@ import {
   adjustsContrast,
   appearanceApplies,
   ATTACHMENT_STYLES,
+  BOOKMARK_STYLES,
+  bookmarkStyleOf,
   BUTTON_STYLES,
   buttonStyleOf,
+  type BookmarkStyle,
   cardStyleOf,
   ACCOUNT_COLORS,
   collapsesNewlines,
@@ -158,6 +161,8 @@ export const Appearance = ({
     patch({ colors: { ...node.colors, ...part } });
   const media = (part: Partial<AppearanceNode['media']>) =>
     patch({ media: { ...node.media, ...part } });
+  const onSite = <T extends BookmarkStyle | null>(style: T): T =>
+    site === 'x' && style === 'always' ? ('show' as T) : style;
 
   /** The list with that item taken off. Used wherever a value is written for it */
   const without = (item: ClearableItem) => node.cleared.filter((held) => held !== item);
@@ -468,13 +473,17 @@ export const Appearance = ({
           />
         </label>
 
+        {/*
+          Drawn in narrow columns too is X Pro's alone, so x.com's page neither offers it nor
+          shows it as in effect: there it is X's own (`withoutColumnItems`)
+        */}
         <label class="row">
           <span>{m.appearance.bookmarkButton}</span>
           <ChoiceSelect
-            value={node.bookmarkButton}
-            effective={buttonStyleOf(above.bookmarkButton)}
-            options={BUTTON_STYLES}
-            labels={m.appearance.buttonStyles}
+            value={onSite(node.bookmarkButton)}
+            effective={onSite(bookmarkStyleOf(above.bookmarkButton))}
+            options={site === 'x' ? BUTTON_STYLES : BOOKMARK_STYLES}
+            labels={m.appearance.bookmarkStyles}
             onChange={(bookmarkButton) => patch({ bookmarkButton })}
             label={m.appearance.bookmarkButton}
           />

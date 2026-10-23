@@ -4,6 +4,7 @@
  */
 import {
   appearanceApplies,
+  bookmarkStyleOf,
   buttonStyleOf,
   cardStyleOf,
   collapsesNewlines,
@@ -13,6 +14,7 @@ import {
   mediaStyleOf,
   quoteStyleOf,
   ruleName,
+  withoutColumnItems,
   colorItem,
   type AppearanceNode,
   type ClearableItem,
@@ -172,7 +174,10 @@ const appearanceRows = (
     },
     {
       label: m.appearance.bookmarkButton,
-      value: m.appearance.buttonStyles[buttonStyleOf(effective.bookmarkButton)],
+      // Read as the applying side reads it: a narrow column's bookmark means nothing on x.com
+      value: m.appearance.bookmarkStyles[
+        bookmarkStyleOf((columns ? effective : withoutColumnItems(effective)).bookmarkButton)
+      ],
       tier: of((n) => n.appearance.bookmarkButton),
     },
     /*

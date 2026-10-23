@@ -195,6 +195,19 @@ const isButtonStyle = (v: unknown): v is ButtonStyle => BUTTON_STYLES.includes(v
 
 export const buttonStyleOf = (value: ButtonStyle | null): ButtonStyle => value ?? 'show';
 
+/**
+ * The bookmark button takes one way more: `always`, drawn in X Pro's narrow columns too. X Pro
+ * leaves it out of a row narrower than it likes (`timeline/pro-bookmark.ts` puts it back).
+ * Columns being X Pro's alone, it means `show` anywhere else (`withoutColumnItems`).
+ */
+export const BOOKMARK_STYLES = ['show', 'always', 'hidden'] as const;
+export type BookmarkStyle = (typeof BOOKMARK_STYLES)[number];
+
+const isBookmarkStyle = (v: unknown): v is BookmarkStyle =>
+  BOOKMARK_STYLES.includes(v as BookmarkStyle);
+
+export const bookmarkStyleOf = (value: BookmarkStyle | null): BookmarkStyle => value ?? 'show';
+
 export const appearanceApplies = (enabled: boolean | null): boolean => enabled !== false;
 
 /** Reposter and reply-target are user IDs only, since their display names are either off-screen or run together with boilerplate, and pulling them out would assume a UI language */
@@ -528,7 +541,7 @@ export type AppearanceNode = {
   /** Whether the like, repost and bookmark buttons are shown. Unset keeps X's own */
   likeButton: ButtonStyle | null;
   repostButton: ButtonStyle | null;
-  bookmarkButton: ButtonStyle | null;
+  bookmarkButton: BookmarkStyle | null;
   /**
    * Items this tier puts back to "as X shows it", overriding whatever an upper tier set
    * (`CLEARABLE_ITEMS`). Empty when nothing is cancelled. Different from leaving an item
@@ -1037,7 +1050,7 @@ export const fillNode = (v: unknown): SettingsNode => {
       quoteStyle: isAttachmentStyle(appearance.quoteStyle) ? appearance.quoteStyle : null,
       likeButton: isButtonStyle(appearance.likeButton) ? appearance.likeButton : null,
       repostButton: isButtonStyle(appearance.repostButton) ? appearance.repostButton : null,
-      bookmarkButton: isButtonStyle(appearance.bookmarkButton) ? appearance.bookmarkButton : null,
+      bookmarkButton: isBookmarkStyle(appearance.bookmarkButton) ? appearance.bookmarkButton : null,
       autoContrast: bool(appearance.autoContrast),
       highlightBase: isHighlightBase(appearance.highlightBase) ? appearance.highlightBase : null,
       cleared: fillCleared(appearance.cleared),
@@ -1207,7 +1220,8 @@ export const ACCOUNT_COLORS: readonly (keyof AppearanceNode['colors'])[] = ['com
 export const X_ONLY_COLORS: readonly (keyof AppearanceNode['colors'])[] = ['pageBackground'];
 
 /**
- * The same appearance with column-only items cleared: width, name, and the bar behind it.
+ * The same appearance with column-only items cleared: width, name, the bar behind it, and the
+ * bookmark drawn in a narrow column (put back to X's own, which on x.com always has it).
  * x.com has one timeline filling the page's middle — no width of its own, and its name is
  * in the page's own header rather than a view's bar. Cleared rather than left unset:
  * `columnWidth` is written onto the scope itself, so on a surface with no columns it would
@@ -1219,6 +1233,7 @@ export const withoutColumnItems = (appearance: AppearanceNode): AppearanceNode =
   // Written out by name — via `COLUMN_COLORS` the keys would go through an index
   // signature, and a misspelt one would be added rather than refused
   colors: { ...appearance.colors, columnTitle: null, columnHeader: null },
+  bookmarkButton: appearance.bookmarkButton === 'always' ? null : appearance.bookmarkButton,
 });
 
 /**

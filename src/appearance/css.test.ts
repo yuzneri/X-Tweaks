@@ -462,6 +462,12 @@ test('ボタンは選んだものだけが、包む要素ごと消える', () =>
   assert.equal(three.length, 1);
   assert.ok(three[0]!.includes('unlike') && three[0]!.includes('unretweet') && three[0]!.includes('removeBookmark'));
 
+  // Drawing the bookmark in a narrow column hides nothing
+  assert.equal(
+    cssOf([{ key: '0', appearance: appearanceOf((a) => (a.bookmarkButton = 'always')) }]).includes('display: none'),
+    false
+  );
+
   // "As X shows it", picked to undo an upper tier, writes nothing
   assert.equal(
     cssOf([
@@ -476,6 +482,39 @@ test('ボタンは選んだものだけが、包む要素ごと消える', () =>
     ]),
     ''
   );
+});
+
+test('狭いカラムでもブックマークを出すと、狭い行でだけボタンを中身より狭くせず、ブックマークの後ろを詰める', () => {
+  const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.bookmarkButton = 'always')) }]);
+  const bar = '[role="group"]:has([data-testid="reply"])';
+  // Asked of the row's own width, below the width where X Pro leaves the bookmark out
+  assert.ok(css.includes(`${bar} { container: xpro-actions / inline-size; }`));
+  const narrow = css.slice(css.indexOf('@container xpro-actions (width < 290px) {'));
+  assert.ok(narrow.includes(`${bar} > * { min-width: max-content !important; }`));
+  assert.ok(narrow.includes('[data-testid="removeBookmark"]) { margin-inline-end: 0 !important; }'));
+  // Widened under the avatar by the avatar column's width, worked out from the post's row, and
+  // only where the avatar is alone in its column (a thread's line runs below it otherwise)
+  const row = 'div:has(> div > [data-testid="Tweet-User-Avatar"]:only-child)';
+  assert.ok(css.includes(`${row} { container: xpro-post / inline-size; }`));
+  const under = css.slice(css.indexOf('@container xpro-post (width < 331px) {'));
+  assert.ok(under.includes(`${row} ${bar} { margin-inline-start: calc(100% - 100cqi) !important; }`));
+  // Not where a post is opened, as with the bookmark itself
+  for (const rest of css.split('[data-xpro-column="0"]').slice(1)) {
+    assert.ok(rest.startsWith(':not([data-xpro-opened]) '), rest);
+  }
+  noNestedHas(css);
+
+  // Packed posts hide the bookmark, so no room is made for it
+  const packed = cssOf([
+    {
+      key: '0',
+      appearance: appearanceOf((a) => {
+        a.compact = true;
+        a.bookmarkButton = 'always';
+      }),
+    },
+  ]);
+  assert.equal(packed.includes('xpro-actions'), false);
 });
 
 test('ポストを開いているカラムでは、ボタンを隠さない', () => {

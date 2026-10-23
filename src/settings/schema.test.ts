@@ -32,6 +32,7 @@ import {
   hasContent,
   quoteStyleOf,
   buttonStyleOf,
+  bookmarkStyleOf,
   mediaStyleOf,
   highlightBaseOf,
   isEmptyNode,
@@ -1059,6 +1060,14 @@ test('ボタンの既定は「X の表示のまま」で、知らない値は未
   assert.equal(filled('hidden'), 'hidden');
   assert.equal(filled('none'), null);
   assert.equal(filled(false), null);
+  // Only the bookmark has a third way: X Pro leaves it out of a narrow column, not the like
+  assert.equal(filled('always'), null);
+  assert.equal(
+    fillNode({ appearance: { bookmarkButton: 'always' } }).appearance.bookmarkButton,
+    'always'
+  );
+  assert.equal(bookmarkStyleOf(null), 'show');
+  assert.equal(bookmarkStyleOf('always'), 'always');
   // The three are read apart: one set leaves the others unset
   const node = fillNode({ appearance: { repostButton: 'hidden', bookmarkButton: 'show' } }).appearance;
   assert.deepEqual(
@@ -1135,6 +1144,15 @@ test('落とすのはカラム専用の 3 つだけ', () => {
     (key) => out.colors[key as keyof typeof out.colors] === null
   );
   assert.deepEqual(clearedColors.sort(), [...COLUMN_COLORS].sort());
+});
+
+test('狭いカラムでも出すブックマークは、カラムの無いサイトでは X のままに戻る', () => {
+  const on = (bookmarkButton: AppearanceNode['bookmarkButton']) =>
+    withoutColumnItems({ ...emptyNode().appearance, bookmarkButton }).bookmarkButton;
+  // x.com always draws it; what there is to undo there is hiding, which stays
+  assert.equal(on('always'), null);
+  assert.equal(on('hidden'), 'hidden');
+  assert.equal(on('show'), 'show');
 });
 
 test('アカウントで決まる色と、x.com だけの色は、カラム専用とは別に名指す', () => {

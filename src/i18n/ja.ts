@@ -711,6 +711,11 @@ export const ja: Messages = {
       show: 'そのまま',
       hidden: '表示しない',
     },
+    bookmarkStyles: {
+      show: 'そのまま',
+      always: '狭いカラムでも表示',
+      hidden: '表示しない',
+    },
     cardParens: { open: '（', close: '）' },
   },
 

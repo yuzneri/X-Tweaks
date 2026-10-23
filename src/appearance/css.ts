@@ -14,6 +14,7 @@ import {
 import { ATTACHMENT_CLASS, ATTACHMENT_WORDS_CLASS } from './card.ts';
 import type { ColumnScope } from '../settings/resolve.ts';
 import {
+  bookmarkStyleOf,
   buttonStyleOf,
   cardStyleOf,
   collapsesNewlines,
@@ -171,6 +172,25 @@ const COMPACT_ACTIONS_RIGHT = 24;
  */
 const COMPACT_ACTION_ROOM = 36;
 
+/**
+ * The width of the button row below which X Pro leaves the bookmark out (read from its script;
+ * `timeline/pro-bookmark.ts`). Room for one drawn there anyway is made in rows this narrow only.
+ */
+const NARROW_ROW = 290;
+
+/** The name the button row is asked its width by */
+const ACTION_BAR_CONTAINER = 'xpro-actions';
+
+/**
+ * How much wider a post's row is than its button row: X Pro's avatar (33px) and the gap after it
+ * (8px), at its default text size. Used only to tell a narrow post from its row, so being a few
+ * pixels off moves where narrow ends by as much.
+ */
+const AVATAR_ROOM = 41;
+
+/** The name a post's row (avatar column and body) is asked its width by */
+const POST_ROW_CONTAINER = 'xpro-post';
+
 /** The button that opens a post's menu, at the right end of the name row */
 const POST_MENU = 'button[data-testid="caret"]';
 
@@ -283,6 +303,13 @@ const TARGETS = {
   /** The column beside the avatar: name, body, media. Carries the padding below a post */
   postBody: [`div:has(> ${AVATAR_BOX}) + div`],
   /**
+   * The avatar's column and the one beside it, together, where the avatar is alone in its
+   * column: otherwise the line joining a thread's posts runs down it below the avatar
+   */
+  postRow: [`div:has(> div > ${AVATAR_BOX}:only-child)`],
+  /** The button row of such a post */
+  actionBarInPostRow: [`div:has(> div > ${AVATAR_BOX}:only-child) ${ACTION_BAR}`],
+  /**
    * The containers between the button row and the column it sits in. X gives nearly every
    * container `position: relative`, so the nearest one, not the column, would decide where
    * the buttons land once taken out of the flow; put back to `static` to hand that to the
@@ -307,6 +334,8 @@ const TARGETS = {
   otherActions: [
     `${ACTION_BAR} > *:not(:has(${KEPT_ACTIONS})):not(${KEPT_ACTIONS})`,
   ],
+  /** Every button of that row, with what holds it, in either shape */
+  actionButtons: [`${ACTION_BAR} > *`],
   likeButton: actionButton(COUNT_MARKERS.like),
   repostButton: actionButton(COUNT_MARKERS.repost),
   bookmarkButton: actionButton(BOOKMARK_BUTTON),
@@ -374,7 +403,7 @@ const columnRules = (
 
   const like = buttonStyleOf(appearance.likeButton);
   const repost = buttonStyleOf(appearance.repostButton);
-  const bookmark = buttonStyleOf(appearance.bookmarkButton);
+  const bookmark = bookmarkStyleOf(appearance.bookmarkButton);
 
   if (isCompact(appearance.compact)) {
     /*
@@ -461,6 +490,44 @@ const columnRules = (
   if (bookmark === 'hidden') hiddenButtons.push(TARGETS.bookmarkButton);
   if (hiddenButtons.length > 0) {
     rules.push(rule(within(skimming, hiddenButtons), 'display: none !important;'));
+  }
+
+  if (bookmark === 'always' && !isCompact(appearance.compact)) {
+    /*
+     * The bookmark drawn in a narrow row takes its room from the buttons with counts, which X
+     * Pro gives equal shares however long the count: a long one (the view count, as a rule) then
+     * runs over the next button. Each is let to be no narrower than what it holds, rather than
+     * sharing by what each holds (`flex-basis: auto`), so the buttons stay lined up from post to
+     * post wherever the counts fit. The gap X Pro keeps after the bookmark is a wide row's, and
+     * goes. Counts too long for the row in all push its end out rather than overlap.
+     *
+     * Asked of the row's own width, so a wide column keeps X Pro's spacing. Not with packing,
+     * which hides the bookmark, and floats the row with its width taken from its buttons, which
+     * the containment a width query needs would take to nothing.
+     *
+     * The row is also widened into the room left empty under the avatar, by as much as the
+     * avatar's column takes: worked out from the post's row (`100cqi`) rather than written as a
+     * number, X Pro sizing the avatar to the text size. Which posts are narrow is asked of the
+     * post's row for this, the button row being the one widened. Not where a thread's line runs
+     * under the avatar, which the buttons would sit on.
+     */
+    rules.push(rule(within(skimming, [TARGETS.postRow]), `container: ${POST_ROW_CONTAINER} / inline-size;`));
+    rules.push(rule(within(skimming, [TARGETS.actionBar]), `container: ${ACTION_BAR_CONTAINER} / inline-size;`));
+    rules.push(
+      [
+        `@container ${POST_ROW_CONTAINER} (width < ${NARROW_ROW + AVATAR_ROOM}px) {`,
+        rule(within(skimming, [TARGETS.actionBarInPostRow]), 'margin-inline-start: calc(100% - 100cqi) !important;'),
+        '}',
+      ].join('\n')
+    );
+    rules.push(
+      [
+        `@container ${ACTION_BAR_CONTAINER} (width < ${NARROW_ROW}px) {`,
+        rule(within(skimming, [TARGETS.actionButtons]), 'min-width: max-content !important;'),
+        rule(within(skimming, [TARGETS.bookmarkButton]), 'margin-inline-end: 0 !important;'),
+        '}',
+      ].join('\n')
+    );
   }
 
   if (appearance.maxLines !== null) {
