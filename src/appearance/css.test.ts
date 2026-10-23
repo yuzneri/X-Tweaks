@@ -422,6 +422,9 @@ test('入れ子の :has() を書かない。規則ごと捨てられるため', 
           a.maxLines = 3;
           a.likeButton = 'hidden';
           a.bookmarkButton = 'hidden';
+          a.replyButton = 'hidden';
+          a.viewsButton = 'hidden';
+          a.shareButton = 'hidden';
         }),
       },
     ])
@@ -447,6 +450,16 @@ test('ボタンは選んだものだけが、包む要素ごと消える', () =>
   assert.ok(repost.includes('[data-testid="retweet"], [data-testid="unretweet"]'));
   const bookmark = hiddenLine((a) => (a.bookmarkButton = 'hidden'))!;
   assert.ok(bookmark.includes('[data-testid="bookmark"], [data-testid="removeBookmark"]'));
+  const reply = hiddenLine((a) => (a.replyButton = 'hidden'))!;
+  assert.ok(reply.includes('[role="group"]:has([data-testid="reply"]) > *:has(> :is([data-testid="reply"]))'));
+  // The view count is a link into the post's analytics, not a button
+  const views = hiddenLine((a) => (a.viewsButton = 'hidden'))!;
+  assert.ok(views.includes('> *:has(> :is(a[href$="/analytics"]))'));
+  // The share button carries no marker: told by its menu and its want of one (the repost has
+  // a menu and a marker), a level further down than the others
+  const share = hiddenLine((a) => (a.shareButton = 'hidden'))!;
+  assert.ok(share.includes('> *:has(> * > [aria-haspopup="menu"]:not([data-testid]))'));
+  assert.equal(share.includes('retweet'), false);
 
   // Several hidden go out as one rule
   const three = cssOf([

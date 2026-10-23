@@ -210,6 +210,14 @@ const KEPT_ACTIONS = `${COUNT_MARKERS.repost}, ${COUNT_MARKERS.like}`;
 const BOOKMARK_BUTTON = '[data-testid="bookmark"], [data-testid="removeBookmark"]';
 
 /**
+ * The share button, the one button in the row with no `data-testid`: told by the menu it opens
+ * and its want of a marker, the repost opening a menu too but carrying one. It sits a level
+ * further down than the others, X Pro wrapping it in a view of its own to wiggle it
+ * (`ActionShare`), so `shareButton` reaches down one more.
+ */
+const SHARE_BUTTON = '[aria-haspopup="menu"]:not([data-testid])';
+
+/**
  * One button of that row with what holds it, written for both shapes as `otherActions` is.
  * The holder is asked for its children only: `*:has(…)` searching all the way down is weighed
  * against every element styled, and made a stylesheet with it take several times as long to
@@ -336,9 +344,13 @@ const TARGETS = {
   ],
   /** Every button of that row, with what holds it, in either shape */
   actionButtons: [`${ACTION_BAR} > *`],
+  replyButton: actionButton(COUNT_MARKERS.reply),
   likeButton: actionButton(COUNT_MARKERS.like),
   repostButton: actionButton(COUNT_MARKERS.repost),
+  /** A link into the post's analytics rather than a button, carrying the count */
+  viewsButton: actionButton(COUNT_MARKERS.view),
   bookmarkButton: actionButton(BOOKMARK_BUTTON),
+  shareButton: [...actionButton(SHARE_BUTTON), `${ACTION_BAR} > *:has(> * > ${SHARE_BUTTON})`],
   divider: ['[data-testid="cellInnerDiv"] > div'],
   photo: ['[data-testid="tweetPhoto"] img'],
   media: MEDIA_TARGETS,
@@ -485,9 +497,12 @@ const columnRules = (
    * of the button wherever it sits.
    */
   const hiddenButtons: string[][] = [];
-  if (like === 'hidden') hiddenButtons.push(TARGETS.likeButton);
+  if (buttonStyleOf(appearance.replyButton) === 'hidden') hiddenButtons.push(TARGETS.replyButton);
   if (repost === 'hidden') hiddenButtons.push(TARGETS.repostButton);
+  if (like === 'hidden') hiddenButtons.push(TARGETS.likeButton);
+  if (buttonStyleOf(appearance.viewsButton) === 'hidden') hiddenButtons.push(TARGETS.viewsButton);
   if (bookmark === 'hidden') hiddenButtons.push(TARGETS.bookmarkButton);
+  if (buttonStyleOf(appearance.shareButton) === 'hidden') hiddenButtons.push(TARGETS.shareButton);
   if (hiddenButtons.length > 0) {
     rules.push(rule(within(skimming, hiddenButtons), 'display: none !important;'));
   }
