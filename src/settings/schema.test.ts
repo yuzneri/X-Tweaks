@@ -27,6 +27,7 @@ import {
   paintKey,
   type AppearanceNode,
   canEmphasizeWith,
+  canShareConditions,
   fillNode,
   filterUsesTrait,
   cardStyleOf,
@@ -317,6 +318,31 @@ test('有効／無効を持たないルールは有効として読む。止め�
 test('動作が読めないルールは、折りたたむとして読む', () => {
   const node = fillNode({ filter: { rules: [ruleOf({ action: 'そんな動作は無い' })] } });
   assert.equal(node.filter.rules[0]?.action, ACTIONS.COLLAPSE);
+});
+
+test('同じ条件のルールは、片方が重なって効く処理なら同じ段に置ける', () => {
+  // ハイライトと左に色、折りたたみと強調は、どちらも効く
+  assert.equal(canShareConditions(ACTIONS.HIGHLIGHT, ACTIONS.STRIPE), true);
+  assert.equal(canShareConditions(ACTIONS.STRIPE, ACTIONS.COLLAPSE), true);
+  assert.equal(canShareConditions(ACTIONS.COLLAPSE, ACTIONS.EMPHASIZE), true);
+  assert.equal(canShareConditions(ACTIONS.EMPHASIZE, ACTIONS.STRIPE), true);
+  // 見せ方どうしは先のものしか効かない。同じ処理どうしも、2つ目は余計
+  assert.equal(canShareConditions(ACTIONS.HIGHLIGHT, ACTIONS.COLLAPSE), false);
+  assert.equal(canShareConditions(ACTIONS.STRIPE, ACTIONS.STRIPE), false);
+  assert.equal(canShareConditions(ACTIONS.NOTHING, ACTIONS.HIDE), false);
+  // 「何もしない」は一致したものをすべて取り消すので、重なる処理でも並べても効かない
+  assert.equal(canShareConditions(ACTIONS.NOTHING, ACTIONS.STRIPE), false);
+  assert.equal(canShareConditions(ACTIONS.EMPHASIZE, ACTIONS.NOTHING), false);
+});
+
+test('左に色のルールは、色ごと保存の往復で保ち、「＋強調」は持たない', () => {
+  const [kept] = fillNode({
+    filter: { rules: [ruleOf({ action: 'stripe', color: '#00BA7C', alsoEmphasize: true })] },
+  }).filter.rules;
+  assert.equal(kept?.action, ACTIONS.STRIPE);
+  assert.equal(kept?.color, '#00ba7c');
+  // 一致した文字の強調は、ハイライトにだけ付けられる
+  assert.equal(kept?.alsoEmphasize, false);
 });
 
 test('ハイライトのルールは、一致した文字の強調とその色を保存の往復で保つ', () => {

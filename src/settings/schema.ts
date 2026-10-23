@@ -11,6 +11,9 @@ export const ACTIONS = {
   COLLAPSE: 'collapse', // fold it up
   HIDE: 'hide', // remove it without a trace
   HIGHLIGHT: 'highlight', // keep it shown, with a background color
+  // keep it shown, with a coloured bar at its left edge. An action of its own though a build
+  // that does not know it reads it as a collapse (`rule`), unlike the flag `alsoEmphasize`
+  STRIPE: 'stripe',
   EMPHASIZE: 'emphasize', // color only the matched characters
   NOTHING: 'nothing', // stop every setting for this post (those of upper tiers included)
 } as const;
@@ -51,11 +54,31 @@ export const DEFAULT_HIGHLIGHT_COLOR = '#f9188026';
 /** Default emphasis colour: same colour at 40% opacity — at the highlight's 15% a few characters would be invisible */
 export const DEFAULT_EMPHASIS_COLOR = '#f9188066';
 
+/** Default bar colour: the same colour, opaque — a bar a few pixels wide shows nothing at 15% */
+export const DEFAULT_STRIPE_COLOR = '#f91880';
+
 export const usesColor = (action: Action): boolean =>
-  action === ACTIONS.HIGHLIGHT || action === ACTIONS.EMPHASIZE;
+  action === ACTIONS.HIGHLIGHT || action === ACTIONS.STRIPE || action === ACTIONS.EMPHASIZE;
 
 export const defaultColorFor = (action: Action): string =>
-  action === ACTIONS.EMPHASIZE ? DEFAULT_EMPHASIS_COLOR : DEFAULT_HIGHLIGHT_COLOR;
+  action === ACTIONS.EMPHASIZE
+    ? DEFAULT_EMPHASIS_COLOR
+    : action === ACTIONS.STRIPE
+      ? DEFAULT_STRIPE_COLOR
+      : DEFAULT_HIGHLIGHT_COLOR;
+
+/**
+ * Whether two rules may sit in one tier on exactly the same conditions. Ordinarily not: with only
+ * the action differing, the earlier one alone decides how the post is shown. But emphasis and the
+ * color bar add to how it is shown rather than decide it (`decide`), so beside a rule of another
+ * action both take effect
+ */
+export const canShareConditions = (a: Action, b: Action): boolean =>
+  a !== b &&
+  // "Do nothing" throws away whatever else matched, so beside it the other never takes effect
+  a !== ACTIONS.NOTHING &&
+  b !== ACTIONS.NOTHING &&
+  [a, b].some((action) => action === ACTIONS.EMPHASIZE || action === ACTIONS.STRIPE);
 
 /** Whether the rule paints the matched characters: an emphasis rule, or a highlight that also emphasizes */
 export const emphasizes = (rule: { action: Action; alsoEmphasize: boolean }): boolean =>

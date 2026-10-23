@@ -105,12 +105,15 @@ export type Decision =
 
 /**
  * The result of judging one post. Only the first matching action deciding how the post is
- * shown takes effect, but emphasis neither collapses nor hides, so every match applies.
+ * shown takes effect, but emphasis and the color bar neither collapse nor hide, so they apply
+ * on top of it.
  */
 export type Verdict = {
   decision: Decision | null;
   /** In list order. Where two overlap on the same characters, the earlier one takes it */
   emphases: Emphasis[];
+  /** The color of the bar at the post's left edge: the first matching bar rule's. Null for none */
+  stripe: string | null;
 };
 
 type CompiledRule = {
@@ -365,17 +368,22 @@ export const compileFilter = (
  * collected so far — how an upper tier's settings get cancelled.
  */
 export const decide = (post: Post, filter: CompiledFilter): Verdict => {
-  const verdict: Verdict = { decision: null, emphases: [] };
+  const verdict: Verdict = { decision: null, emphases: [], stripe: null };
   if (!filter.enabled) return verdict;
 
   for (const rule of filter.rules) {
     if (!rule.matches(post)) continue;
 
-    if (rule.action === ACTIONS.NOTHING) return { decision: null, emphases: [] };
+    if (rule.action === ACTIONS.NOTHING) return { decision: null, emphases: [], stripe: null };
 
     // Taken from a highlight too, which may come after how the post is shown was decided
     verdict.emphases.push(...rule.emphases);
     if (rule.action === ACTIONS.EMPHASIZE) continue;
+    // One bar to a post, so the first color stands, as the first way of showing it does
+    if (rule.action === ACTIONS.STRIPE) {
+      verdict.stripe ??= rule.color;
+      continue;
+    }
 
     // How it is shown has already been decided
     if (verdict.decision) continue;

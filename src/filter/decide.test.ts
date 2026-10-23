@@ -5,6 +5,7 @@ import {
   canEmphasizeWith,
   DEFAULT_EMPHASIS_COLOR,
   DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_STRIPE_COLOR,
   emptyNode,
   defaultOrder,
   emptySettings,
@@ -734,6 +735,44 @@ test('先に一致したルールの動作が効く。折りたたむとハイ�
     action: ACTIONS.COLLAPSE,
     label: '本文が「セール」を含む',
   });
+});
+
+test('左に色は指定した色を返し、色なしなら不透明の既定色が入る', () => {
+  const stripeOf = (f: FilterNode) => decide(post({ text: 'これは宣伝です' }), compileFilter(f, m)).stripe;
+  assert.equal(stripeOf(filter({ rules: [rule({ action: ACTIONS.STRIPE, color: '#00ba7c' })] })), '#00ba7c');
+  // 細い帯なので、ハイライトの半透明の既定色ではなく不透明
+  assert.equal(stripeOf(filter({ rules: [rule({ action: ACTIONS.STRIPE })] })), DEFAULT_STRIPE_COLOR);
+  assert.notEqual(DEFAULT_STRIPE_COLOR, DEFAULT_HIGHLIGHT_COLOR);
+  assert.equal(stripeOf(filter({ rules: [rule({ action: ACTIONS.HIGHLIGHT })] })), null);
+});
+
+test('左に色は見せ方と重なって効き、帯の色は先に一致したものになる', () => {
+  const f = filter({
+    rules: [
+      rule({ id: 's1', action: ACTIONS.STRIPE, color: '#00ba7c' }),
+      rule({ id: 'h1', action: ACTIONS.HIGHLIGHT }),
+      rule({ id: 's2', action: ACTIONS.STRIPE, color: '#1d9bf0' }),
+    ],
+  });
+  const p = post({ text: 'これは宣伝です' });
+  const verdict = decide(p, compileFilter(f, m));
+  // 先に並んでいても、見せ方（ハイライト）は奪わない
+  assert.equal(verdict.decision?.action, ACTIONS.HIGHLIGHT);
+  assert.equal(verdict.stripe, '#00ba7c');
+  // 折りたたんだ投稿にも付く
+  const collapsed = filter({
+    rules: [rule({ id: 'c1', action: ACTIONS.COLLAPSE }), rule({ id: 's1', action: ACTIONS.STRIPE })],
+  });
+  const both = decide(p, compileFilter(collapsed, m));
+  assert.equal(both.decision?.action, ACTIONS.COLLAPSE);
+  assert.equal(both.stripe, DEFAULT_STRIPE_COLOR);
+});
+
+test('「何もしない」は左に色も止める', () => {
+  const f = filter({
+    rules: [rule({ id: 's1', action: ACTIONS.STRIPE }), rule({ id: 'n1', action: ACTIONS.NOTHING })],
+  });
+  assert.equal(decide(post({ text: 'これは宣伝です' }), compileFilter(f, m)).stripe, null);
 });
 
 test('非表示は色を持たず、一致したルール名だけを返す', () => {

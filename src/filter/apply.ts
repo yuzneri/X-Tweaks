@@ -16,8 +16,10 @@ const COLLAPSED = 'xpro-collapsed';
 /** Hidden: no placeholder either, the whole cell is taken out of the display */
 const HIDDEN = 'xpro-hidden';
 const HIGHLIGHTED = 'xpro-highlighted';
+const STRIPED = 'xpro-striped';
 const PLACEHOLDER = 'xpro-placeholder';
 const COLOR_VAR = '--xpro-highlight';
+const STRIPE_VAR = '--xpro-stripe';
 
 /**
  * What the colour now on a post was worked out from: the rule's colour, what it was laid
@@ -160,9 +162,28 @@ const resetDecision = (cell: Element): void => {
   clearReadable(cell);
 };
 
+/**
+ * Puts the color bar on a cell, or takes it off for null. Apart from how the post is shown, as
+ * emphasis is: a collapsed post keeps it beside its placeholder. Opaque and beside the post
+ * rather than under its words, so nothing is composited or read over, unlike a highlight. The
+ * colour is checked by the property rather than the class, as the highlight's is: X strips our
+ * classes off a redrawn post but leaves the rest.
+ */
+const showStripe = (cell: Element, color: string | null): void => {
+  const style = (cell as HTMLElement).style;
+  if (color === null) {
+    if (cell.classList.contains(STRIPED)) cell.classList.remove(STRIPED);
+    if (style.getPropertyValue(STRIPE_VAR)) style.removeProperty(STRIPE_VAR);
+    return;
+  }
+  if (!cell.classList.contains(STRIPED)) cell.classList.add(STRIPED);
+  if (style.getPropertyValue(STRIPE_VAR) !== color) style.setProperty(STRIPE_VAR, color);
+};
+
 /** Removes only what the extension added, restoring the original display */
 export const reset = (cell: Element): void => {
   resetDecision(cell);
+  showStripe(cell, null);
   // Emphasis adds nothing to the DOM, so dropping the registered ranges restores it
   unmark(cell);
 };
@@ -215,6 +236,7 @@ export const apply = (
   // paints inside its words, and they cost quite different things (`diagnostics.ts`)
   const started = performance.now();
   showDecision(cell, verdict.decision, author, messages, look);
+  showStripe(cell, verdict.stripe);
   const painted = performance.now();
   spentOn('· deciding how to show', painted - started);
 

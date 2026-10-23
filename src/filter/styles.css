@@ -77,6 +77,22 @@
 }
 
 /*
+ * A color bar at the cell's left edge, laid over it rather than given room: a border or padding
+ * would narrow the post and rewrap it, against both X's own measuring of the cell and the
+ * extension's of the body. Drawn on the cell, not the post proper, whose `overflow: hidden`
+ * would clip it; the cell is positioned already (X places it absolutely), so it holds the bar.
+ */
+.xpro-striped::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background-color: var(--xpro-stripe);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/*
  * When a highlight color is strong enough to make text unreadable, that text alone is shifted toward a
  * readable color. The marker is set by `readable.ts`, and only on text that falls short; the colors
  * live here so that removing the marker restores the original color.
