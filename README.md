@@ -22,7 +22,7 @@ The narrower scope wins, and a colour or size set by a wider one can be put back
 ## Filter
 
 Rules say what to do with a post that matches.
-The first rule that matches from the top is applied, except for emphasis: every emphasis that matches applies, on top of whatever else does.
+The first rule that matches from the top is applied, except for emphasis and the color bar, which apply on top of whatever else does: every emphasis that matches, and the bar of the first rule that matches.
 Each rule can be switched off without being deleted.
 
 Conditions:
@@ -39,6 +39,7 @@ Actions:
 - **Collapse**: folds the post into a single line (press “Show” to bring it back)
 - **Hide**: removes the post entirely
 - **Highlight**: tints the post’s background (tick “Emphasize the matched text too” to emphasize as well, in the same rule)
+- **Color bar**: puts a colored bar at the post’s left edge (it can sit beside a highlight or collapse rule on the same conditions)
 - **Emphasize**: tints only the matched text
 - **Do nothing**: stops every setting for that post, including those of wider scopes
 

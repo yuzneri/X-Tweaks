@@ -29,7 +29,7 @@ Hide the posts you would rather not read from the X Pro (pro.x.com, formerly Twe
 
 ■ Filter the timeline
 
-A post that matches can be collapsed, hidden, tinted, or have only the matched words tinted. Choosing "Do nothing" stops every setting for that post, including those placed in wider scopes (see "Where settings can be placed" below).
+A post that matches can be collapsed, hidden, tinted, marked with a colored bar at its left edge, or have only the matched words tinted. Choosing "Do nothing" stops every setting for that post, including those placed in wider scopes (see "Where settings can be placed" below).
 
 A rule can look at:
 - Text: the post text, the quoted text and its author, the user ID, the display name, the reposter's ID, the reply-to ID, a poll choice, the link domain, the card headline, the Space name, the article or trend headline, the post's language, a picture's description, and more. Matched by Contains, Matches exactly, Regular expression or Is the author
