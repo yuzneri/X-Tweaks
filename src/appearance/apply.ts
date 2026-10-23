@@ -36,6 +36,7 @@ import { measureAgainIn, MEASURE_MS } from '../filter/pace.ts';
 import { atAQuietMoment } from '../quiet.ts';
 import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
 import {
+  bookmarkStyleOf,
   cardStyleOf,
   isCompact,
   layoutKey,
@@ -65,6 +66,7 @@ import {
   type LinePart,
   type LineParts,
 } from './card.ts';
+import { BOOKMARK_ATTR } from '../timeline/pro-bookmark.ts';
 import { fixedTrendHref } from '../timeline/trend-link.ts';
 import { timeTextFrom } from './time.ts';
 import { rawCountFor } from './counts.ts';
@@ -108,6 +110,9 @@ const STYLE_ID = 'xpro-tweaks-appearance-style';
 const bands = new Set<Element>();
 let strays = true;
 
+/** The scopes (by key) whose posts are to have the bookmark drawn in a narrow column too */
+let bookmarkEverywhere: ReadonlySet<string> = new Set();
+
 /**
  * Marks each scope, the bar carrying its name, and whether it holds a post opened to be read.
  * The marker covers one whole scope; on the body alone it leaves the header stranded in black.
@@ -146,6 +151,14 @@ export const stampColumns = (): void => {
       changeEverything();
       settleAgain?.();
     }
+
+    /*
+     * Where the bookmark is drawn in a narrow column, said to X Pro's side of the page, which
+     * has the posts drawn again when this changes (`timeline/pro-bookmark.ts`). Not where a
+     * post is opened, as with hiding the buttons
+     */
+    const bookmark = !opened && bookmarkEverywhere.has(value);
+    if (bookmark !== scope.hasAttribute(BOOKMARK_ATTR)) scope.toggleAttribute(BOOKMARK_ATTR, bookmark);
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
     if (marked && on.bandStillValid(marked, scope)) {
@@ -2334,7 +2347,6 @@ export const applyAppearance = (
    */
   watchChanges();
   changeEverything();
-  stampColumns();
 
   // Columns sharing a key share their rules, so they are folded into one: without folding,
   // columns of the same account standing side by side would emit the same rules over and over
@@ -2352,6 +2364,13 @@ export const applyAppearance = (
     seen.add(key);
     columns.push({ key, appearance: here(appearanceFor(settings, scope)) });
   }
+  // Known before the scopes are marked, which says where the bookmark is wanted
+  bookmarkEverywhere = new Set(
+    columns
+      .filter((column) => bookmarkStyleOf(column.appearance.bookmarkButton) === 'always')
+      .map((column) => column.key)
+  );
+  stampColumns();
   /*
    * The page's own furniture belongs to the site rather than to any scope, and only x.com has
    * any. Written out here rather than left to match nothing on X Pro: which site is being

@@ -1,11 +1,14 @@
 /**
  * The script running in the page's context (the MAIN world). It walks React's internal
  * state from a column element to read the columnId and writes it onto the element as a
- * marker, observes X's notification requests so a deliberate read can be sent, and — only
- * when asked to through `localStorage` — puts a guard on X's Redux store (`loop-guard.ts`).
+ * marker, observes X's notification requests so a deliberate read can be sent, draws the
+ * bookmark button in narrow columns where a scope is marked for it (`timeline/pro-bookmark.ts`),
+ * and — only when asked to through `localStorage` — puts a guard on X's Redux store
+ * (`loop-guard.ts`).
  * It sits where X's own scripts can see it, the most exposed to their implementation
  * changing, so every input and destination at this boundary is kept narrow.
  */
+import { installProBookmark } from './timeline/pro-bookmark.ts';
 import { installProFollowGuard } from './timeline/pro-follow.ts';
 import { GUARD_KEY, guardChunks, RECORD_AT, type Mode } from './loop-guard.ts';
 import {
@@ -18,6 +21,7 @@ import { installNotificationReadMain } from './notification-read/main.ts';
 import { userIdFromCookies } from './notification-read/request.ts';
 
 installProFollowGuard();
+installProBookmark();
 
 const REQUEST = 'xpro-tweaks:request-columns';
 const RESPONSE = 'xpro-tweaks:response-columns';
