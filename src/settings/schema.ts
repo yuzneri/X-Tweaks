@@ -449,6 +449,19 @@ export type FilterNode = {
 };
 
 /**
+ * Whether a filter asks a post's trait: it applies, and an enabled rule has the trait among its
+ * conditions, negated or not. Rules dropped when compiled for other reasons (`compileFilter`)
+ * still count: what hangs on the answer only does a little needless work on a yes.
+ */
+export const filterUsesTrait = (filter: FilterNode, trait: TraitKey): boolean =>
+  filterApplies(filter.enabled) &&
+  filter.rules.some(
+    (rule) =>
+      rule.enabled &&
+      rule.conditions.some((condition) => condition.kind === 'trait' && condition.trait === trait)
+  );
+
+/**
  * Items a lower tier can put back to "as X shows it", named by where they sit in the
  * appearance. Only sizes and colours are listed: a choice-valued item already has X's own
  * display as one of its choices (`show`, `relative`), and a switch has an explicit "no", so

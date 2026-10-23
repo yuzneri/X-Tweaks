@@ -71,7 +71,15 @@ export const columnKey = (scope: ColumnScope): string => {
  * timeline and goes by the address.
  */
 export const OPENED_ATTR = 'data-xpro-opened';
-export type ColumnAppearance = { key: string; appearance: AppearanceNode };
+export type ColumnAppearance = {
+  key: string;
+  appearance: AppearanceNode;
+  /**
+   * A rule in this scope asks whether a post is bookmarked, so the button is drawn in its narrow
+   * rows too (`timeline/pro-bookmark.ts`), to be hidden again unless shown. Left off where not
+   */
+  readsBookmark?: true;
+};
 
 /** The boxes for images and videos; also where markers are set (`appearance/apply.ts`) */
 export const MEDIA_TARGETS = [PHOTO, ...VIDEO];
@@ -390,7 +398,7 @@ const cssString = (text: string): string => `'${text.replace(/\\/g, '\\\\').repl
 
 /** The rules for one column; items left unset emit no lines ("unset" means X Pro's own look) */
 const columnRules = (
-  { key, appearance }: ColumnAppearance,
+  { key, appearance, readsBookmark }: ColumnAppearance,
   parens: { open: string; close: string }
 ): string[] => {
   const scope = `[${COLUMN_ATTR}="${key}"]`;
@@ -535,6 +543,23 @@ const columnRules = (
         `@container ${ACTION_BAR_CONTAINER} (width < ${NARROW_ROW}px) {`,
         rule(within(skimming, [TARGETS.actionButtons]), 'min-width: max-content !important;'),
         rule(within(skimming, [TARGETS.bookmarkButton]), 'margin-inline-end: 0 !important;'),
+        '}',
+      ].join('\n')
+    );
+  }
+
+  if (readsBookmark && bookmark === 'show' && !isCompact(appearance.compact)) {
+    /*
+     * Drawn for a rule to read rather than to be seen (`timeline/pro-bookmark.ts`), so hidden
+     * again in the rows X Pro would have left it out of, asked of the row's width as above; a
+     * wide row's bookmark is X Pro's own. Hidden or shown in narrow columns by the setting, it
+     * is taken care of above; packed, it is hidden anyway, and the row floats as above.
+     */
+    rules.push(rule(within(skimming, [TARGETS.actionBar]), `container: ${ACTION_BAR_CONTAINER} / inline-size;`));
+    rules.push(
+      [
+        `@container ${ACTION_BAR_CONTAINER} (width < ${NARROW_ROW}px) {`,
+        rule(within(skimming, [TARGETS.bookmarkButton]), 'display: none !important;'),
         '}',
       ].join('\n')
     );

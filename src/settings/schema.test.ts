@@ -28,6 +28,7 @@ import {
   type AppearanceNode,
   canEmphasizeWith,
   fillNode,
+  filterUsesTrait,
   cardStyleOf,
   hasContent,
   quoteStyleOf,
@@ -62,6 +63,23 @@ const ruleOf = (patch: Record<string, unknown> = {}) => ({
   conditions: [textCondition()],
   action: 'collapse',
   ...patch,
+});
+
+test('フィルタが特徴を問うかは、効いているルールの条件で決まる', () => {
+  const trait = (name: string, negate = false) => ({ kind: 'trait', trait: name, negate });
+  const filterWith = (rules: unknown[], enabled: boolean | null = null) =>
+    fillNode({ filter: { enabled, rules } }).filter;
+  const asks = filterWith([ruleOf({ conditions: [textCondition(), trait('bookmarkedByReader')] })]);
+  assert.equal(filterUsesTrait(asks, 'bookmarkedByReader'), true);
+  assert.equal(filterUsesTrait(asks, 'likedByReader'), false);
+  // 否定でも問うている。「していない」と分かるにも読む必要がある
+  const negated = filterWith([ruleOf({ conditions: [trait('bookmarkedByReader', true)] })]);
+  assert.equal(filterUsesTrait(negated, 'bookmarkedByReader'), true);
+  // 止めたルールと、止めたフィルタは問わない
+  const stopped = filterWith([ruleOf({ enabled: false, conditions: [trait('bookmarkedByReader')] })]);
+  assert.equal(filterUsesTrait(stopped, 'bookmarkedByReader'), false);
+  const off = filterWith([ruleOf({ conditions: [trait('bookmarkedByReader')] })], false);
+  assert.equal(filterUsesTrait(off, 'bookmarkedByReader'), false);
 });
 
 test('何も保存されていなければ、全項目が未指定になる', () => {

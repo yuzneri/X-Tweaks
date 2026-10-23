@@ -530,6 +530,33 @@ test('狭いカラムでもブックマークを出すと、狭い行でだけ�
   assert.equal(packed.includes('xpro-actions'), false);
 });
 
+test('ルールが読むために描かせたブックマークは、狭い行でだけ隠す', () => {
+  const css = cssOf([{ key: '0', appearance: emptyNode().appearance, readsBookmark: true }]);
+  const bar = '[role="group"]:has([data-testid="reply"])';
+  // X Pro がブックマークを省く幅を、行そのものに問う。ワイドの行は X Pro 自身のブックマーク
+  assert.ok(css.includes(`${bar} { container: xpro-actions / inline-size; }`));
+  const narrow = css.slice(css.indexOf('@container xpro-actions (width < 290px) {'));
+  assert.ok(narrow.includes('[data-testid="removeBookmark"]) { display: none !important; }'));
+  // 投稿を開いているカラムでは描かせないので、規則も要らない
+  for (const rest of css.split('[data-xpro-column="0"]').slice(1)) {
+    assert.ok(rest.startsWith(':not([data-xpro-opened]) '), rest);
+  }
+  noNestedHas(css);
+
+  // 「狭いカラムでも表示」なら見せる
+  const shown = cssOf([
+    { key: '0', appearance: appearanceOf((a) => (a.bookmarkButton = 'always')), readsBookmark: true },
+  ]);
+  assert.equal(shown.includes('display: none'), false);
+  // 詰めるとどのみち隠れ、行は中身の幅で浮くのでコンテナにしない
+  const packed = cssOf([
+    { key: '0', appearance: appearanceOf((a) => (a.compact = true)), readsBookmark: true },
+  ]);
+  assert.equal(packed.includes('xpro-actions'), false);
+  // 読むルールが無ければ何も出さない
+  assert.equal(cssOf([{ key: '0', appearance: emptyNode().appearance }]), '');
+});
+
 test('ポストを開いているカラムでは、ボタンを隠さない', () => {
   const css = cssOf([{ key: '0', appearance: appearanceOf((a) => (a.likeButton = 'hidden')) }]);
   // Opened to be read and replied to: the buttons are there to be pressed. Every selector

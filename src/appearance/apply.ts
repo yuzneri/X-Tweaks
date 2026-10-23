@@ -34,10 +34,11 @@ import { changedCells, changeEverything, noticeChange, watchChanges } from './ch
 import { counted, noted, pageCaughtUp, saidIfSlow, timed } from '../diagnostics.ts';
 import { measureAgainIn, MEASURE_MS } from '../filter/pace.ts';
 import { atAQuietMoment } from '../quiet.ts';
-import { appearanceFor, type ColumnScope } from '../settings/resolve.ts';
+import { appearanceFor, resolve, type ColumnScope } from '../settings/resolve.ts';
 import {
   bookmarkStyleOf,
   cardStyleOf,
+  filterUsesTrait,
   isCompact,
   layoutKey,
   mediaStyleOf,
@@ -110,8 +111,11 @@ const STYLE_ID = 'xpro-tweaks-appearance-style';
 const bands = new Set<Element>();
 let strays = true;
 
-/** The scopes (by key) whose posts are to have the bookmark drawn in a narrow column too */
-let bookmarkEverywhere: ReadonlySet<string> = new Set();
+/**
+ * The scopes (by key) whose posts are to have the bookmark drawn in a narrow column too: to be
+ * shown, or for a rule to read and the stylesheet to hide again
+ */
+let bookmarkDrawn: ReadonlySet<string> = new Set();
 
 /**
  * Marks each scope, the bar carrying its name, and whether it holds a post opened to be read.
@@ -155,9 +159,10 @@ export const stampColumns = (): void => {
     /*
      * Where the bookmark is drawn in a narrow column, said to X Pro's side of the page, which
      * has the posts drawn again when this changes (`timeline/pro-bookmark.ts`). Not where a
-     * post is opened, as with hiding the buttons
+     * post is opened, as with hiding the buttons: drawn there for a rule, the narrow rows'
+     * hiding would take with it the opened post's own bookmark, which X Pro draws
      */
-    const bookmark = !opened && bookmarkEverywhere.has(value);
+    const bookmark = !opened && bookmarkDrawn.has(value);
     if (bookmark !== scope.hasAttribute(BOOKMARK_ATTR)) scope.toggleAttribute(BOOKMARK_ATTR, bookmark);
 
     const marked = scope.querySelector(`[${HEADER_ATTR}]`);
@@ -2362,12 +2367,26 @@ export const applyAppearance = (
     const key = columnKey(scope);
     if (seen.has(key)) continue;
     seen.add(key);
-    columns.push({ key, appearance: here(appearanceFor(settings, scope)) });
+    /*
+     * A rule asking whether a post is bookmarked has the button drawn where X Pro leaves it out.
+     * Asked of the filter itself, not the appearance: a scope whose appearance is off still
+     * filters. x.com draws the button in every row
+     */
+    const readsBookmark =
+      surface().hasColumns && filterUsesTrait(resolve(settings, scope).filter, 'bookmarkedByReader');
+    columns.push({
+      key,
+      appearance: here(appearanceFor(settings, scope)),
+      ...(readsBookmark ? { readsBookmark } : {}),
+    });
   }
   // Known before the scopes are marked, which says where the bookmark is wanted
-  bookmarkEverywhere = new Set(
+  bookmarkDrawn = new Set(
     columns
-      .filter((column) => bookmarkStyleOf(column.appearance.bookmarkButton) === 'always')
+      .filter(
+        (column) =>
+          bookmarkStyleOf(column.appearance.bookmarkButton) === 'always' || column.readsBookmark
+      )
       .map((column) => column.key)
   );
   stampColumns();
