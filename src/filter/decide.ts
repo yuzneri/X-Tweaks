@@ -150,8 +150,9 @@ const caseSensitivityOf = (condition: TextCondition): boolean =>
 const textMatcher = (condition: TextCondition): ((post: Post) => boolean) => {
   const caseSensitive = caseSensitivityOf(condition);
 
-  // Self-threads are already read as "reply target = author" by `readPost`, so looking
-  // at the target's values is enough
+  // A reply X draws under the post it answers, with no reply-target line, is already read by
+  // `readPost` as replying to that post's author — a self-thread included — so looking at the
+  // target's values is enough
   if (isSelfMode(condition.mode)) {
     return (post) => {
       const me = post.values.screenName[0];

@@ -620,20 +620,21 @@ const replyLinksOf = (tweet: Element): HTMLAnchorElement[] => {
 };
 
 /**
- * Whether a vertical line connects this to the post above (a thread continuing). On a
- * thread's parent post X puts an extra container drawing a line below the avatar, only on
+ * The post above that a vertical line connects this one to (a thread continuing), or null. On
+ * a thread's parent post X puts an extra container drawing a line below the avatar, only on
  * the parent side, so a post above carrying that container makes this cell a continuation —
  * a reply. Such replies show no "Replying to" line, so link-based detection misses them. A
  * "Show more replies" row in between is skipped, since what follows it is the same thread.
  */
-const followsThreadLine = (cell: Element): boolean => {
+const threadParentOf = (cell: Element): Element | null => {
   let prev = cell.previousElementSibling;
   while (prev?.matches(CELL_SELECTOR) && !prev.querySelector(TWEET)) {
     prev = prev.previousElementSibling;
   }
-  if (!prev?.matches(CELL_SELECTOR)) return false;
+  if (!prev?.matches(CELL_SELECTOR)) return null;
   const avatar = prev.querySelector(AUTHOR_AVATAR);
-  return avatar !== null && (avatar.parentElement?.childElementCount ?? 0) > 1;
+  if (avatar === null || (avatar.parentElement?.childElementCount ?? 0) <= 1) return null;
+  return prev.querySelector(TWEET);
 };
 
 /**
@@ -823,11 +824,16 @@ const pollOf = (tweet: Element): 'open' | 'closed' | null => {
   return null;
 };
 
-/** Lists what could be read from the reply-target line, falling back to the author on a self-thread with no such line */
-const replyTo = (links: HTMLAnchorElement[], followsThread: boolean, author: string): string[] => {
+/**
+ * Lists what could be read from the reply-target line, falling back to the author of the post
+ * the thread line hangs from. Not to the post's own author: X draws someone else's reply under
+ * the post it answers the same way as a self-thread, without the reply-target line, so only the
+ * post above tells the two apart.
+ */
+const replyTo = (links: HTMLAnchorElement[], parentAuthor: string | null): string[] => {
   const named = links.map(linkedName).filter((name): name is string => name !== null);
   if (named.length > 0) return named;
-  return followsThread ? [author] : [];
+  return some(parentAuthor);
 };
 
 /**
@@ -857,7 +863,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
   // The name area answers both whose post it is and whether X vouches for them
   const nameArea = ownIn(tweet, quote, USER_NAME);
   const replyLinks = replyLinksOf(tweet);
-  const followsThread = followsThreadLine(cell);
+  const threadParent = threadParentOf(cell);
   // The body is walked once — the words, the counts, the language and the link trait all come from it
   const bodies = bodiesOf(tweet, quote);
   const inBody = bodyLinksOf(bodies.own);
@@ -880,7 +886,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
       repostedBy: some(repostedByOf(tweet)),
       quotedScreenName: some(quote ? authorOf(quote) : null),
       quotedDisplayName: some(quote ? displayNameOf(quote) : null),
-      replyTo: replyTo(replyLinks, followsThread, author),
+      replyTo: replyTo(replyLinks, threadParent ? authorOf(threadParent) : null),
       pollChoice: pollChoicesIn(tweet),
       cardDomain: cardTextsIn(tweet, (card) => card.domain),
       cardTitle: cardTextsIn(tweet, (card) => card.title),
@@ -893,7 +899,7 @@ export const readPost = (cell: Element, generic: ReadonlySet<string> = new Set()
     isRepost: tweet.querySelector(SOCIAL_CONTEXT) !== null,
     // A quote is spotted by a second author avatar, the quoted post's, being present
     isQuote: tweet.querySelectorAll(AUTHOR_AVATAR).length > 1,
-    isReply: replyLinks.length > 0 || followsThread,
+    isReply: replyLinks.length > 0 || threadParent !== null,
     hasMedia: media.length > 0,
     communityNote: communityNoteOf(tweet),
     poll: pollOf(tweet),
